@@ -1,10 +1,14 @@
 ---
-import AuthLayout from '@/layouts/AuthLayout.astro'
+import Layout from '@/layouts/Layout.astro'
 import { AuthForm } from '@/components/auth/AuthForm'
 
 const nextUrl = Astro.url.searchParams.get('next') ?? '/dashboard'
 ---
-<AuthLayout title="Sign in">
-  <!-- client:only → no SSR, no Supabase called during build -->
-  <AuthForm client:only="react" nextUrl={nextUrl} />
-</AuthLayout>
+
+<Layout title="Sign in" bare>
+  <div class="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
+    <div class="w-full max-w-sm">
+      <AuthForm client:only="react" nextUrl={nextUrl} />
+    </div>
+  </div>
+</Layout>

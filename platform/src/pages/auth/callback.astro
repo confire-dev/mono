@@ -1,58 +1,43 @@
 ---
-// Handles:
-//   • OAuth redirect (GitHub, Google) — code exchange
-//   • Magic link click — session is set by Supabase in the URL fragment
-//
-// After session is confirmed:
-//   • New user with no profile name → /onboarding
-//   • Returning user → ?next param or /dashboard
+import type { EmailOtpType } from '@supabase/supabase-js'
+import { createSupabaseServer } from '@/lib/supabase'
 
-// Static export for the callback route — the JS below handles the actual flow.
-export const prerender = true
+const supabase = createSupabaseServer(Astro.request, Astro.cookies)
+const url      = new URL(Astro.request.url)
+
+const code       = url.searchParams.get('code')
+const token_hash = url.searchParams.get('token_hash')
+const type       = url.searchParams.get('type') as EmailOtpType | null
+const nextUrl    = url.searchParams.get('next') ?? '/dashboard'
+
+let authError = null
+
+if (code) {
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
+  authError = error
+} else if (token_hash && type) {
+  const { error } = await supabase.auth.verifyOtp({ token_hash, type })
+  authError = error
+} else {
+  return Astro.redirect('/login')
+}
+
+if (authError) {
+  return Astro.redirect('/login')
+}
+
+const { data: { user } } = await supabase.auth.getUser()
+if (!user) return Astro.redirect('/login')
+
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('name')
+  .eq('id', user.id)
+  .maybeSingle()
+
+return Astro.redirect(
+  !profile?.name
+    ? `/onboarding?next=${encodeURIComponent(nextUrl)}`
+    : nextUrl
+)
 ---
-
-<!doctype html>
-<html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Signing in… — Confire</title>
-  </head>
-  <body class="flex items-center justify-center min-h-screen">
-    <p id="msg" class="text-sm text-muted-foreground">Signing in…</p>
-
-    <script>
-      import { createBrowserClient } from '../../lib/supabase.ts'
-
-      ;(async () => {
-        const supabase = createBrowserClient()
-        const params   = new URLSearchParams(window.location.search)
-        const nextUrl  = params.get('next') ?? '/dashboard'
-
-        // Exchange the code for a session (PKCE — OAuth and OTP magic links)
-        const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(
-          window.location.href
-        )
-
-        if (error || !session) {
-          const msg = document.getElementById('msg')
-          if (msg) msg.textContent = 'Sign-in failed. Please try again.'
-          setTimeout(() => { window.location.href = '/login' }, 2000)
-          return
-        }
-
-        // New user with no name? → profile completion step
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('id', session.user.id)
-          .maybeSingle()
-
-        if (!profile?.name) {
-          window.location.href = `/onboarding?next=${encodeURIComponent(nextUrl)}`
-        } else {
-          window.location.href = nextUrl
-        }
-      })()
-    </script>
-  </body>
-</html>

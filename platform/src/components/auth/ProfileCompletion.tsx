@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { createBrowserClient } from '@/lib/supabase'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { IconBolt } from '@tabler/icons-react'
+import { useState } from "react"
+import { Zap } from "lucide-react"
+import { createBrowserClient } from "@/lib/supabase"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 interface Props {
   email: string
@@ -11,41 +11,35 @@ interface Props {
   nextUrl?: string
 }
 
-export function ProfileCompletion({ email, userId, nextUrl = '/dashboard' }: Props) {
-  const [name,    setName]    = useState('')
+export function ProfileCompletion({ email, userId, nextUrl = "/dashboard" }: Props) {
+  const [name,    setName]    = useState("")
   const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState('')
+  const [error,   setError]   = useState("")
   const supabase = createBrowserClient()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
     setLoading(true)
-    setError('')
-
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({ id: userId, email, name: name.trim() })
-
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    } else {
-      window.location.href = nextUrl
-    }
+    setError("")
+    const { error } = await supabase.from("profiles").upsert({ id: userId, email, name: name.trim() })
+    if (error) { setError(error.message); setLoading(false) }
+    else window.location.href = nextUrl
   }
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col items-center gap-2 text-center">
-        <IconBolt className="size-8" />
+        <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+          <Zap className="size-5" />
+        </div>
         <h1 className="text-xl font-bold">Welcome to Confire</h1>
         <p className="text-sm text-muted-foreground">One quick step before we start.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="name">Name</Label>
+        <div className="grid gap-2">
+          <Label htmlFor="name">Your name</Label>
           <Input
             id="name"
             type="text"
@@ -56,16 +50,12 @@ export function ProfileCompletion({ email, userId, nextUrl = '/dashboard' }: Pro
             required
           />
         </div>
-
-        {/* Read-only email */}
         <p className="text-center text-xs text-muted-foreground">
           Signed in as <span className="font-medium">{email}</span>
         </p>
-
-        {error && <p className="text-sm text-destructive text-center">{error}</p>}
-
-        <Button type="submit" disabled={loading || !name.trim()}>
-          {loading ? 'Saving…' : 'Continue'}
+        {error && <p className="text-center text-sm text-destructive">{error}</p>}
+        <Button type="submit" className="w-full" disabled={loading || !name.trim()}>
+          {loading ? "Saving…" : "Continue"}
         </Button>
       </form>
     </div>

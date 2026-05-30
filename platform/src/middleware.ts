@@ -6,7 +6,7 @@ import { defineMiddleware } from 'astro:middleware'
 
 const PROTECTED = ['/dashboard']
 
-export const onRequest = defineMiddleware(async ({ url, cookies, redirect, locals }, next) => {
+export const onRequest = defineMiddleware(async ({ url, request, cookies, redirect, locals }, next) => {
   const supabaseURL = import.meta.env.PUBLIC_SUPABASE_URL
 
   // No-op during static build / dev without Supabase configured
@@ -17,7 +17,7 @@ export const onRequest = defineMiddleware(async ({ url, cookies, redirect, local
 
   // Lazy import so the Supabase client is only created when env vars exist
   const { createSupabaseServer } = await import('@/lib/supabase')
-  const supabase = createSupabaseServer(cookies)
+  const supabase = createSupabaseServer(request, cookies)
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {

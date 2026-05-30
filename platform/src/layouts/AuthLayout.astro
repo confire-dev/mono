@@ -6,12 +6,9 @@ const { title, description } = Astro.props
 ---
 
 <Layout title={title} description={description} bare>
-  <div>
-    <a href="/">Confire</a>
-    <slot />
-    <nav>
-      <a href="/privacy">Privacy</a>
-      <a href="/terms">Terms</a>
-    </nav>
+  <div class="flex min-h-screen items-center justify-center p-4">
+    <div class="w-full max-w-sm">
+      <slot />
+    </div>
   </div>
 </Layout>

@@ -1,23 +1,22 @@
 import { useState } from 'react'
+import { Check, Zap, Terminal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { IconCheck, IconBolt, IconTerminal2 } from '@tabler/icons-react'
 
 interface Props {
   user: { email: string; id: string }
   device: { id: string; cliVersion?: string }
-  callbackURL?: string
-  codeChallenge?: string
+  callbackURL: string
 }
 
 const REQUESTED_ACCESS = [
-  'Connect this device to your account',
-  'Send required usage events for billing and dashboard',
+  'Connect this device to your Confire account',
+  'Send usage events for billing and dashboard',
   'Use remote optimizers if your plan allows',
 ]
 
-export function CliAuthorizeCard({ user, device, callbackURL, codeChallenge }: Props) {
+export function CliAuthorizeCard({ user, device, callbackURL }: Props) {
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [error, setError] = useState('')
 
@@ -28,10 +27,21 @@ export function CliAuthorizeCard({ user, device, callbackURL, codeChallenge }: P
       const res = await fetch('/api/cli/authorize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId: device.id, codeChallenge }),
+        body: JSON.stringify({ deviceId: device.id, callbackURL }),
       })
-      if (!res.ok) throw new Error(await res.text())
+      if (!res.ok) {
+        const { error: e } = await res.json() as { error: string }
+        throw new Error(e ?? 'Authorization failed')
+      }
+      const { apiKey, email, message } = await res.json() as {
+        apiKey: string
+        email: string
+        message: string
+      }
       setState('done')
+      // Redirect browser to the CLI's local callback server with the key
+      const params = new URLSearchParams({ api_key: apiKey, email, message })
+      setTimeout(() => { window.location.href = `${callbackURL}?${params}` }, 800)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Authorization failed')
       setState('error')
@@ -42,10 +52,10 @@ export function CliAuthorizeCard({ user, device, callbackURL, codeChallenge }: P
     return (
       <div className="flex flex-col items-center gap-4 text-center">
         <div className="flex size-12 items-center justify-center rounded-full bg-green-500/10">
-          <IconCheck className="size-6 text-green-500" />
+          <Check className="size-6 text-green-500" />
         </div>
         <h1 className="text-xl font-bold">You're connected</h1>
-        <p className="text-sm text-muted-foreground">You can return to your terminal.</p>
+        <p className="text-sm text-muted-foreground">Returning to your terminal…</p>
         <Badge variant="outline" className="text-xs">{user.email}</Badge>
       </div>
     )
@@ -53,17 +63,18 @@ export function CliAuthorizeCard({ user, device, callbackURL, codeChallenge }: P
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
       <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex items-center gap-2">
-          <IconBolt className="size-6" />
-          <IconTerminal2 className="size-5 text-muted-foreground" />
+        <div className="flex items-center gap-3">
+          <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <Zap className="size-5" />
+          </div>
+          <Terminal className="size-5 text-muted-foreground" />
         </div>
         <h1 className="text-xl font-bold">Authorize Confire CLI</h1>
+        <p className="text-sm text-muted-foreground">Grant CLI access to your account</p>
       </div>
 
-      {/* Device info */}
-      <div className="rounded-lg border p-4 space-y-2 text-sm">
+      <div className="rounded-lg border p-4 text-sm flex flex-col gap-2">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Signed in as</span>
           <span className="font-medium">{user.email}</span>
@@ -82,15 +93,12 @@ export function CliAuthorizeCard({ user, device, callbackURL, codeChallenge }: P
         )}
       </div>
 
-      {/* Requested access */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Requested access
-        </p>
-        <ul className="space-y-1.5">
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Requested access</p>
+        <ul className="flex flex-col gap-1.5">
           {REQUESTED_ACCESS.map(item => (
             <li key={item} className="flex items-start gap-2 text-sm">
-              <IconCheck className="size-3.5 mt-0.5 shrink-0 text-green-500" />
+              <Check className="mt-0.5 size-3.5 shrink-0 text-green-500" />
               {item}
             </li>
           ))}
@@ -99,7 +107,7 @@ export function CliAuthorizeCard({ user, device, callbackURL, codeChallenge }: P
 
       <Separator />
 
-      {error && <p className="text-sm text-destructive text-center">{error}</p>}
+      {state === 'error' && <p className="text-center text-sm text-destructive">{error}</p>}
 
       <Button onClick={authorize} disabled={state === 'loading'}>
         {state === 'loading' ? 'Authorizing…' : 'Authorize CLI'}
@@ -107,6 +115,7 @@ export function CliAuthorizeCard({ user, device, callbackURL, codeChallenge }: P
 
       <p className="text-center text-xs text-muted-foreground">
         This connects <strong>{user.email}</strong> to the CLI on this device.
+        Revoke access anytime from your dashboard.
       </p>
     </div>
   )

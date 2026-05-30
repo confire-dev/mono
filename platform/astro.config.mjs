@@ -1,13 +1,16 @@
 import { defineConfig } from 'astro/config'
 import react from '@astrojs/react'
 import tailwindcss from '@tailwindcss/vite'
+import node from '@astrojs/node'
 
 export default defineConfig({
   integrations: [react()],
   vite: {
     plugins: [tailwindcss()],
+    resolve: {
+      dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    },
   },
-  // Static output for the scaffold.
-  // Switch to output: 'server' + add @astrojs/cloudflare adapter before deploying.
-  output: 'static',
+  output: 'server',
+  adapter: node({ mode: 'standalone' }),
 })
