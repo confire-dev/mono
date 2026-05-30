@@ -214,7 +214,7 @@ CREATE TABLE tool_call_summaries (
 );
 
 CREATE INDEX tool_call_summaries_user_month_idx
-  ON tool_call_summaries (user_id, date_trunc('month', created_at));
+  ON tool_call_summaries (user_id, created_at DESC);
 
 
 -- ── monthly_usage ─────────────────────────────────────────────────────────────
@@ -474,8 +474,18 @@ CREATE OR REPLACE FUNCTION get_or_create_active_period(
 DECLARE
   v_period_id    uuid;
   v_period_start timestamptz;
+  v_sub_start    timestamptz;
+  v_sub_end      timestamptz;
 BEGIN
-  -- Check for an active period (no end date = still open)
+  -- Fetch Stripe's authoritative period boundaries (null for free/no-sub users).
+  -- Annual subscribers get a 12-month window; monthly get 1-month.
+  -- This is the single source of truth — we don't hardcode interval logic here.
+  SELECT subscription_current_period_start, subscription_current_period_end
+  INTO v_sub_start, v_sub_end
+  FROM profiles
+  WHERE id = p_user_id;
+
+  -- Check for an open period (no end date = still active)
   SELECT id INTO v_period_id
   FROM usage_periods
   WHERE user_id = p_user_id
@@ -483,17 +493,20 @@ BEGIN
   ORDER BY period_start DESC
   LIMIT 1;
 
-  -- If the active period is from a previous month, close it and start fresh
+  -- Close the open period if it has expired
   IF v_period_id IS NOT NULL THEN
     DECLARE v_start timestamptz;
     BEGIN
       SELECT period_start INTO v_start FROM usage_periods WHERE id = v_period_id;
-      IF date_trunc('month', v_start) < date_trunc('month', now()) THEN
-        -- Close the old period
+
+      -- Subscribers: expired when now() is past Stripe's period_end
+      -- Free users: expired when we've rolled into a new calendar month
+      IF (v_sub_end IS NOT NULL AND now() > v_sub_end)
+         OR (v_sub_end IS NULL AND date_trunc('month', v_start) < date_trunc('month', now())) THEN
         UPDATE usage_periods
-        SET period_end = date_trunc('month', now()) - interval '1 microsecond'
+        SET period_end = COALESCE(v_sub_end, date_trunc('month', now()) - interval '1 microsecond')
         WHERE id = v_period_id;
-        v_period_id := NULL;  -- fall through to create a new one
+        v_period_id := NULL;
       END IF;
     END;
   END IF;
@@ -502,8 +515,14 @@ BEGIN
     RETURN v_period_id;
   END IF;
 
-  -- Create a new period starting at the beginning of the current month
-  v_period_start := date_trunc('month', now());
+  -- Determine new period start:
+  --   Subscribers: use Stripe's current period start (exact billing date)
+  --   Free users:  start of current calendar month
+  IF v_sub_start IS NOT NULL AND v_sub_end IS NOT NULL AND now() <= v_sub_end THEN
+    v_period_start := v_sub_start;
+  ELSE
+    v_period_start := date_trunc('month', now());
+  END IF;
 
   INSERT INTO usage_periods (user_id, plan_id, period_start)
   VALUES (p_user_id, p_plan_id, v_period_start)
@@ -609,7 +628,7 @@ INSERT INTO plans (id, status, config) VALUES
   "billingMode": "subscription",
   "interval": "month",
   "stripe": { "productId": null, "priceId": null, "checkoutMode": "subscription" },
-  "pricing": { "amountCents": 500, "currency": "usd", "displayPrice": "$5/mo" },
+  "pricing": { "amountCents": 1000, "currency": "usd", "displayPrice": "$10/mo" },
   "limits": {
     "cloudOptimizationsMonthly": 2000,
     "cloudTokensMonthly": 20000000,
@@ -642,7 +661,73 @@ INSERT INTO plans (id, status, config) VALUES
   "billingMode": "subscription",
   "interval": "month",
   "stripe": { "productId": null, "priceId": null, "checkoutMode": "subscription" },
-  "pricing": { "amountCents": 900, "currency": "usd", "displayPrice": "$9/mo" },
+  "pricing": { "amountCents": 2000, "currency": "usd", "displayPrice": "$20/mo" },
+  "limits": {
+    "cloudOptimizationsMonthly": 5000,
+    "cloudTokensMonthly": 50000000,
+    "maxRawTokensPerOptimization": 750000,
+    "maxPayloadBytes": 10000000,
+    "retainedHistoryDays": 90,
+    "cliSessions": 10
+  },
+  "credits": { "includedMonthly": 5000, "rollover": false, "allowManualGrants": true, "allowPurchases": true },
+  "features": {
+    "localOptimization": true, "remoteOptimization": true,
+    "usageDashboard": true, "advancedUsageDashboard": true,
+    "cliSessionManagement": true, "payloadCapture": false,
+    "exportData": true, "priorityOptimizerUpdates": true,
+    "customOptimizers": false, "ssoSaml": false
+  },
+  "optimizers": {
+    "local": ["generic","bash","read","webfetch"],
+    "remote": ["figma","github_pr","jira","confluence","clickup","slack","notion","amplitude","fireflies","playwright","zapier","google_drive"]
+  },
+  "telemetry": { "requiredUsageMetering": true, "optionalProductAnalyticsDefault": true }
+}'),
+
+('dev_annual', 'active', '{
+  "id": "dev_annual",
+  "name": "Dev (Annual)",
+  "tagline": "For developers who use AI agents daily.",
+  "status": "active",
+  "audience": "individual",
+  "billingMode": "subscription",
+  "interval": "year",
+  "stripe": { "productId": null, "priceId": null, "checkoutMode": "subscription" },
+  "pricing": { "amountCents": 9900, "currency": "usd", "displayPrice": "$99/yr" },
+  "limits": {
+    "cloudOptimizationsMonthly": 2000,
+    "cloudTokensMonthly": 20000000,
+    "maxRawTokensPerOptimization": 500000,
+    "maxPayloadBytes": 5000000,
+    "retainedHistoryDays": 60,
+    "cliSessions": 5
+  },
+  "credits": { "includedMonthly": 2000, "rollover": false, "allowManualGrants": true, "allowPurchases": true },
+  "features": {
+    "localOptimization": true, "remoteOptimization": true,
+    "usageDashboard": true, "advancedUsageDashboard": true,
+    "cliSessionManagement": true, "payloadCapture": false,
+    "exportData": false, "priorityOptimizerUpdates": false,
+    "customOptimizers": false, "ssoSaml": false
+  },
+  "optimizers": {
+    "local": ["generic","bash","read","webfetch"],
+    "remote": ["figma","github_pr","jira","confluence","clickup","slack","notion","amplitude","fireflies","playwright","zapier","google_drive"]
+  },
+  "telemetry": { "requiredUsageMetering": true, "optionalProductAnalyticsDefault": true }
+}'),
+
+('pro_annual', 'active', '{
+  "id": "pro_annual",
+  "name": "Pro (Annual)",
+  "tagline": "For power users who optimize every session.",
+  "status": "active",
+  "audience": "individual",
+  "billingMode": "subscription",
+  "interval": "year",
+  "stripe": { "productId": null, "priceId": null, "checkoutMode": "subscription" },
+  "pricing": { "amountCents": 19900, "currency": "usd", "displayPrice": "$199/yr" },
   "limits": {
     "cloudOptimizationsMonthly": 5000,
     "cloudTokensMonthly": 50000000,

@@ -79,7 +79,6 @@ export interface Env {
   STRIPE_WEBHOOK_SECRET?: string
   // Supabase — database webhooks (set in wrangler secrets)
   SUPABASE_WEBHOOK_SECRET?: string
-  STRIPE_PRO_PRICE_ID?: string
   // Environment tag
   ENVIRONMENT: string
 }

@@ -14,7 +14,7 @@ export interface SupabaseConfig {
 
 // ── Domain types ───────────────────────────────────────────────────────────
 
-export type Plan = 'free' | 'pro'
+export type Plan = 'free' | 'dev' | 'dev_annual' | 'pro' | 'pro_annual' | 'enterprise'
 export type SubscriptionStatus = 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete'
 
 export interface Profile {
@@ -22,9 +22,11 @@ export interface Profile {
   email: string
   name?: string
   plan: Plan
+  plan_id: Plan
   subscription_status: SubscriptionStatus
   stripe_customer_id?: string
   stripe_subscription_id?: string
+  subscription_current_period_start?: string
   subscription_current_period_end?: string
   is_banned: boolean
 }
@@ -276,22 +278,23 @@ export async function handleSubscriptionUpdated(
     stripeCustomerId: string
     subscriptionId: string
     status: string
-    plan: string
+    planId: string
+    currentPeriodStart: number
     currentPeriodEnd: number
   }
 ): Promise<void> {
-  // Map Stripe status to our subscription_status
   const status = mapStripeStatus(event.status)
-  const plan   = mapStripePlan(event.plan)
 
-  // Update profile billing state
+  // Update profile billing state — write both plan columns until old one is dropped
   await sbFetch(cfg, 'PATCH',
     `/rest/v1/profiles?stripe_customer_id=eq.${encodeURIComponent(event.stripeCustomerId)}`, {
-      stripe_subscription_id:          event.subscriptionId,
-      plan,
-      subscription_status:             status,
-      subscription_current_period_end: new Date(event.currentPeriodEnd * 1000).toISOString(),
-      updated_at:                      new Date().toISOString(),
+      stripe_subscription_id:            event.subscriptionId,
+      plan:                              event.planId,
+      plan_id:                           event.planId,
+      subscription_status:               status,
+      subscription_current_period_start: new Date(event.currentPeriodStart * 1000).toISOString(),
+      subscription_current_period_end:   new Date(event.currentPeriodEnd * 1000).toISOString(),
+      updated_at:                        new Date().toISOString(),
     })
 
   // Grant included credits for the new period (idempotent via stripe_event_id)
@@ -304,7 +307,7 @@ export async function handleSubscriptionUpdated(
     // Stripe webhook has no access to KV (env not available here).
     // Query the plans table directly for the includedMonthly value.
     const plansRes = await sbFetch(cfg, 'GET',
-      `/rest/v1/plans?id=eq.${encodeURIComponent(plan)}&select=config&limit=1`)
+      `/rest/v1/plans?id=eq.${encodeURIComponent(event.planId)}&select=config&limit=1`)
     const planRows = plansRes.ok
       ? await plansRes.json() as Array<{ config: { credits: { includedMonthly: number } } }>
       : []
@@ -404,12 +407,6 @@ function mapStripeStatus(status: string): SubscriptionStatus {
   return map[status] ?? 'none'
 }
 
-function mapStripePlan(priceId: string): Plan {
-  // Map Stripe price IDs to plan names.
-  // Set STRIPE_PRO_PRICE_ID env var to your actual price ID.
-  if (priceId.includes('pro')) return 'pro'
-  return 'free'
-}
 
 async function sbFetch(
   cfg: SupabaseConfig,

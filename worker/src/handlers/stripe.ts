@@ -13,6 +13,7 @@ import {
   handleSubscriptionCanceled,
   writeAudit,
 } from '../lib/supabase.js'
+import { getPlans } from '../lib/plans.js'
 
 // Relevant Stripe event types handled in v1.
 type StripeEventType =
@@ -55,12 +56,13 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
     case 'customer.subscription.updated': {
       const sub = event.data.object
       await handleSubscriptionUpdated(cfg, {
-        stripeEventId:    event.id,
-        stripeCustomerId: sub['customer'] as string,
-        subscriptionId:   sub['id'] as string,
-        status:           sub['status'] as string,
-        plan:             extractPlanFromItems(sub),
-        currentPeriodEnd: sub['current_period_end'] as number,
+        stripeEventId:      event.id,
+        stripeCustomerId:   sub['customer'] as string,
+        subscriptionId:     sub['id'] as string,
+        status:             sub['status'] as string,
+        planId:             await resolvePlanId(extractPriceId(sub), env),
+        currentPeriodStart: sub['current_period_start'] as number,
+        currentPeriodEnd:   sub['current_period_end'] as number,
       })
       await writeAudit(cfg, null, 'stripe_subscription_updated', {
         event_id:    event.id,
@@ -160,8 +162,19 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
-function extractPlanFromItems(sub: Record<string, unknown>): string {
+function extractPriceId(sub: Record<string, unknown>): string {
   const items = (sub['items'] as Record<string, unknown>)?.['data'] as Array<Record<string,unknown>> | undefined
-  const priceId = items?.[0]?.['price'] as Record<string,string> | undefined
-  return priceId?.['id'] ?? 'free'
+  const price = items?.[0]?.['price'] as Record<string,string> | undefined
+  return price?.['id'] ?? ''
+}
+
+// Resolve a Stripe price ID to an internal plan ID using the plans table
+// (via the KV-cached getPlans). No env var hardcoding — price IDs live in the DB.
+async function resolvePlanId(priceId: string, env: Env): Promise<string> {
+  if (!priceId) return 'free'
+  const plans = await getPlans(env)
+  for (const plan of Object.values(plans)) {
+    if (plan.stripe.priceId === priceId) return plan.id
+  }
+  return 'free'
 }

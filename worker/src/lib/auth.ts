@@ -29,7 +29,7 @@ export async function authenticate(request: Request, env: Env): Promise<AuthResu
   // In development (no Supabase configured), accept any non-empty key.
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
     const devUser: Profile = {
-      id: 'dev', email: 'dev@local', plan: 'free',
+      id: 'dev', email: 'dev@local', plan: 'free', plan_id: 'free',
       subscription_status: 'none', is_banned: false,
     }
     return { ok: true, user: devUser }

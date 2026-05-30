@@ -132,7 +132,7 @@ export function entitlementMessage(check: EntitlementCheck, planName: string): s
       return [
         `⚠️ Confire: ${check.usage?.used}/${check.usage?.limit} cloud optimizations used this month.`,
         planName === 'Free'
-          ? 'Upgrade to Dev ($5/mo) or Pro ($9/mo) at confire.dev/upgrade'
+          ? 'Upgrade to Dev ($10/mo) or Pro ($20/mo) at confire.dev/upgrade'
           : 'Local optimization still active.',
       ].join(' ')
 

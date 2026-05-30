@@ -14,7 +14,7 @@
 
 import type { Env } from '../types.js'
 
-export type PlanId = 'free' | 'dev' | 'pro' | 'enterprise'
+export type PlanId = 'free' | 'dev' | 'dev_annual' | 'pro' | 'pro_annual' | 'enterprise'
 export type BillingInterval = 'month' | 'year'
 
 export interface Plan {

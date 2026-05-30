@@ -1,7 +1,7 @@
 // Types shared across the platform.
 // Mirror billing/usage types from Supabase schema and the Worker API.
 
-export type Plan = 'free' | 'pro'
+export type Plan = 'free' | 'dev' | 'dev_annual' | 'pro' | 'pro_annual' | 'enterprise'
 
 export interface UserProfile {
   id: string
