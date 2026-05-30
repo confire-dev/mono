@@ -338,6 +338,37 @@ END;
 $$;
 
 
+-- ── Auto-seed free credits on profile creation ───────────────────────────────
+-- Fires on every INSERT into profiles (platform signup OR CLI first login).
+-- Reads the free plan's includedMonthly from the plans table so no hardcoding.
+-- ON CONFLICT DO NOTHING makes it safe to call multiple times.
+
+CREATE OR REPLACE FUNCTION seed_free_plan_credits()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+DECLARE
+  v_credits integer;
+BEGIN
+  SELECT COALESCE((config->'credits'->>'includedMonthly')::integer, 500)
+  INTO v_credits
+  FROM plans WHERE id = 'free';
+
+  INSERT INTO credit_balances (user_id, included_credits)
+  VALUES (NEW.id, COALESCE(v_credits, 500))
+  ON CONFLICT (user_id) DO NOTHING;
+
+  INSERT INTO credit_ledger (user_id, event_type, amount, source)
+  VALUES (NEW.id, 'grant', COALESCE(v_credits, 500), 'system')
+  ON CONFLICT DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER profiles_seed_free_credits
+  AFTER INSERT ON profiles
+  FOR EACH ROW EXECUTE FUNCTION seed_free_plan_credits();
+
+
 -- ── Row-Level Security ────────────────────────────────────────────────────────
 -- Users can only read their own rows.
 -- The Worker uses the SERVICE ROLE KEY which bypasses RLS entirely.

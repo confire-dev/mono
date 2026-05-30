@@ -205,19 +205,8 @@ export async function upsertProfile(
     { id: supabaseUserId, email, name: name ?? null, plan: 'free', subscription_status: 'none' },
     { 'Prefer': 'resolution=merge-duplicates,return=representation' })
   const rows = await res.json() as Profile[]
-  // Seed credit balance from the plans table (DB is source of truth).
-  const planRow = await sbFetch(cfg, 'GET',
-    `/rest/v1/plans?id=eq.free&select=config&limit=1`)
-  const planData = planRow.ok
-    ? (await planRow.json() as Array<{ config: { credits: { includedMonthly: number } } }>)[0]
-    : null
-  const includedCredits = planData?.config?.credits?.includedMonthly ?? 500
-
-  await sbFetch(cfg, 'POST', '/rest/v1/rpc/grant_credits', {
-    p_user_id:  supabaseUserId,
-    p_included: includedCredits,
-    p_source:   'system',
-  })
+  // Credit balance is seeded by the DB trigger on profiles INSERT.
+  // No action needed here — ON CONFLICT DO NOTHING in the trigger prevents duplicates.
   return rows[0]!
 }
 

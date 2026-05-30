@@ -7,10 +7,12 @@ compatibility_flags = ["nodejs_compat"]
 ENVIRONMENT = "production"
 
 # KV — content-hash optimizer cache (24h TTL, ~1ms lookup)
+# Local dev uses a local SQLite-backed KV store — IDs only matter for production deploy.
+# Replace with real IDs from: wrangler kv namespace create confire-cache
 [[kv_namespaces]]
 binding = "CACHE"
-id = "placeholder-replace-with: wrangler kv namespace create confire-cache"
-preview_id = "placeholder-replace-with: wrangler kv namespace create confire-cache --preview"
+id = "00000000000000000000000000000001"
+preview_id = "00000000000000000000000000000001"
 
 # Analytics Engine — real-time counters for the dashboard
 # Run: wrangler analytics-engine dataset create confire-events
@@ -31,3 +33,6 @@ dataset = "confire_events"
 [dev]
 port = 8787
 local_protocol = "http"
+
+[env.dev.vars]
+ENVIRONMENT = "development"
