@@ -1,7 +1,8 @@
 ---
 import Layout from '@/layouts/Layout.astro'
-import { OverviewPage } from '@/components/dashboard/pages/OverviewPage'
+import { DashboardApp } from '@/components/dashboard/DashboardApp'
 ---
+
 <Layout title="Dashboard" bare>
-  <OverviewPage client:only="react" />
+  <DashboardApp client:only="react" />
 </Layout>
