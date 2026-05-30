@@ -1,0 +1,14 @@
+# Go binaries
+confire
+confire-*
+
+# Test binaries
+*.test
+*.bench
+
+# Coverage
+coverage.out
+coverage.html
+
+# macOS
+.DS_Store
