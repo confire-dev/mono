@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.wrangler/
+*.wasm
+
+# Turbo cache
+.turbo/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Env files — never commit real secrets
+.env
+.env.local
+.env.*.local
+.dev.vars
+.dev.vars.local
+
+# Go binaries
+cli/confire
+cli/confire-*
+
+# Go test cache
+*.test
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Editor
+.idea/
+.vscode/settings.json
+.vscode/launch.json
+*.swp
+*.swo
+
+# Cloudflare
+.wrangler/
+
+# pnpm
+pnpm-lock.yaml.bak
+
+# Astro build
+platform/dist/
+platform/.astro/

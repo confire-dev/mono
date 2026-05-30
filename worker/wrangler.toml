@@ -1,0 +1,29 @@
+name = "confire-worker"
+main = "src/index.ts"
+compatibility_date = "2025-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+
+# KV — content-hash optimizer cache (24h TTL, ~1ms lookup)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "placeholder-replace-with: wrangler kv namespace create confire-cache"
+preview_id = "placeholder-replace-with: wrangler kv namespace create confire-cache --preview"
+
+# Analytics Engine — real-time counters for the dashboard
+# Run: wrangler analytics-engine dataset create confire-events
+[[analytics_engine_datasets]]
+binding = "AE"
+dataset = "confire_events"
+
+# Secrets (set via: wrangler secret put SUPABASE_URL etc.)
+# SUPABASE_URL          — your Supabase project URL
+# SUPABASE_ANON_KEY     — Supabase anon/public key
+# SUPABASE_SERVICE_KEY  — Supabase service role key (server-side only)
+# AMPLITUDE_KEY         — Amplitude HTTP API key
+
+[dev]
+port = 8787
+local_protocol = "http"

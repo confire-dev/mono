@@ -1,0 +1,20 @@
+{
+  "name": "confire-mono",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "type-check": "turbo run type-check",
+    "test": "turbo run test",
+    "worker:dev": "turbo run dev --filter=worker",
+    "worker:deploy": "turbo run deploy --filter=worker"
+  },
+  "devDependencies": {
+    "turbo": "^2.9.16",
+    "typescript": "^6.0.3"
+  },
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=22"
+  }
+}

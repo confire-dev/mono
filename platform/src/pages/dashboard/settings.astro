@@ -1,0 +1,13 @@
+---
+import Layout from '@/layouts/Layout.astro'
+import { DashboardPage } from '@/components/dashboard/DashboardPage'
+---
+
+<Layout title="Settings" bare>
+  <DashboardPage client:only="react" title="Settings" currentPath="/dashboard/settings">
+    {/* TODO: <AccountSection /> */}
+    {/* TODO: <TelemetryToggle /> */}
+    {/* TODO: <PrivacySettings /> */}
+    {/* TODO: <DangerZone /> */}
+  </DashboardPage>
+</Layout>

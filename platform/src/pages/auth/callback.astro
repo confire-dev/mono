@@ -1,0 +1,58 @@
+---
+// Handles:
+//   • OAuth redirect (GitHub, Google) — code exchange
+//   • Magic link click — session is set by Supabase in the URL fragment
+//
+// After session is confirmed:
+//   • New user with no profile name → /onboarding
+//   • Returning user → ?next param or /dashboard
+
+// Static export for the callback route — the JS below handles the actual flow.
+export const prerender = true
+---
+
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Signing in… — Confire</title>
+  </head>
+  <body class="flex items-center justify-center min-h-screen">
+    <p id="msg" class="text-sm text-muted-foreground">Signing in…</p>
+
+    <script>
+      import { createBrowserClient } from '../../lib/supabase.ts'
+
+      ;(async () => {
+        const supabase = createBrowserClient()
+        const params   = new URLSearchParams(window.location.search)
+        const nextUrl  = params.get('next') ?? '/dashboard'
+
+        // Exchange the code for a session (PKCE — OAuth and OTP magic links)
+        const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(
+          window.location.href
+        )
+
+        if (error || !session) {
+          const msg = document.getElementById('msg')
+          if (msg) msg.textContent = 'Sign-in failed. Please try again.'
+          setTimeout(() => { window.location.href = '/login' }, 2000)
+          return
+        }
+
+        // New user with no name? → profile completion step
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', session.user.id)
+          .maybeSingle()
+
+        if (!profile?.name) {
+          window.location.href = `/onboarding?next=${encodeURIComponent(nextUrl)}`
+        } else {
+          window.location.href = nextUrl
+        }
+      })()
+    </script>
+  </body>
+</html>

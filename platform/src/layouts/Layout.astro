@@ -1,0 +1,33 @@
+---
+import '@/styles/global.css'
+
+interface Props {
+  title: string
+  description?: string
+  bare?: boolean  // hide site nav (auth pages, CLI authorize, processing)
+}
+
+const { title, description = 'Confire — AI agent context optimizer', bare = false } = Astro.props
+---
+
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title} — Confire</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    {!bare && (
+      <header>
+        <!-- TODO: <Navbar /> -->
+        <a href="/">Confire</a>
+      </header>
+    )}
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>

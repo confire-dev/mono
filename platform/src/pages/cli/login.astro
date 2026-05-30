@@ -1,0 +1,16 @@
+---
+import AuthLayout from '@/layouts/AuthLayout.astro'
+import { CliAuthorizeCard } from '@/components/auth/CliAuthorizeCard'
+
+const deviceId      = Astro.url.searchParams.get('device_id')      ?? ''
+const cliVersion    = Astro.url.searchParams.get('cli_version')     ?? ''
+const codeChallenge = Astro.url.searchParams.get('code_challenge')  ?? ''
+---
+<AuthLayout title="Authorize CLI">
+  <CliAuthorizeCard
+    client:only="react"
+    user={{ email: '', id: '' }}
+    device={{ id: deviceId, cliVersion }}
+    codeChallenge={codeChallenge}
+  />
+</AuthLayout>

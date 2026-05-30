@@ -1,0 +1,16 @@
+---
+import Layout from './Layout.astro'
+
+interface Props { title: string }
+const { title } = Astro.props
+---
+
+<Layout title={title} bare>
+  <div>
+    <!-- TODO: <DashboardSidebar client:load currentPath={Astro.url.pathname} /> -->
+    <main>
+      <h1>{title}</h1>
+      <slot />
+    </main>
+  </div>
+</Layout>

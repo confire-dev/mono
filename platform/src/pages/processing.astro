@@ -1,0 +1,10 @@
+---
+import AuthLayout from '@/layouts/AuthLayout.astro'
+
+const message  = Astro.url.searchParams.get('message')  ?? 'Just a moment…'
+const subtitle = Astro.url.searchParams.get('subtitle')  ?? 'Completing your request.'
+---
+
+<AuthLayout title="Processing">
+  <!-- TODO: <ProcessingState message={message} subtitle={subtitle} /> -->
+</AuthLayout>
