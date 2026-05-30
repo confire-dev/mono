@@ -1,5 +1,6 @@
 // Package config provides persistent CLI configuration via ~/.confire/config.json.
-// Environment variables always override the file.
+// Authoritative source for preferences: Supabase user_preferences table.
+// Local file is the offline fallback; synced via `confire config set`.
 //
 // Author: Efe <efe@efebehar.dev>
 package config
@@ -12,36 +13,75 @@ import (
 	"strings"
 )
 
+// NotificationConfig controls how Confire reports savings to the developer.
+type NotificationConfig struct {
+	// Enabled: false = silent (no 🔥 lines at all)
+	Enabled bool `json:"enabled"`
+
+	// Style: "brand" (🔥 with context) | "minimal" ([confire] compact) | "off" (silent)
+	Style string `json:"style"`
+
+	// MinSavedTokens: saves smaller than this emit nothing. Default 5000.
+	MinSavedTokens int `json:"min_saved_tokens"`
+
+	// BigSaveTokens: saves ≥ this get an additionalContext line (visible to Claude).
+	// Smaller saves only write to stderr. Default 50000.
+	BigSaveTokens int `json:"big_save_tokens"`
+}
+
 // Config is the user-editable CLI configuration.
 // All fields have safe defaults so a missing or empty file works fine.
 type Config struct {
-	// Telemetry controls optional product analytics forwarding (Amplitude).
-	// true = send analytics events (default)
-	// false = skip Amplitude; usage accounting for billing still runs.
+	// Telemetry: legacy alias kept for backward compat.
+	// Controls Amplitude analytics forwarding. Does NOT disable usage accounting.
 	Telemetry bool `json:"telemetry"`
 
+	// Analytics is the canonical name (Telemetry is kept for backward compat).
+	Analytics bool `json:"analytics"`
+
 	// WorkerURL overrides the default Worker endpoint.
-	// Leave empty to use the production Worker.
 	WorkerURL string `json:"worker_url,omitempty"`
+
+	// Notifications controls 🔥 save notifications.
+	Notifications NotificationConfig `json:"notifications"`
 }
 
-const defaultTelemetry = true
+func defaults() Config {
+	return Config{
+		Telemetry: true,
+		Analytics: true,
+		Notifications: NotificationConfig{
+			Enabled:        true,
+			Style:          "brand",
+			MinSavedTokens: 5_000,
+			BigSaveTokens:  50_000,
+		},
+	}
+}
 
 // Load reads the config file and applies env-var overrides.
 // Never returns an error — missing/corrupt config uses safe defaults.
 func Load() Config {
-	cfg := Config{Telemetry: defaultTelemetry}
+	cfg := defaults()
 
 	if data, err := os.ReadFile(Path()); err == nil {
 		_ = json.Unmarshal(data, &cfg)
+		// Ensure notification defaults for older config files
+		if cfg.Notifications.BigSaveTokens == 0 {
+			cfg.Notifications = defaults().Notifications
+		}
 	}
 
-	// CONFIRE_TELEMETRY=0 or CONFIRE_TELEMETRY=false → disable
-	if v := os.Getenv("CONFIRE_TELEMETRY"); v != "" {
-		if b, err := strconv.ParseBool(v); err == nil {
-			cfg.Telemetry = b
-		} else if strings.ToLower(v) == "0" || strings.ToLower(v) == "off" {
-			cfg.Telemetry = false
+	// CONFIRE_TELEMETRY=0 or CONFIRE_ANALYTICS=0 env overrides
+	for _, env := range []string{"CONFIRE_TELEMETRY", "CONFIRE_ANALYTICS"} {
+		if v := os.Getenv(env); v != "" {
+			if b, err := strconv.ParseBool(v); err == nil {
+				cfg.Telemetry = b
+				cfg.Analytics = b
+			} else if strings.ToLower(v) == "0" || strings.ToLower(v) == "off" {
+				cfg.Telemetry = false
+				cfg.Analytics = false
+			}
 		}
 	}
 

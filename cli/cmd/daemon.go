@@ -45,6 +45,10 @@ type sessionStats struct {
 	optimizedCalls int
 	rawBytes       int64
 	optimizedBytes int64
+	// Biggest single save this session (for the 🔥 summary)
+	biggestWinTool string
+	biggestWinRaw  int
+	biggestWinOpt  int
 }
 
 type daemonState struct {
@@ -80,7 +84,17 @@ func (ds *daemonState) onToolResult(event intercept.InterceptEvent, result inter
 		sess.optimizedCalls++
 		sess.rawBytes += int64(result.Stats.BeforeBytes)
 		sess.optimizedBytes += int64(result.Stats.AfterBytes)
-		// Post telemetry event async (don't block the hook response)
+		// Track biggest single save for session summary
+		savedBytes := result.Stats.BeforeBytes - result.Stats.AfterBytes
+		if savedBytes > sess.biggestWinRaw-sess.biggestWinOpt {
+			name := event.Tool.GetServerHint()
+			if event.Tool != nil {
+				name = event.Tool.Name
+			}
+			sess.biggestWinTool = normalizeToolName(name)
+			sess.biggestWinRaw  = result.Stats.BeforeBytes
+			sess.biggestWinOpt  = result.Stats.AfterBytes
+		}
 		go ds.postToolEvent(event, result)
 	}
 }
@@ -95,15 +109,10 @@ func (ds *daemonState) onSessionEnd(event intercept.InterceptEvent) {
 		return
 	}
 
-	// Print terminal summary — the ROI reminder every session.
-	saved := sess.rawBytes - sess.optimizedBytes
-	savedMB := float64(saved) / 1_000_000
-	// Rough cost estimate: ~$0.003 per 1k tokens, ~4 bytes/token
-	costUSD := float64(saved) / 4000 * 0.003
-	fmt.Fprintf(os.Stderr,
-		"\n[confire] Session complete · %d calls optimized · %.1fMB saved · $%.2f saved\n\n",
-		sess.optimizedCalls, savedMB, costUSD,
-	)
+	// Print session summary using 🔥 formatting
+	if summary := sessionSummary(sess, ds.cfg); summary != "" {
+		fmt.Fprintf(os.Stderr, "\n%s\n\n", summary)
+	}
 
 	go ds.postSessionEnd(sess)
 }
@@ -295,9 +304,30 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 		return
 	}
 
-	// Tool calls → optimize + track stats.
+	// Tool calls → optimize + track stats + notify.
 	result, _ := t.Send(event)
 	state.onToolResult(event, result)
+
+	// Format the 🔥 notification
+	toolName := ""
+	if event.Tool != nil {
+		toolName = event.Tool.Name
+	}
+	stderrLine, contextLine := notifyResult(result, toolName, state.cfg)
+
+	if stderrLine != "" {
+		fmt.Fprintln(os.Stderr, stderrLine)
+	}
+
+	// Big save → add one line to Claude's context (visible in conversation)
+	if contextLine != "" && result.Kind == intercept.ResultReplaceOutput {
+		result.Context = contextLine
+		if result.Kind == intercept.ResultReplaceOutput {
+			// Upgrade to add-context only if there's no tool output to set
+			// (we still send the optimized output + context via hookSpecificOutput)
+		}
+	}
+
 	json.NewEncoder(conn).Encode(result)
 }
 
