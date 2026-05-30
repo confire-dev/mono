@@ -41,9 +41,18 @@ func runStatus() error {
 	// ── Agents ────────────────────────────────────────────────────────────
 	fmt.Printf("  %sAgents%s\n", dim, reset)
 	for _, h := range hosts.Registry() {
+		label := h.Label()
+		if h.ComingSoon() {
+			detected := h.Detect()
+			if detected {
+				fmt.Printf("  %s○%s  %-18s %sfound ✓  coming soon%s\n", gray, reset, label, dim, reset)
+			} else {
+				fmt.Printf("  %s○%s  %-18s %scoming soon%s\n", gray, reset, label, dim, reset)
+			}
+			continue
+		}
 		detected := h.Detect()
 		installed := detected && h.IsInstalled(h.Preferred())
-		label := h.Label()
 		if !detected {
 			fmt.Printf("  %s○%s  %-18s %snot detected%s\n", gray, reset, label, dim, reset)
 			continue

@@ -50,6 +50,7 @@ func (h *CursorHost) Install(s Strategy, opts InstallOptions) error {
 }
 func (h *CursorHost) IsInstalled(_ Strategy) bool { return false }
 func (h *CursorHost) Uninstall(_ Strategy) error  { return nil }
+func (h *CursorHost) ComingSoon() bool             { return true }
 
 // ── Cline (VS Code extension) ─────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ func (h *ClineHost) Install(s Strategy, opts InstallOptions) error {
 }
 func (h *ClineHost) IsInstalled(_ Strategy) bool { return false }
 func (h *ClineHost) Uninstall(_ Strategy) error  { return nil }
+func (h *ClineHost) ComingSoon() bool             { return true }
 
 // ── Windsurf ──────────────────────────────────────────────────────────────
 
@@ -120,6 +122,7 @@ func (h *WindsurfHost) Install(s Strategy, opts InstallOptions) error {
 }
 func (h *WindsurfHost) IsInstalled(_ Strategy) bool { return false }
 func (h *WindsurfHost) Uninstall(_ Strategy) error  { return nil }
+func (h *WindsurfHost) ComingSoon() bool             { return true }
 
 // ── OpenAI Codex CLI ──────────────────────────────────────────────────────
 
@@ -150,3 +153,4 @@ func (h *CodexHost) Install(s Strategy, opts InstallOptions) error {
 }
 func (h *CodexHost) IsInstalled(_ Strategy) bool { return false }
 func (h *CodexHost) Uninstall(_ Strategy) error  { return nil }
+func (h *CodexHost) ComingSoon() bool             { return true }

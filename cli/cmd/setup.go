@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/confire-dev/confire/auth"
@@ -14,177 +12,202 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var setupLocal  bool
+var setupGlobal bool
+
 var setupCmd = &cobra.Command{
 	Use:   "setup",
-	Short: "Detect AI tools and configure Confire optimization",
-	Long: `Scans your system for supported AI coding tools and their MCP servers,
-shows what Confire will optimize, and installs the hook.`,
+	Short: "Install Confire hooks for your AI coding agent",
+	Long: `Interactively installs Confire hooks into your AI agent's settings.
+
+Scope options:
+  Global (default)  installs into ~/.claude/settings.json — applies to all projects.
+  Local             installs into .claude/settings.json in the nearest git root —
+                    applies to this project only, and can override global settings.
+
+Controls:
+  ↑ ↓     navigate
+  SPACE   toggle selection
+  ENTER   confirm
+  Q       quit without changes
+
+After installation, restart your AI agent to activate the hook.
+
+Examples:
+  confire setup            interactive — asks for scope and agents
+  confire setup --local    skip scope question, install locally
+  confire setup --global   skip scope question, install globally`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runSetup()
 	},
 }
 
 func init() {
+	setupCmd.Flags().BoolVar(&setupLocal,  "local",  false, "install into this project's .claude/settings.json")
+	setupCmd.Flags().BoolVar(&setupGlobal, "global", false, "install into ~/.claude/settings.json (default scope)")
 	rootCmd.AddCommand(setupCmd)
 }
 
-// ── Optimizer / phase inventory shown in the TUI ──────────────────────────
-
-type optimizerItem struct {
-	id          string
-	label       string
-	description string
-	phase       string
-	enabled     bool
-	isSoon      bool
-}
-
-var DEFAULT_OPTIMIZERS = []optimizerItem{
-	// Local optimizer (free tier) — runs in the CLI daemon
-	{id: "bash",        label: "Bash",      description: "trim logs, keep failures (60-95%)",   phase: "tool.post",     enabled: true},
-	{id: "read",        label: "Read",      description: "cap large file reads (pre + post)",    phase: "tool.pre+post", enabled: true},
-	{id: "webfetch",    label: "WebFetch",  description: "strip HTML/CSS noise (80-90%)",        phase: "tool.post",     enabled: true},
-	{id: "generic",     label: "Generic",   description: "universal JSON noise stripping (fallback)", phase: "tool.post",  enabled: true},
-	// Remote optimizer (paid tier) — runs in the Cloudflare Worker
-	{id: "figma",       label: "Figma ✦",   description: "JSX → section map (98% reduction)",   phase: "tool.post",     enabled: true},
-	{id: "mcp-generic", label: "MCP tools ✦", description: "platform-specific optimizers",      phase: "tool.post",     enabled: true},
-	// Coming soon
-	{id: "pre-compact", label: "Pre-compact", description: "context compaction",                phase: "context.pre-compact", enabled: false, isSoon: true},
-}
+// ── Setup flow ─────────────────────────────────────────────────────────────
 
 func runSetup() error {
-	// Ensure device ID exists before anything else.
 	_ = auth.EnsureDeviceID()
+	fmt.Printf("\n%s[confire setup]%s\n", bold, reset)
 
-	fmt.Printf("\n%s[confire setup]%s Scanning your system...\n\n", bold, reset)
-
-	// ── Section 1: Agents (from registry) ─────────────────────────────────
-	fmt.Printf("  %sAgents%s\n", bold, reset)
-	fmt.Printf("  %s────────────────────────────────────%s\n", dim, reset)
-
-	detected := hosts.Detect()
-	registry  := hosts.Registry()
-
-	for _, h := range detected {
-		strategy := string(h.Preferred())
-		installed := h.IsInstalled(h.Preferred())
-		badge := fmt.Sprintf("%sfound ✓%s", green, reset)
-		if installed {
-			badge = fmt.Sprintf("%sfound ✓  hook installed ✓%s", green, reset)
-		}
-		fmt.Printf("  %s●%s %-18s %s  [strategy: %s]\n",
-			green, reset, h.Label(), badge, strategy)
+	// 1. Resolve scope ──────────────────────────────────────────────────────
+	settingsPath, scopeLabel, err := resolveScope()
+	if err != nil {
+		fmt.Printf("\n%sSetup cancelled.%s\n\n", dim, reset)
+		return nil
 	}
+	fmt.Printf("\n  %sScope:%s  %s\n", dim, reset, scopeLabel)
 
-	// Coming-soon: in registry but not detected, or detected but hooks-only
-	detectedIDs := map[string]bool{}
-	for _, h := range detected {
-		detectedIDs[h.ID()] = true
-	}
-	var notDetected []hosts.Host
+	// 2. Detect & select agents ─────────────────────────────────────────────
+	registry := hosts.Registry()
+	var agentItems []tuiItem
 	for _, h := range registry {
-		if !detectedIDs[h.ID()] {
-			notDetected = append(notDetected, h)
-		}
-	}
-	if len(notDetected) > 0 {
-		fmt.Printf("\n  %sComing soon%s\n", dim, reset)
-		for _, h := range notDetected {
-			fmt.Printf("  %s○%s %s\n", gray, reset, h.Label())
+		detected := h.Detect()
+		switch {
+		case h.ComingSoon():
+			sub := "coming soon"
+			if detected {
+				sub = "found · coming soon"
+			}
+			agentItems = append(agentItems, tuiItem{
+				label:    h.Label(),
+				sub:      sub,
+				disabled: true,
+			})
+		case !detected:
+			agentItems = append(agentItems, tuiItem{
+				label:    h.Label(),
+				sub:      "not detected",
+				disabled: true,
+			})
+		default:
+			alreadyInstalled := false
+			if cc, ok := h.(*hosts.ClaudeCodeHost); ok {
+				alreadyInstalled = cc.IsInstalledAt(settingsPath)
+			} else {
+				alreadyInstalled = h.IsInstalled(h.Preferred())
+			}
+			sub := "found"
+			if alreadyInstalled {
+				sub = "found · already installed"
+			}
+			agentItems = append(agentItems, tuiItem{
+				label:    h.Label(),
+				sub:      sub,
+				selected: true, // default: install everything detected
+			})
 		}
 	}
 
-	if len(detected) == 0 {
+	// Check if there's anything installable
+	hasInstallable := false
+	for _, it := range agentItems {
+		if !it.disabled {
+			hasInstallable = true
+			break
+		}
+	}
+	if !hasInstallable {
 		fmt.Printf("\n  %sNo supported agents detected.%s\n", gray, reset)
 		fmt.Printf("  Install Claude Code: https://claude.ai/code\n\n")
 		return nil
 	}
 
-	// ── Section 2: MCP Servers ─────────────────────────────────────────────
-	mcpServers := discoverMCPServers()
-	if len(mcpServers) > 0 {
-		fmt.Printf("\n  %sMCP Servers found%s\n", bold, reset)
-		fmt.Printf("  %s────────────────────────────────────%s\n", dim, reset)
-		for name, url := range mcpServers {
-			fmt.Printf("  %s●%s %-20s %s%s%s\n", green, reset, name, dim, url, reset)
-		}
+	agentPicker := newCheckbox("Select agents to configure", agentItems)
+	if !agentPicker.run() {
+		fmt.Printf("\n%sSetup cancelled.%s\n\n", dim, reset)
+		return nil
 	}
 
-	// ── Section 3: Optimizer list ──────────────────────────────────────────
-	fmt.Printf("\n  %sOptimizers%s  %s✦ = cloud/paid tier%s\n", bold, reset, dim, reset)
-	fmt.Printf("  %s────────────────────────────────────%s\n", dim, reset)
-
-	items := buildOptimizerList(mcpServers)
-	for i, item := range items {
-		icon := fmt.Sprintf("%s●%s", green, reset)
-		suffix := ""
-		if item.isSoon {
-			icon = fmt.Sprintf("%s○%s", gray, reset)
-			suffix = fmt.Sprintf(" %s(soon)%s", dim, reset)
-		} else if !item.enabled {
-			icon = fmt.Sprintf("%s○%s", gray, reset)
-		}
-		fmt.Printf("  [%d] %s %-24s %s%s%s%s\n",
-			i+1, icon, item.label,
-			dim, item.description, reset, suffix,
-		)
-	}
-
-	fmt.Printf("\n  %sToggle (space-separated numbers, or 'all', enter to keep defaults):%s\n%s> %s",
-		bold, reset, dim, reset)
-
-	selected, err := readSetupSelection(len(items))
-	if err != nil {
-		fmt.Println()
-	} else if len(selected) > 0 {
-		for _, idx := range selected {
-			items[idx].enabled = !items[idx].enabled
-		}
-	}
-
-	// ── Apply: install hooks for each detected host ────────────────────────
-	fmt.Printf("\n%sApplying...%s\n\n", bold, reset)
+	// 3. Install ────────────────────────────────────────────────────────────
+	fmt.Printf("\n  %sInstalling...%s\n\n", bold, reset)
 
 	confireExe, _ := os.Executable()
-	opts := hosts.InstallOptions{BinaryPath: confireExe}
+	opts := hosts.InstallOptions{
+		BinaryPath:   confireExe,
+		SettingsPath: settingsPath,
+	}
+
+	selectedIdx := agentPicker.selected()
+	selectedSet := map[int]bool{}
+	for _, i := range selectedIdx {
+		selectedSet[i] = true
+	}
 
 	anyInstalled := false
-	for _, h := range detected {
-		if h.Preferred() != hosts.StrategyHooks {
-			fmt.Printf("  %s○%s  %-18s mcp-proxy install coming soon\n", gray, reset, h.Label())
+	for i, h := range registry {
+		if !selectedSet[i] {
 			continue
 		}
-		if h.IsInstalled(hosts.StrategyHooks) {
-			fmt.Printf("  %s✓%s  %-18s hook already installed\n", green, reset, h.Label())
-			anyInstalled = true
+		if h.Preferred() != hosts.StrategyHooks {
+			fmt.Printf("  %s○%s  %-18s mcp-proxy coming soon\n", gray, reset, h.Label())
 			continue
 		}
 		if err := h.Install(hosts.StrategyHooks, opts); err != nil {
-			fmt.Printf("  %s✗%s  %-18s %v\n", "\033[31m", reset, h.Label(), err)
+			fmt.Printf("  %s✗%s  %-18s %s%v%s\n", red, reset, h.Label(), dim, err, reset)
 		} else {
-			fmt.Printf("  %s✓%s  %-18s hook installed → %s\n",
-				green, reset, h.Label(), hookSettingsPath(h.ID()))
+			short := shortenPath(settingsPath)
+			fmt.Printf("  %s✓%s  %-18s hook installed → %s%s%s\n",
+				green, reset, h.Label(), dim, short, reset)
 			anyInstalled = true
 		}
 	}
 
-	fmt.Printf("\n%sNext steps:%s\n", bold, reset)
+	fmt.Printf("\n  %sNext steps:%s\n", bold, reset)
 	if anyInstalled {
-		fmt.Printf("  Restart Claude Code to pick up the new hook.\n")
+		fmt.Printf("  • Restart your AI agent to activate the hook.\n")
 	}
-	fmt.Printf("  Run %sconfire login%s to connect your account (free tier: 500 req/month).\n\n", cyan, reset)
+	fmt.Printf("  • Run %sconfire login%s to connect your account.\n", cyan, reset)
+	fmt.Printf("  • Run %sconfire status%s to verify everything is running.\n\n", cyan, reset)
 	return nil
 }
 
-// hookSettingsPath returns a human-readable hint for where the hook was written.
-func hookSettingsPath(hostID string) string {
-	home, _ := os.UserHomeDir()
-	switch hostID {
-	case "claude-code":
-		return "~/.claude/settings.json"
-	default:
-		return filepath.Join(home, "."+hostID, "settings.json")
+// resolveScope returns the settings path and a display label.
+// If --local/--global flags are set it skips the interactive prompt.
+func resolveScope() (path, label string, err error) {
+	local  := filepath.Clean(localSettingsPath())
+	global := filepath.Clean(globalSettingsPath())
+
+	if setupLocal {
+		return local, "local  " + shortenPath(local), nil
 	}
+	if setupGlobal {
+		return global, "global  " + shortenPath(global), nil
+	}
+
+	p := newRadio("Installation scope", []tuiItem{
+		{label: "Global", sub: "all projects · " + shortenPath(global)},
+		{label: "Local",  sub: "this project  · " + shortenPath(local)},
+	})
+	if !p.run() {
+		return "", "", fmt.Errorf("cancelled")
+	}
+	if p.firstSelected() == 1 {
+		return local, "local  " + shortenPath(local), nil
+	}
+	return global, "global  " + shortenPath(global), nil
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+func shortenPath(p string) string {
+	home, _ := os.UserHomeDir()
+	if strings.HasPrefix(p, home) {
+		return "~" + p[len(home):]
+	}
+	cwd, _ := os.Getwd()
+	if strings.HasPrefix(p, cwd) {
+		rel := p[len(cwd):]
+		if rel == "" {
+			return "."
+		}
+		return "." + rel
+	}
+	return p
 }
 
 func buildOptimizerList(mcpServers map[string]string) []optimizerItem {
@@ -235,34 +258,23 @@ func discoverMCPServers() map[string]string {
 	return servers
 }
 
-func readSetupSelection(n int) ([]int, error) {
-	reader := bufio.NewReader(os.Stdin)
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		return nil, err
-	}
-	line = strings.TrimSpace(line)
-	if line == "" {
-		return nil, nil
-	}
-	if strings.ToLower(line) == "all" {
-		idxs := make([]int, n)
-		for i := range idxs {
-			idxs[i] = i
-		}
-		return idxs, nil
-	}
-	seen := map[int]bool{}
-	var result []int
-	for _, part := range strings.Split(line, " ") {
-		num, err := strconv.Atoi(strings.TrimSpace(part))
-		if err != nil || num < 1 || num > n {
-			continue
-		}
-		if !seen[num-1] {
-			seen[num-1] = true
-			result = append(result, num-1)
-		}
-	}
-	return result, nil
+// ── Optimizer inventory (used by setup display) ────────────────────────────
+
+type optimizerItem struct {
+	id          string
+	label       string
+	description string
+	phase       string
+	enabled     bool
+	isSoon      bool
+}
+
+var DEFAULT_OPTIMIZERS = []optimizerItem{
+	{id: "bash",        label: "Bash",       description: "trim logs, keep failures (60-95%)",        phase: "tool.post",     enabled: true},
+	{id: "read",        label: "Read",       description: "cap large file reads (pre + post)",         phase: "tool.pre+post", enabled: true},
+	{id: "webfetch",    label: "WebFetch",   description: "strip HTML/CSS noise (80-90%)",             phase: "tool.post",     enabled: true},
+	{id: "generic",     label: "Generic",    description: "universal JSON noise stripping (fallback)", phase: "tool.post",     enabled: true},
+	{id: "figma",       label: "Figma ✦",    description: "JSX → section map (98% reduction)",        phase: "tool.post",     enabled: true},
+	{id: "mcp-generic", label: "MCP tools ✦", description: "platform-specific optimizers",            phase: "tool.post",     enabled: true},
+	{id: "pre-compact", label: "Pre-compact", description: "context compaction",                       phase: "context.pre-compact", enabled: false, isSoon: true},
 }

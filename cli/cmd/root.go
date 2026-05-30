@@ -7,6 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// flagLocal points all network calls at local dev servers (platform: localhost:4321, worker: localhost:8787).
+var flagLocal bool
+
+func init() {
+	rootCmd.PersistentFlags().BoolVar(&flagLocal, "local", false, "use local dev servers (platform :4321, worker :8787)")
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "confire",
 	Short: "Confire — universal AI agent tool-output optimizer",

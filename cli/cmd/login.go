@@ -4,14 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/confire-dev/confire/auth"
@@ -20,9 +18,11 @@ import (
 
 var loginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Connect your Confire account via browser (GitHub OAuth or magic link)",
-	Long: `Opens your browser to confire.dev/auth, logs you in, and stores the
-API key securely in the OS keychain. Zero copy-paste.`,
+	Short: "Connect your Confire account via browser",
+	Long: `Opens the Confire login page, authenticates you, and stores the
+API key securely in the OS keychain. Zero copy-paste.
+
+Use --local to authenticate against local dev servers.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runLogin()
 	},
@@ -54,9 +54,14 @@ func init() {
 	rootCmd.AddCommand(whoamiCmd)
 }
 
-// ── Login (PKCE OAuth flow) ────────────────────────────────────────────────
+// ── Login ─────────────────────────────────────────────────────────────────
 
 func runLogin() error {
+	deviceID, err := auth.DeviceID()
+	if err != nil {
+		deviceID = "unknown"
+	}
+
 	// 1. Find a free port for the local callback server
 	port, err := freePort()
 	if err != nil {
@@ -64,144 +69,95 @@ func runLogin() error {
 	}
 	callbackURL := fmt.Sprintf("http://127.0.0.1:%d/callback", port)
 
-	// 2. Generate PKCE pair
-	pkce, err := auth.NewPKCE()
-	if err != nil {
-		return fmt.Errorf("pkce: %w", err)
+	// 2. Build the platform CLI login URL
+	params := url.Values{
+		"callback":    {callbackURL},
+		"device_id":   {deviceID},
+		"cli_version": {buildVersion},
 	}
+	loginURL := platformURL() + "/cli/login?" + params.Encode()
 
-	// 3. Build Supabase authorization URL
-	supabaseURL := supabaseProjectURL()
-	authURL := fmt.Sprintf(
-		"%s/auth/v1/authorize?provider=github&response_type=code&code_challenge=%s&code_challenge_method=S256&redirect_to=%s",
-		supabaseURL, pkce.Challenge, url.QueryEscape(callbackURL),
-	)
+	// 3. Start local callback server — waits for ?api_key=...&email=...&message=...
+	type result struct {
+		apiKey  string
+		email   string
+		message string
+		err     error
+	}
+	resultCh := make(chan result, 1)
 
-	// 4. Start local callback server
-	codeCh := make(chan string, 1)
-	errCh  := make(chan error, 1)
-	srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", port)}
+	mux := http.NewServeMux()
+	srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", port), Handler: mux}
 
-	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		code := r.URL.Query().Get("code")
-		if code == "" {
-			errMsg := r.URL.Query().Get("error_description")
-			errCh <- fmt.Errorf("auth failed: %s", errMsg)
-			w.Write([]byte(successPage("Authentication failed — please try again.")))
+	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if errMsg := q.Get("error"); errMsg != "" {
+			resultCh <- result{err: fmt.Errorf("auth failed: %s", errMsg)}
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(callbackPage("Authorization failed — please try again.", true)))
 			return
 		}
-		codeCh <- code
+		apiKey := q.Get("api_key")
+		if apiKey == "" {
+			resultCh <- result{err: fmt.Errorf("no API key received")}
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(callbackPage("Authorization failed — no key received.", true)))
+			return
+		}
+		resultCh <- result{
+			apiKey:  apiKey,
+			email:   q.Get("email"),
+			message: q.Get("message"),
+		}
 		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte(successPage("✓ Confire connected! You can close this tab.")))
+		w.Write([]byte(callbackPage("✓ Confire connected! You can close this tab.", false)))
 	})
+
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errCh <- err
+			resultCh <- result{err: err}
 		}
 	}()
-
-	// 5. Open browser
-	fmt.Printf("Opening browser for login...\n")
-	if err := openBrowser(authURL); err != nil {
-		fmt.Printf("\nCouldn't open browser automatically. Visit:\n%s\n\n", authURL)
-	}
-
-	// 6. Wait for callback (5-minute timeout)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
 	defer func() {
-		shutdownCtx, c := context.WithTimeout(context.Background(), 2*time.Second)
-		defer c()
-		srv.Shutdown(shutdownCtx)
+		shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer shutCancel()
+		srv.Shutdown(shutCtx)
 	}()
 
-	var code string
+	// 4. Open browser
+	fmt.Println("Opening browser for login...")
+	if err := openBrowser(loginURL); err != nil {
+		fmt.Fprintf(os.Stderr, "\nCouldn't open browser. Visit:\n%s\n\n", loginURL)
+	}
+
+	// 5. Wait for the CLI callback (5-minute timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	var res result
 	select {
-	case code = <-codeCh:
-	case err = <-errCh:
-		return err
+	case res = <-resultCh:
 	case <-ctx.Done():
 		return fmt.Errorf("login timed out after 5 minutes")
 	}
-
-	// 7. Exchange code for Supabase access_token via PKCE
-	accessToken, err := exchangeCode(supabaseURL, code, pkce.Verifier, callbackURL)
-	if err != nil {
-		return fmt.Errorf("token exchange: %w", err)
+	if res.err != nil {
+		return res.err
 	}
 
-	// 8. Call Worker to generate a long-lived confire API key
-	apiKey, email, msg, err := generateConfireKey(accessToken)
-	if err != nil {
-		return fmt.Errorf("generate key: %w", err)
-	}
-
-	// 9. Store API key + email in OS keychain
-	if err := auth.StoreKey(apiKey); err != nil {
+	// 6. Store key + email in OS keychain
+	if err := auth.StoreKey(res.apiKey); err != nil {
 		return fmt.Errorf("keychain store: %w", err)
 	}
-	if err := auth.StoreEmail(email); err != nil {
-		_ = err // non-fatal
+	if res.email != "" {
+		_ = auth.StoreEmail(res.email)
 	}
 
+	msg := res.message
+	if msg == "" {
+		msg = fmt.Sprintf("✓ Logged in as %s", res.email)
+	}
 	fmt.Printf("\n%s\n\n", msg)
 	return nil
-}
-
-// exchangeCode exchanges a PKCE code for a Supabase access_token.
-func exchangeCode(supabaseURL, code, verifier, redirectURI string) (string, error) {
-	body := url.Values{
-		"grant_type":    {"pkce"},
-		"code":          {code},
-		"code_verifier": {verifier},
-	}
-	resp, err := http.PostForm(supabaseURL+"/auth/v1/token", body)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		AccessToken string `json:"access_token"`
-		Error       string `json:"error"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-	if result.Error != "" {
-		return "", fmt.Errorf("%s", result.Error)
-	}
-	return result.AccessToken, nil
-}
-
-// generateConfireKey calls the Worker /api/keys/generate with the Supabase JWT.
-func generateConfireKey(supabaseJWT string) (apiKey, email, message string, err error) {
-	workerURL := workerURLEnv()
-	req, _ := http.NewRequest("POST", workerURL+"/api/keys/generate", nil)
-	req.Header.Set("Authorization", "Bearer "+supabaseJWT)
-
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", "", "", err
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		APIKey  string `json:"apiKey"`
-		Message string `json:"message"`
-		User    struct {
-			Email string `json:"email"`
-		} `json:"user"`
-		Error string `json:"error"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", "", "", err
-	}
-	if result.Error != "" {
-		return "", "", "", fmt.Errorf("%s", result.Error)
-	}
-	return result.APIKey, result.User.Email, result.Message, nil
 }
 
 // ── whoami ─────────────────────────────────────────────────────────────────
@@ -213,19 +169,17 @@ func runWhoami() error {
 		return nil
 	}
 
-	workerURL := workerURLEnv()
-	req, _ := http.NewRequest("GET", workerURL+"/api/me", nil)
+	req, _ := http.NewRequest("GET", workerURLEnv()+"/api/me", nil)
 	req.Header.Set("Authorization", "Bearer "+key)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		// Offline — show cached email
 		email, _ := auth.LoadEmail()
 		if email != "" {
 			fmt.Printf("Logged in as %s (offline)\n", email)
 		} else {
-			fmt.Println("Logged in (offline — can't reach Worker to show details)")
+			fmt.Println("Logged in (offline — can't reach server)")
 		}
 		return nil
 	}
@@ -246,15 +200,13 @@ func runWhoami() error {
 
 	fmt.Printf("✓ %s  ·  Plan: %s  ·  %d/%d requests used this month\n",
 		result.Email, result.Plan, result.Used, result.Limit)
-
-	// Warn at 80%
 	if result.Limit > 0 && result.Used >= result.Limit*80/100 {
-		fmt.Printf("  ⚠️  Upgrade for unlimited: confire.dev/upgrade\n")
+		fmt.Printf("  ⚠️  Upgrade for more: confire.dev/upgrade\n")
 	}
 	return nil
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────
 
 func freePort() (int, error) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -263,8 +215,6 @@ func freePort() (int, error) {
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
 	ln.Close()
-	// Use a random port in range to avoid race condition
-	_ = rand.New(rand.NewSource(int64(port)))
 	return port, nil
 }
 
@@ -284,15 +234,15 @@ func openBrowser(u string) error {
 	return exec.Command(cmd, args...).Start()
 }
 
-func supabaseProjectURL() string {
-	if u := os.Getenv("SUPABASE_URL"); u != "" {
-		return strings.TrimRight(u, "/")
+func callbackPage(msg string, isError bool) string {
+	color := "#22c55e"
+	if isError {
+		color = "#ef4444"
 	}
-	// Placeholder — set via SUPABASE_URL env var or confire config
-	return "https://YOUR_PROJECT.supabase.co"
-}
-
-func successPage(msg string) string {
-	return `<!DOCTYPE html><html><body style="font-family:monospace;padding:40px;max-width:500px">
-<h2>` + msg + `</h2><p>Return to your terminal to continue.</p></body></html>`
+	return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<style>*{box-sizing:border-box;margin:0}body{font-family:monospace;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#09090b;color:#fafafa;padding:2rem}</style>
+</head><body><div style="text-align:center;max-width:400px">
+<p style="font-size:1.1rem;color:` + color + `">` + msg + `</p>
+<p style="margin-top:1rem;color:#71717a;font-size:.85rem">Return to your terminal to continue.</p>
+</div></body></html>`
 }

@@ -29,8 +29,9 @@ const (
 
 // InstallOptions carries the runtime data needed to install a strategy.
 type InstallOptions struct {
-	BinaryPath string // absolute path to the confire binary
-	WorkerURL  string // Worker URL for cloud optimization
+	BinaryPath   string // absolute path to the confire binary
+	WorkerURL    string // Worker URL for cloud optimization
+	SettingsPath string // override settings file path; "" = host default (global)
 }
 
 // Host represents one AI coding agent that confire can integrate with.
@@ -60,6 +61,10 @@ type Host interface {
 
 	// Uninstall removes confire's configuration for s.
 	Uninstall(s Strategy) error
+
+	// ComingSoon returns true when integration is not yet available.
+	// status and setup show these differently from uninstalled-but-supported hosts.
+	ComingSoon() bool
 }
 
 // Registry returns all known hosts in display order.
