@@ -1,11 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro'
-import { DashboardPage } from '@/components/dashboard/DashboardPage'
+import { SessionsPage } from '@/components/dashboard/pages/OverviewPage'
 ---
-
 <Layout title="CLI Sessions" bare>
-  <DashboardPage client:only="react" title="CLI Sessions" currentPath="/dashboard/sessions">
-    {/* TODO: <SessionList /> */}
-    {/* TODO: <ApiKeyList /> */}
-  </DashboardPage>
+  <SessionsPage client:only="react" />
 </Layout>

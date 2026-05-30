@@ -1,10 +1,7 @@
-// DashboardPage wraps DashboardShell + page content as a single client:only component.
-// This sidesteps Astro's SSR pass for dashboard routes — all Supabase calls are client-only.
-import { useEffect, useState } from 'react'
-import { createBrowserClient } from '@/lib/supabase'
+// DashboardPage: auth-aware wrapper around DashboardShell.
+// Uses useAuth() — the correct client:only pattern (useMemo, not useEffect).
+import { useAuth } from '@/hooks/use-auth'
 import { DashboardShell } from './DashboardShell'
-
-interface User { id: string; email: string; name?: string }
 
 interface Props {
   title: string
@@ -13,19 +10,9 @@ interface Props {
 }
 
 export function DashboardPage({ title, currentPath, children }: Props) {
-  const [user, setUser] = useState<User | null>(null)
+  const { user, loading } = useAuth()
 
-  useEffect(() => {
-    const supabase = createBrowserClient()
-    supabase.auth.getUser().then(async ({ data: { user: u } }) => {
-      if (!u) { window.location.href = `/login?next=${encodeURIComponent(currentPath)}`; return }
-      const { data: profile } = await supabase
-        .from('profiles').select('name').eq('id', u.id).maybeSingle()
-      setUser({ id: u.id, email: u.email ?? '', name: profile?.name ?? undefined })
-    })
-  }, [])
-
-  if (!user) {
+  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -33,8 +20,20 @@ export function DashboardPage({ title, currentPath, children }: Props) {
     )
   }
 
+  if (!user) {
+    // Redirect client-side — middleware handles server-side redirect in SSR mode.
+    if (typeof window !== 'undefined') {
+      window.location.href = `/login?next=${encodeURIComponent(currentPath)}`
+    }
+    return null
+  }
+
   return (
-    <DashboardShell title={title} currentPath={currentPath} user={user}>
+    <DashboardShell
+      title={title}
+      currentPath={currentPath}
+      user={{ email: user.email ?? '', name: user.user_metadata?.['name'] }}
+    >
       {children}
     </DashboardShell>
   )

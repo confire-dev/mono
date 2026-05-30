@@ -1,12 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro'
-import { DashboardPage } from '@/components/dashboard/DashboardPage'
+import { BillingPage } from '@/components/dashboard/pages/OverviewPage'
 ---
-
 <Layout title="Billing" bare>
-  <DashboardPage client:only="react" title="Billing" currentPath="/dashboard/billing">
-    {/* TODO: <CurrentPlanCard /> */}
-    {/* TODO: <UsageHistory /> */}
-    {/* TODO: <UpgradeCard /> */}
-  </DashboardPage>
+  <BillingPage client:only="react" />
 </Layout>

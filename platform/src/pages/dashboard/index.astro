@@ -1,15 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro'
-import { DashboardPage } from '@/components/dashboard/DashboardPage'
-import { DashboardOverview } from '@/components/dashboard/DashboardOverview'
+import { OverviewPage } from '@/components/dashboard/pages/OverviewPage'
 ---
-
 <Layout title="Dashboard" bare>
-  <!--
-    client:only="react" — skips Astro SSR entirely.
-    DashboardPage resolves auth then renders the shell + content in the browser.
-  -->
-  <DashboardPage client:only="react" title="Dashboard" currentPath="/dashboard">
-    <DashboardOverview userId="" />
-  </DashboardPage>
+  <OverviewPage client:only="react" />
 </Layout>

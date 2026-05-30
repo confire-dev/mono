@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createBrowserClient } from '@/lib/supabase'
 import { formatTokenCount, bytesToTokens } from '@/lib/types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,22 +26,22 @@ interface ToolCall {
 }
 
 export function DashboardOverview({ userId }: { userId: string }) {
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [rows, setRows] = useState<ToolCall[]>([])
+  // useMemo: client created synchronously, stable across renders, no first-render null.
+  const supabase = useMemo(() => createBrowserClient(), [])
+
+  const [stats,   setStats]   = useState<Stats | null>(null)
+  const [rows,    setRows]    = useState<ToolCall[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Create the Supabase client inside useEffect — only runs in the browser.
-    const supabase = createBrowserClient()
-    async function load() {
-      const month = new Date().toISOString().slice(0, 7)
+    if (!userId) return
+    const month = new Date().toISOString().slice(0, 7)
 
-      const [{ data: usage }, { data: credits }, { data: recent }] = await Promise.all([
-        supabase.from('monthly_usage').select('*').eq('user_id', userId).eq('month', month).maybeSingle(),
-        supabase.from('credit_balances').select('total_credits').eq('user_id', userId).maybeSingle(),
-        supabase.from('tool_call_summaries').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
-      ])
-
+    Promise.all([
+      supabase.from('monthly_usage').select('*').eq('user_id', userId).eq('month', month).maybeSingle(),
+      supabase.from('credit_balances').select('total_credits').eq('user_id', userId).maybeSingle(),
+      supabase.from('tool_call_summaries').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
+    ]).then(([{ data: usage }, { data: credits }, { data: recent }]) => {
       const recentRows = recent ?? []
       setStats({
         savedBytes:    usage?.saved_bytes ?? 0,
@@ -49,13 +49,12 @@ export function DashboardOverview({ userId }: { userId: string }) {
         avgReduction:  recentRows.length > 0
           ? recentRows.reduce((s, r) => s + (r.reduction_ratio ?? 0), 0) / recentRows.length
           : 0,
-        totalCredits:  credits?.total_credits ?? 0,
+        totalCredits: credits?.total_credits ?? 0,
       })
       setRows(recentRows)
       setLoading(false)
-    }
-    load()
-  }, [userId])
+    })
+  }, [userId, supabase])
 
   if (loading) return <OverviewSkeleton />
 
@@ -66,36 +65,13 @@ export function DashboardOverview({ userId }: { userId: string }) {
 
   return (
     <>
-      {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Context saved"
-          value={formatTokenCount(savedTokens) + ' tokens'}
-          sub="this month"
-          icon={<IconBolt className="size-4 text-muted-foreground" />}
-          trend={`${formatTokenCount(bytesToTokens(stats?.savedBytes ?? 0))} saved`}
-        />
-        <StatCard
-          title="Optimized calls"
-          value={String(stats?.requestCount ?? 0)}
-          sub="this month"
-          icon={<IconTrendingUp className="size-4 text-muted-foreground" />}
-        />
-        <StatCard
-          title="Avg reduction"
-          value={`${Math.round((stats?.avgReduction ?? 0) * 100)}%`}
-          sub="across all tools"
-          icon={<IconTerminal2 className="size-4 text-muted-foreground" />}
-        />
-        <StatCard
-          title="Credits"
-          value={String(stats?.totalCredits ?? 0)}
-          sub="remaining"
-          icon={<IconCoins className="size-4 text-muted-foreground" />}
-        />
+        <StatCard title="Context saved" value={formatTokenCount(savedTokens) + ' tokens'} sub="this month" icon={<IconBolt className="size-4 text-muted-foreground" />} />
+        <StatCard title="Optimized calls" value={String(stats?.requestCount ?? 0)} sub="this month" icon={<IconTrendingUp className="size-4 text-muted-foreground" />} />
+        <StatCard title="Avg reduction" value={`${Math.round((stats?.avgReduction ?? 0) * 100)}%`} sub="across all tools" icon={<IconTerminal2 className="size-4 text-muted-foreground" />} />
+        <StatCard title="Credits" value={String(stats?.totalCredits ?? 0)} sub="remaining" icon={<IconCoins className="size-4 text-muted-foreground" />} />
       </div>
 
-      {/* Recent activity table */}
       <Card>
         <CardHeader>
           <CardTitle>Recent activity</CardTitle>
@@ -109,9 +85,7 @@ export function DashboardOverview({ userId }: { userId: string }) {
   )
 }
 
-function StatCard({ title, value, sub, icon, trend }: {
-  title: string; value: string; sub: string; icon: React.ReactNode; trend?: string
-}) {
+function StatCard({ title, value, sub, icon }: { title: string; value: string; sub: string; icon: React.ReactNode }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -121,17 +95,13 @@ function StatCard({ title, value, sub, icon, trend }: {
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
         <p className="text-xs text-muted-foreground">{sub}</p>
-        {trend && <p className="text-xs text-green-500 mt-1">{trend}</p>}
       </CardContent>
     </Card>
   )
 }
 
 function ActivityTable({ rows }: { rows: ToolCall[] }) {
-  if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground py-4 text-center">No tool calls yet.</p>
-  }
-
+  if (rows.length === 0) return <p className="text-sm text-muted-foreground py-4 text-center">No tool calls yet.</p>
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -147,7 +117,6 @@ function ActivityTable({ rows }: { rows: ToolCall[] }) {
         </thead>
         <tbody>
           {rows.map(r => {
-            const saved    = r.raw_bytes - r.optimized_bytes
             const pct      = Math.round((r.reduction_ratio ?? 0) * 100)
             const isRemote = !['bash','read','webfetch','generic'].includes(r.tool_type ?? '')
             return (
@@ -155,9 +124,7 @@ function ActivityTable({ rows }: { rows: ToolCall[] }) {
                 <td className="py-2 pr-4 font-medium capitalize">{r.tool_type}</td>
                 <td className="py-2 pr-4 text-muted-foreground">{formatTokenCount(bytesToTokens(r.raw_bytes))}k</td>
                 <td className="py-2 pr-4 text-muted-foreground">{formatTokenCount(bytesToTokens(r.optimized_bytes))}k</td>
-                <td className="py-2 pr-4">
-                  <span className="text-green-500 font-medium">{pct}%</span>
-                </td>
+                <td className="py-2 pr-4"><span className="text-green-500 font-medium">{pct}%</span></td>
                 <td className="py-2 pr-4">
                   <Badge variant={isRemote ? 'default' : 'secondary'} className="text-xs">
                     {isRemote ? 'remote' : 'local'}
@@ -179,10 +146,7 @@ function OverviewSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {[...Array(4)].map((_, i) => (
-        <Card key={i}>
-          <CardHeader className="pb-2"><Skeleton className="h-4 w-24" /></CardHeader>
-          <CardContent><Skeleton className="h-8 w-16" /></CardContent>
-        </Card>
+        <Card key={i}><CardHeader className="pb-2"><Skeleton className="h-4 w-24" /></CardHeader><CardContent><Skeleton className="h-8 w-16" /></CardContent></Card>
       ))}
     </div>
   )
@@ -193,18 +157,12 @@ function EmptyDashboard() {
     <Card className="flex flex-col items-center justify-center py-16 text-center">
       <CardHeader>
         <CardTitle>No data yet</CardTitle>
-        <CardDescription>
-          Install Confire and run Claude Code to see your first optimization.
-        </CardDescription>
+        <CardDescription>Install Confire and run Claude Code to see your first optimization.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
-        <pre className="rounded bg-muted px-4 py-2 text-sm text-left inline-block">
-          <code>brew install confire-dev/tap/confire</code>
-        </pre>
+        <pre className="rounded bg-muted px-4 py-2 text-sm inline-block"><code>brew install confire-dev/tap/confire</code></pre>
         <br />
-        <pre className="rounded bg-muted px-4 py-2 text-sm text-left inline-block">
-          <code>confire setup && confire login</code>
-        </pre>
+        <pre className="rounded bg-muted px-4 py-2 text-sm inline-block"><code>confire setup && confire login</code></pre>
       </CardContent>
     </Card>
   )

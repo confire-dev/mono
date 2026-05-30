@@ -1,6 +1,4 @@
-'use client'
-
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createBrowserClient } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -21,11 +19,11 @@ interface Props {
 }
 
 export function AuthForm({ className, nextUrl = '/dashboard' }: Props) {
+  const supabase = useMemo(() => createBrowserClient(), [])
   const [step,  setStep]  = useState<Step>('idle')
   const [email, setEmail] = useState('')
   const [otp,   setOtp]   = useState('')
   const [error, setError] = useState('')
-  const supabase = createBrowserClient()
 
   const redirectTo = typeof window !== 'undefined'
     ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`
