@@ -53,8 +53,9 @@ export interface ApiKey {
   device_id?: string
 }
 
-// Plan → monthly credit limits. Source of truth for gating logic.
-const PLAN_LIMITS: Record<Plan, number> = { free: 500, pro: 10_000 }
+// Limits are now defined in plans.ts — no hardcoded numbers here.
+// MAX_RAW_PAYLOAD_BYTES kept as a Worker-level hard cap (before plan lookup).
+export const MAX_RAW_PAYLOAD_BYTES = 50 * 1024 * 1024 // 50MB absolute max before plan check
 
 // ── Auth / key validation ──────────────────────────────────────────────────
 
@@ -77,40 +78,79 @@ export async function validateApiKey(cfg: SupabaseConfig, rawKey: string): Promi
 
 // ── Usage & credits ────────────────────────────────────────────────────────
 
-// checkUsage returns whether the user can make another optimization request.
-// Checks monthly_usage against plan limit AND credit_balances.
-export async function checkUsage(cfg: SupabaseConfig, userId: string, plan: Plan): Promise<UsageInfo> {
-  const month = monthKey()
-  const limit = PLAN_LIMITS[plan]
+// UsagePeriod is the current period's usage numbers, from the usage_periods table.
+export interface UsagePeriod {
+  id: string
+  cloudOptimizationsUsed: number
+  cloudTokensUsed: number
+  localOptimizationsCount: number
+  savedTokens: number
+}
 
-  const [usageRes, creditRes] = await Promise.all([
-    sbFetch(cfg, 'GET',
-      `/rest/v1/monthly_usage?user_id=eq.${userId}&month=eq.${encodeURIComponent(month)}&select=request_count&limit=1`),
-    sbFetch(cfg, 'GET',
-      `/rest/v1/credit_balances?user_id=eq.${userId}&select=total_credits&limit=1`),
-  ])
+// getUsageThisPeriod fetches the current active usage_period for the user.
+// If no period exists for the current month, creates one.
+// Replaces the old checkUsage / monthly_usage approach.
+// The caller uses canUseRemoteOptimizer() from entitlement.ts to decide if allowed.
+export async function getUsageThisPeriod(
+  cfg: SupabaseConfig,
+  userId: string,
+  planId: string,
+): Promise<UsagePeriod> {
+  // Call the DB stored procedure which gets-or-creates the current period
+  const res = await sbFetch(cfg, 'POST', '/rest/v1/rpc/get_or_create_active_period', {
+    p_user_id: userId,
+    p_plan_id: planId,
+  })
 
-  const usageRows = usageRes.ok ? await usageRes.json() as Array<{ request_count: number }> : []
-  const creditRows = creditRes.ok ? await creditRes.json() as Array<{ total_credits: number }> : []
+  if (!res.ok) {
+    // Fallback: return zeros (allow the call, don't block on DB error)
+    return { id: '', cloudOptimizationsUsed: 0, cloudTokensUsed: 0, localOptimizationsCount: 0, savedTokens: 0 }
+  }
 
-  const used = usageRows[0]?.request_count ?? 0
-  const totalCredits = creditRows[0]?.total_credits ?? 0
+  const periodId = (await res.json()) as string
+
+  const periodRes = await sbFetch(cfg, 'GET',
+    `/rest/v1/usage_periods?id=eq.${periodId}&select=id,cloud_optimizations_used,cloud_tokens_used,local_optimizations_count,saved_tokens&limit=1`)
+
+  if (!periodRes.ok) {
+    return { id: periodId, cloudOptimizationsUsed: 0, cloudTokensUsed: 0, localOptimizationsCount: 0, savedTokens: 0 }
+  }
+
+  const rows = await periodRes.json() as Array<{
+    id: string
+    cloud_optimizations_used: number
+    cloud_tokens_used: number
+    local_optimizations_count: number
+    saved_tokens: number
+  }>
+
+  const r = rows[0]
+  if (!r) return { id: periodId, cloudOptimizationsUsed: 0, cloudTokensUsed: 0, localOptimizationsCount: 0, savedTokens: 0 }
 
   return {
-    ok: used < limit && totalCredits > 0,
-    used,
-    limit,
-    plan,
-    total_credits: totalCredits,
+    id:                      r.id,
+    cloudOptimizationsUsed:  r.cloud_optimizations_used,
+    cloudTokensUsed:         r.cloud_tokens_used,
+    localOptimizationsCount: r.local_optimizations_count,
+    savedTokens:             r.saved_tokens,
   }
 }
 
-// incrementUsage bumps the monthly rollup and writes a tool call summary.
-// Returns the new monthly request count.
+// Legacy UsageInfo — keep for auth.ts compatibility (will be removed next pass)
+export interface UsageInfo {
+  ok: boolean
+  used: number
+  limit: number
+  plan: Plan
+  total_credits: number
+}
+
+// recordOptimization increments the active usage_period and writes a tool call summary.
 export async function recordOptimization(
   cfg: SupabaseConfig,
   params: {
     userId: string
+    planId: string
     sessionId: string
     toolType: string
     integration: string
@@ -122,33 +162,30 @@ export async function recordOptimization(
     analyticsConsented: boolean
   }
 ): Promise<void> {
-  const bytesSaved = params.rawBytes - params.optimizedBytes
+  const bytesSaved  = params.rawBytes - params.optimizedBytes
+  const rawTokens   = Math.round(params.rawBytes / 4)   // ~4 bytes per token
+  const savedTokens = Math.round(bytesSaved / 4)
 
-  // 1. Increment monthly rollup (fast path for limit checks)
-  await sbFetch(cfg, 'POST', '/rest/v1/rpc/increment_usage', {
-    p_user_id: params.userId,
-    p_month: monthKey(),
-    p_bytes_saved: bytesSaved,
+  // 1. Increment the active usage_period (new approach — replaces monthly_usage)
+  await sbFetch(cfg, 'POST', '/rest/v1/rpc/increment_usage_period', {
+    p_user_id:          params.userId,
+    p_plan_id:          params.planId,
+    p_cloud_opts:       1,
+    p_cloud_tokens:     rawTokens,
+    p_saved_tokens:     savedTokens,
   })
 
   // 2. Write per-call detail (powers the dashboard)
   await sbFetch(cfg, 'POST', '/rest/v1/tool_call_summaries', {
-    user_id:        params.userId,
-    cli_session_id: params.sessionId || null,
-    tool_type:      params.toolType,
-    integration:    params.integration,
-    optimizer:      params.optimizer,
-    raw_bytes:      params.rawBytes,
+    user_id:         params.userId,
+    cli_session_id:  params.sessionId || null,
+    tool_type:       params.toolType,
+    integration:     params.integration,
+    optimizer:       params.optimizer,
+    raw_bytes:       params.rawBytes,
     optimized_bytes: params.optimizedBytes,
-    was_cached:     params.wasCached,
-    credits_used:   1,
-  })
-
-  // 3. Consume 1 credit from the balance
-  await sbFetch(cfg, 'POST', '/rest/v1/rpc/consume_credits', {
-    p_user_id:    params.userId,
-    p_amount:     1,
-    p_session_id: params.sessionId,
+    was_cached:      params.wasCached,
+    credits_used:    1,
   })
 }
 
@@ -166,11 +203,18 @@ export async function upsertProfile(
     { id: supabaseUserId, email, name: name ?? null, plan: 'free', subscription_status: 'none' },
     { 'Prefer': 'resolution=merge-duplicates,return=representation' })
   const rows = await res.json() as Profile[]
-  // Also ensure credit_balances row exists (500 free credits on sign-up)
+  // Seed credit balance from the plans table (DB is source of truth).
+  const planRow = await sbFetch(cfg, 'GET',
+    `/rest/v1/plans?id=eq.free&select=config&limit=1`)
+  const planData = planRow.ok
+    ? (await planRow.json() as Array<{ config: { credits: { includedMonthly: number } } }>)[0]
+    : null
+  const includedCredits = planData?.config?.credits?.includedMonthly ?? 500
+
   await sbFetch(cfg, 'POST', '/rest/v1/rpc/grant_credits', {
-    p_user_id:   supabaseUserId,
-    p_included:  PLAN_LIMITS['free'],
-    p_source:    'system',
+    p_user_id:  supabaseUserId,
+    p_included: includedCredits,
+    p_source:   'system',
   })
   return rows[0]!
 }
@@ -257,9 +301,18 @@ export async function handleSubscriptionUpdated(
   if (!profiles.length) return
 
   if (status === 'active' || status === 'trialing') {
+    // Stripe webhook has no access to KV (env not available here).
+    // Query the plans table directly for the includedMonthly value.
+    const plansRes = await sbFetch(cfg, 'GET',
+      `/rest/v1/plans?id=eq.${encodeURIComponent(plan)}&select=config&limit=1`)
+    const planRows = plansRes.ok
+      ? await plansRes.json() as Array<{ config: { credits: { includedMonthly: number } } }>
+      : []
+    const includedCredits = planRows[0]?.config?.credits?.includedMonthly ?? 500
+
     await sbFetch(cfg, 'POST', '/rest/v1/rpc/grant_credits', {
       p_user_id:          profiles[0]!.id,
-      p_included:         PLAN_LIMITS[plan],
+      p_included:         includedCredits,
       p_source:           'subscription',
       p_stripe_event_id:  event.stripeEventId,
     })

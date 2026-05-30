@@ -1,13 +1,8 @@
-// Auth endpoints:
-//   POST /api/keys/generate  — exchange a Supabase JWT for a long-lived API key
-//   GET  /api/me             — return current user info for the CLI `whoami` command
-
 import type { Env } from '../types.js'
-import { upsertProfile, generateApiKey, checkUsage } from '../lib/supabase.js'
+import { upsertProfile, generateApiKey, validateApiKey, getUsageThisPeriod } from '../lib/supabase.js'
+import { getPlan } from '../lib/plans.js'
 import { trackEvent } from '../lib/analytics.js'
 
-// verifySupabaseJWT validates a Supabase access_token using Supabase's REST API.
-// Returns {sub, email} on success, null on failure.
 async function verifySupabaseJWT(token: string, supabaseUrl: string, anonKey: string): Promise<{sub:string; email:string} | null> {
   const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
     headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` },
@@ -34,10 +29,11 @@ export async function handleGenerateKey(request: Request, env: Env): Promise<Res
     return Response.json({ error: 'invalid or expired Supabase token' }, { status: 401 })
   }
 
-  const cfg = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
-  const user = await upsertProfile(cfg, verified.sub, verified.email)
+  const cfg    = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
+  const user   = await upsertProfile(cfg, verified.sub, verified.email)
   const apiKey = await generateApiKey(cfg, user.id)
-  const usage = await checkUsage(cfg, user.id, user.plan)
+  const plan   = await getPlan(user.plan, env)
+  const usage  = await getUsageThisPeriod(cfg, user.id, plan.id)
 
   trackEvent(env.AE, env.AMPLITUDE_KEY, {
     userId: user.id, email: user.email, eventType: 'api_key_generated',
@@ -45,9 +41,13 @@ export async function handleGenerateKey(request: Request, env: Env): Promise<Res
 
   return Response.json({
     apiKey,
-    user: { email: user.email, plan: user.plan },
-    usage: { used: usage.used, limit: usage.limit },
-    message: `✓ Logged in as ${user.email} · ${user.plan} plan · ${usage.used}/${usage.limit} requests used`,
+    user:  { email: user.email, plan: plan.name },
+    usage: { used: usage.cloudOptimizationsUsed, limit: plan.limits.cloudOptimizationsMonthly },
+    message: [
+      `✓ Logged in as ${user.email}`,
+      `${plan.name} plan`,
+      `${usage.cloudOptimizationsUsed}/${plan.limits.cloudOptimizationsMonthly} cloud optimizations used`,
+    ].join(' · '),
   })
 }
 
@@ -59,11 +59,20 @@ export async function handleMe(request: Request, env: Env): Promise<Response> {
   const auth = request.headers.get('Authorization')
   if (!auth?.startsWith('Bearer ')) return Response.json({ error: 'unauthorized' }, { status: 401 })
 
-  const { validateApiKey, checkUsage } = await import('../lib/supabase.js')
-  const cfg = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
+  const cfg  = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
   const user = await validateApiKey(cfg, auth.slice(7).trim())
   if (!user) return Response.json({ error: 'invalid key' }, { status: 401 })
 
-  const usage = await checkUsage(cfg, user.id, user.plan)
-  return Response.json({ email: user.email, plan: user.plan, used: usage.used, limit: usage.limit })
+  const plan  = await getPlan(user.plan, env)
+  const usage = await getUsageThisPeriod(cfg, user.id, plan.id)
+
+  return Response.json({
+    email:    user.email,
+    plan:     plan.name,
+    planId:   plan.id,
+    used:     usage.cloudOptimizationsUsed,
+    limit:    plan.limits.cloudOptimizationsMonthly,
+    limits:   plan.limits,
+    features: plan.features,
+  })
 }

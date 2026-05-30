@@ -3,11 +3,12 @@ import { handle } from '../engine.js'
 import { authenticate } from '../lib/auth.js'
 import { cacheKey, cacheGet, cachePut } from '../lib/cache.js'
 import { trackEvent } from '../lib/analytics.js'
-// Usage recording is now done via /v1/events telemetry endpoint.
-// The /optimize handler remains lean — auth + cache + optimize only.
+import { MAX_RAW_PAYLOAD_BYTES, getUsageThisPeriod, recordOptimization } from '../lib/supabase.js'
+import { getPlan } from '../lib/plans.js'
+import { canUseRemoteOptimizer, entitlementMessage } from '../lib/entitlement.js'
 
 export async function handleOptimize(request: Request, env: Env): Promise<Response> {
-  // ── 1. Parse body ─────────────────────────────────────────────
+  // ── 1. Parse + validate body ──────────────────────────────────────────────
   let body: OptimizeRequest
   try {
     body = await request.json() as OptimizeRequest
@@ -18,25 +19,57 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
     return Response.json({ error: 'missing event' }, { status: 400 })
   }
 
-  // ── 2. Authenticate + check limits ────────────────────────────
+  // ── 2. Absolute payload cap (before auth, before plan lookup) ─────────────
+  const rawOutputSize    = JSON.stringify(body.event.tool?.output ?? '').length
+  const rawTokenEstimate = Math.round(rawOutputSize / 4)
+  if (rawOutputSize > MAX_RAW_PAYLOAD_BYTES) {
+    return Response.json({
+      result: { kind: 'passthrough' },
+      _warning: `Payload too large (${Math.round(rawOutputSize / 1024)}KB). Max absolute limit is ${Math.round(MAX_RAW_PAYLOAD_BYTES / 1024 / 1024)}MB.`,
+    } satisfies OptimizeResponse)
+  }
+
+  // ── 3. Authenticate ───────────────────────────────────────────────────────
   const auth = await authenticate(request, env)
   if (!auth.ok) {
     return Response.json({ error: auth.error }, { status: auth.status })
   }
-  const { user, usage } = auth
+  const { user } = auth
 
-  if (!usage.ok) {
-    // At limit: return passthrough (never block) + notification
-    const result: OptimizeResponse = {
+  // ── 4. Resolve plan + current usage ──────────────────────────────────────
+  const plan = await getPlan(user.plan, env)
+
+  const cfg = env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY
+    ? { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
+    : null
+
+  const usageThisPeriod = cfg
+    ? await getUsageThisPeriod(cfg, user.id, plan.id)
+    : { id: '', cloudOptimizationsUsed: 0, cloudTokensUsed: 0, localOptimizationsCount: 0, savedTokens: 0 }
+
+  // ── 5. Entitlement check (plan capabilities + limits) ─────────────────────
+  const optimizer = body.event.tool?.name ?? 'unknown'
+  const check = canUseRemoteOptimizer({
+    plan,
+    optimizer,
+    payloadBytes:       rawOutputSize,
+    rawTokensEstimate:  rawTokenEstimate,
+    usageThisPeriod: {
+      cloudOptimizationsUsed: usageThisPeriod.cloudOptimizationsUsed,
+      cloudTokensUsed:        usageThisPeriod.cloudTokensUsed,
+    },
+  })
+
+  if (!check.allowed) {
+    return Response.json({
       result: {
         kind: 'add-context',
-        context: `⚠️ Confire free tier reached (${usage.used}/${usage.limit} requests). Using local optimizer. Upgrade at confire.dev/upgrade`,
+        context: entitlementMessage(check, plan.name),
       },
-    }
-    return Response.json(result)
+    } satisfies OptimizeResponse)
   }
 
-  // ── 3. Cache lookup ───────────────────────────────────────────
+  // ── 6. Cache lookup (content-hash) ────────────────────────────────────────
   const key = await cacheKey(body.event.tool?.output ?? body.event)
   if (env.CACHE) {
     const cached = await cacheGet(env.CACHE, key)
@@ -45,22 +78,28 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
     }
   }
 
-  // ── 4. Optimize ───────────────────────────────────────────────
+  // ── 7. Optimize ───────────────────────────────────────────────────────────
   const result = handle(body.event)
 
-  // ── 5. Cache the result ───────────────────────────────────────
+  // ── 8. Cache the result ───────────────────────────────────────────────────
   if (env.CACHE) {
     cachePut(env.CACHE, key, result).catch(() => {})
   }
 
-  // ── 6. Track usage + analytics (async, don't block response) ──
-  const bytesSaved = result.stats ? result.stats.beforeBytes - result.stats.afterBytes : 0
-  if (result.kind !== 'passthrough') {
-    const cfg = env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY
-      ? { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
-      : null
-    // Usage accounting is written via the /v1/events telemetry endpoint
-  // which the daemon calls asynchronously after the hook returns.
+  // ── 9. Record usage + analytics (async — don't block response) ───────────
+  if (result.kind !== 'passthrough' && cfg) {
+    recordOptimization(cfg, {
+      userId:      user.id,
+      planId:      plan.id,
+      sessionId:   body.event.session?.id ?? '',
+      toolType:    body.event.tool?.mcpServer ?? body.event.tool?.name ?? 'unknown',
+      integration: body.event.host ?? 'claude_code',
+      optimizer:   result.stats?.optimizer ?? 'unknown',
+      rawBytes:    result.stats?.beforeBytes ?? rawOutputSize,
+      optimizedBytes: result.stats?.afterBytes ?? rawOutputSize,
+      wasCached:   false,
+      analyticsConsented: true,  // TODO: read from user preferences
+    }).catch(() => {})
 
     trackEvent(env.AE, env.AMPLITUDE_KEY, {
       userId:      user.id,
@@ -75,10 +114,10 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
     })
   }
 
-  // ── 7. Warn approaching limit ─────────────────────────────────
+  // ── 10. Approaching-limit nudge ───────────────────────────────────────────
   const responseResult = { ...result } as typeof result & { _warning?: string }
-  if (usage.ok && usage.used >= usage.limit * 0.8) {
-    responseResult._warning = `⚠️ ${usage.used}/${usage.limit} requests used · confire.dev/upgrade`
+  if (check.approachingLimit && check.approachingLimitMessage) {
+    responseResult._warning = `⚠️ ${check.approachingLimitMessage} · confire.dev/upgrade`
   }
 
   return Response.json({ result: responseResult } satisfies OptimizeResponse)

@@ -112,6 +112,7 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
       if (cfg && event.raw_bytes != null && event.optimized_bytes != null) {
         await recordOptimization(cfg, {
           userId:             user.id,
+          planId:             user.plan ?? 'free',
           sessionId:          event.session_id ?? '',
           toolType:           event.tool_type ?? 'unknown',
           integration:        event.integration ?? 'claude_code',

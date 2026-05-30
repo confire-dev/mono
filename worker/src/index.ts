@@ -4,6 +4,8 @@ import { handleSessionStart }    from './handlers/session.js'
 import { handleGenerateKey, handleMe } from './handlers/auth.js'
 import { handleTelemetry }       from './handlers/telemetry.js'
 import { handleStripeWebhook }   from './handlers/stripe.js'
+import { syncPlansToKV }         from './lib/plans.js'
+import { handleSupabaseWebhook } from './handlers/db-webhook.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  '*',
@@ -44,6 +46,25 @@ export default {
     // ── Stripe webhooks ───────────────────────────────────────────────────
     if (method === 'POST' && url.pathname === '/webhooks/stripe') {
       return handleStripeWebhook(request, env)
+    }
+
+    // ── Supabase DB webhook (plans table changes → re-sync KV) ───────────
+    // Fired automatically by Supabase whenever a row in `plans` is changed.
+    // No manual sync needed — the DB pushes changes to the Worker.
+    if (method === 'POST' && url.pathname === '/webhooks/supabase') {
+      return handleSupabaseWebhook(request, env)
+    }
+
+    // ── Admin: manual plan sync (fallback / debug) ────────────────────────
+    // Normally not needed — the Supabase webhook handles it automatically.
+    // Useful for: initial setup, debugging, webhook failure recovery.
+    if (method === 'POST' && url.pathname === '/admin/plans/sync') {
+      try {
+        await syncPlansToKV(env)
+        return Response.json({ ok: true, message: 'Plans synced from Supabase → KV' })
+      } catch (e) {
+        return Response.json({ error: String(e) }, { status: 500 })
+      }
     }
 
     // ── Health ────────────────────────────────────────────────────────────

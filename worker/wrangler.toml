@@ -18,11 +18,15 @@ preview_id = "placeholder-replace-with: wrangler kv namespace create confire-cac
 binding = "AE"
 dataset = "confire_events"
 
-# Secrets (set via: wrangler secret put SUPABASE_URL etc.)
-# SUPABASE_URL          — your Supabase project URL
-# SUPABASE_ANON_KEY     — Supabase anon/public key
-# SUPABASE_SERVICE_KEY  — Supabase service role key (server-side only)
-# AMPLITUDE_KEY         — Amplitude HTTP API key
+# Secrets (set via: wrangler secret put <NAME>)
+# SUPABASE_URL             — your Supabase project URL
+# SUPABASE_ANON_KEY        — Supabase anon/public key
+# SUPABASE_SERVICE_KEY     — Supabase service role key (server-side only)
+# AMPLITUDE_KEY            — Amplitude HTTP API key
+# STRIPE_WEBHOOK_SECRET    — Stripe webhook signing secret
+# SUPABASE_WEBHOOK_SECRET  — shared secret for Supabase DB webhooks
+#                            Set in Supabase: Database → Webhooks → HTTP Headers
+#                            Key: Authorization   Value: Bearer <this secret>
 
 [dev]
 port = 8787

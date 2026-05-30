@@ -77,6 +77,8 @@ export interface Env {
   AMPLITUDE_KEY?: string
   // Stripe — webhooks
   STRIPE_WEBHOOK_SECRET?: string
+  // Supabase — database webhooks (set in wrangler secrets)
+  SUPABASE_WEBHOOK_SECRET?: string
   STRIPE_PRO_PRICE_ID?: string
   // Environment tag
   ENVIRONMENT: string
@@ -104,4 +106,6 @@ export interface OptimizeRequest {
 
 export interface OptimizeResponse {
   result: InterceptResult
+  // Optional warning sent to the daemon for display (80%/100% limit nudge, payload too large)
+  _warning?: string
 }
