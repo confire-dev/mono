@@ -14,6 +14,12 @@ wrangler kv namespace create confire-cache --preview
 
 # Analytics Engine dataset
 wrangler analytics-engine dataset create confire_events
+
+# Rate limiting namespaces (one per plan tier)
+wrangler rate-limit create rl-free
+wrangler rate-limit create rl-dev
+wrangler rate-limit create rl-pro
+# → copy the namespace_ids into worker/wrangler.toml under [[rate_limiting]]
 ```
 
 ### 2. Set secrets

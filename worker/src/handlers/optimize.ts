@@ -36,7 +36,16 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
   }
   const { user } = auth
 
-  // ── 4. Resolve plan + current usage ──────────────────────────────────────
+  // ── 4. Rate limit check (fast — Cloudflare edge, no DB) ─────────────────
+  const rateLimited = await checkRateLimit(env, user.plan, user.id)
+  if (rateLimited) {
+    return Response.json(
+      { error: 'rate_limit_exceeded', message: 'Too many requests. See confire.dev/docs/rate-limits' },
+      { status: 429, headers: { 'Retry-After': '60' } },
+    )
+  }
+
+  // ── 5. Resolve plan + current usage ──────────────────────────────────────
   const plan = await getPlan(user.plan, env)
 
   const cfg = env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY
@@ -47,7 +56,7 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
     ? await getUsageThisPeriod(cfg, user.id, plan.id)
     : { id: '', cloudOptimizationsUsed: 0, cloudTokensUsed: 0, localOptimizationsCount: 0, savedTokens: 0 }
 
-  // ── 5. Entitlement check (plan capabilities + limits) ─────────────────────
+  // ── 6. Entitlement check (plan capabilities + limits) ─────────────────────
   const optimizer = body.event.tool?.name ?? 'unknown'
   const check = canUseRemoteOptimizer({
     plan,
@@ -121,4 +130,21 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
   }
 
   return Response.json({ result: responseResult } satisfies OptimizeResponse)
+}
+
+// Select the rate limiter binding for the user's plan tier and check the limit.
+// Returns true (blocked) if the user has exceeded their per-minute request rate.
+// If no binding is configured (local dev), allows through.
+function checkRateLimit(env: Env, planId: string, userId: string): Promise<boolean> {
+  let limiter: RateLimit | undefined
+  if (planId === 'free') {
+    limiter = env.RL_FREE
+  } else if (planId === 'dev' || planId === 'dev_annual') {
+    limiter = env.RL_DEV
+  } else {
+    // pro, pro_annual, enterprise
+    limiter = env.RL_PRO
+  }
+  if (!limiter) return Promise.resolve(false)
+  return limiter.limit({ key: userId }).then(r => !r.success)
 }

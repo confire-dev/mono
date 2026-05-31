@@ -69,6 +69,10 @@ export interface Env {
   CACHE: KVNamespace
   // Cloudflare Analytics Engine — real-time usage counters
   AE?: AnalyticsEngineDataset
+  // Cloudflare Rate Limiting — per-user request throttling (one binding per plan tier)
+  RL_FREE?: RateLimit
+  RL_DEV?: RateLimit
+  RL_PRO?: RateLimit
   // Supabase — billing truth, user data, dashboard
   SUPABASE_URL?: string
   SUPABASE_ANON_KEY?: string

@@ -166,3 +166,31 @@ Supabase                         Amplitude
 **`analytics_consented` flag:** Sent in every `/v1/events` payload.
   - `true`  → Worker writes Supabase + forwards to Amplitude
   - `false` → Worker writes Supabase only (usage accounting still required)
+
+## ADR-012: Cloudflare Workers Rate Limiting API for per-user throttling
+
+**Decision:** Use the Cloudflare Workers Rate Limiting API (one binding per plan tier) for per-minute
+request throttling. Do not store rate limit state in Supabase or KV.
+
+**Rationale:**
+- Workers Rate Limiting runs at the Cloudflare edge in ~1ms with no external calls — adding it
+  between auth and the Supabase usage query adds zero meaningful latency.
+- One fixed binding per tier (`RL_FREE`, `RL_DEV`, `RL_PRO`) maps cleanly to plan groups.
+  The plan_id→tier mapping lives in code (two lines); no DB lookup needed.
+- Keeping rate limits in `wrangler.toml` (not the plans DB) separates two concerns:
+  the DB controls what users can access; wrangler controls how fast they can access it.
+  Changing rate limits is a deploy, not a DB edit — intentionally requires a code review.
+- Alternatives considered:
+  - KV sliding window: adds ~2ms write, complex rollover logic.
+  - Durable Object: precise but heavyweight for per-minute limits; overkill.
+  - IP-based Cloudflare firewall rules: don't distinguish plans; bypass-able behind proxies.
+
+**Rate limits (v1):**
+
+| Plan tier               | Requests per minute |
+|-------------------------|---------------------|
+| Free                    | 20                  |
+| Dev / Dev Annual        | 60                  |
+| Pro / Pro Annual / Enterprise | 200           |
+
+**Local optimizer is never rate-limited** — only remote calls to `POST /api/optimize` are counted.
