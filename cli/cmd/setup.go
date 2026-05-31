@@ -174,7 +174,9 @@ func runSetup() error {
 	if anyInstalled {
 		fmt.Printf("  • Restart your AI agent to activate the hook.\n")
 	}
-	fmt.Printf("  • Run %sconfire login%s to connect your account.\n", cyan, reset)
+	if key, _ := auth.LoadKey(); key == "" {
+		fmt.Printf("  • Run %sconfire login%s to connect your account.\n", cyan, reset)
+	}
 	fmt.Printf("  • Run %sconfire status%s to verify everything is running.\n\n", cyan, reset)
 	return nil
 }

@@ -88,9 +88,9 @@ func (ds *daemonState) onToolResult(event intercept.InterceptEvent, result inter
 		// Track biggest single save for session summary
 		savedBytes := result.Stats.BeforeBytes - result.Stats.AfterBytes
 		if savedBytes > sess.biggestWinRaw-sess.biggestWinOpt {
-			name := event.Tool.GetServerHint()
+			name := ""
 			if event.Tool != nil {
-				name = event.Tool.Name
+				name = event.Tool.GetServerHint() // returns MCP server name or lowercase tool name
 			}
 			sess.biggestWinTool = normalizeToolName(name)
 			sess.biggestWinRaw  = result.Stats.BeforeBytes
@@ -389,13 +389,9 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 		fmt.Fprintln(os.Stderr, stderrLine)
 	}
 
-	// Big save → add one line to Claude's context (visible in conversation)
+	// Big save → add one line to Claude's context (visible in conversation).
 	if contextLine != "" && result.Kind == intercept.ResultReplaceOutput {
 		result.Context = contextLine
-		if result.Kind == intercept.ResultReplaceOutput {
-			// Upgrade to add-context only if there's no tool output to set
-			// (we still send the optimized output + context via hookSpecificOutput)
-		}
 	}
 
 	json.NewEncoder(conn).Encode(result)
@@ -418,13 +414,6 @@ func buildDaemonTransportWithKey(apiKey, deviceID string) transport.Transport {
 	}
 	worker := transport.NewWorker(workerURLEnv(), apiKey, deviceID)
 	return transport.NewFallback(worker, transport.NewLocal(""))
-}
-
-// Keep old name for backward compat with other callers.
-func buildDaemonTransport() transport.Transport {
-	key := resolveAPIKey()
-	did, _ := auth.DeviceID()
-	return buildDaemonTransportWithKey(key, did)
 }
 
 func resolveAPIKey() string {

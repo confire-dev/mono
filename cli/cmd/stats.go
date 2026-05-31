@@ -63,17 +63,28 @@ func runStats(cmd *cobra.Command) error {
 		return nil
 	}
 
-	today, err := db.Today()
-	if err != nil {
-		return fmt.Errorf("read stats: %w", err)
+	var today, month, allTime stats.Stats
+	var statsErr error
+	if statsFlagTool != "" {
+		tool := statsFlagTool
+		today, statsErr = db.TodayByTool(tool)
+		if statsErr == nil {
+			month, statsErr = db.ThisMonthByTool(tool)
+		}
+		if statsErr == nil {
+			allTime, statsErr = db.AllTimeByTool(tool)
+		}
+	} else {
+		today, statsErr = db.Today()
+		if statsErr == nil {
+			month, statsErr = db.ThisMonth()
+		}
+		if statsErr == nil {
+			allTime, statsErr = db.AllTime()
+		}
 	}
-	month, err := db.ThisMonth()
-	if err != nil {
-		return fmt.Errorf("read stats: %w", err)
-	}
-	allTime, err := db.AllTime()
-	if err != nil {
-		return fmt.Errorf("read stats: %w", err)
+	if statsErr != nil {
+		return fmt.Errorf("read stats: %w", statsErr)
 	}
 	topTools, err := db.TopToolsThisMonth(4)
 	if err != nil {

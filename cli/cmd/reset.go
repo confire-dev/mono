@@ -58,15 +58,33 @@ func runReset() error {
 	fmt.Printf("\n  %sRemoving hooks...%s\n\n", bold, reset)
 
 	for _, t := range targets {
-		cc := &hosts.ClaudeCodeHost{}
-		if !cc.IsInstalledAt(t.path) {
-			fmt.Printf("  %s○%s  %s  %snot installed%s\n", gray, reset, t.label, dim, reset)
-			continue
+		removed := false
+		for _, h := range hosts.Registry() {
+			if h.ComingSoon() || !h.IsInstalled(hosts.StrategyHooks) {
+				continue
+			}
+			// For ClaudeCodeHost, check the specific path rather than the default.
+			if cc, ok := h.(*hosts.ClaudeCodeHost); ok {
+				if !cc.IsInstalledAt(t.path) {
+					continue
+				}
+				if err := cc.UninstallAt(hosts.StrategyHooks, t.path); err != nil {
+					fmt.Printf("  %s✗%s  %-18s %s  %v\n", red, reset, h.Label(), t.label, err)
+				} else {
+					fmt.Printf("  %s✓%s  %-18s %s  hook removed\n", green, reset, h.Label(), t.label)
+					removed = true
+				}
+				continue
+			}
+			if err := h.Uninstall(hosts.StrategyHooks); err != nil {
+				fmt.Printf("  %s✗%s  %-18s %v\n", red, reset, h.Label(), err)
+			} else {
+				fmt.Printf("  %s✓%s  %-18s hook removed\n", green, reset, h.Label())
+				removed = true
+			}
 		}
-		if err := cc.UninstallAt(hosts.StrategyHooks, t.path); err != nil {
-			fmt.Printf("  %s✗%s  %s  %v\n", red, reset, t.label, err)
-		} else {
-			fmt.Printf("  %s✓%s  %s  hook removed\n", green, reset, t.label)
+		if !removed {
+			fmt.Printf("  %s○%s  %s  %snot installed%s\n", gray, reset, t.label, dim, reset)
 		}
 	}
 

@@ -240,6 +240,40 @@ func (s *DB) AllTime() (Stats, error) {
 	return st, err
 }
 
+// TodayByTool returns stats for the current calendar day filtered to one tool family.
+func (s *DB) TodayByTool(tool string) (Stats, error) {
+	date := time.Now().Format("2006-01-02")
+	var st Stats
+	err := s.db.QueryRow(`
+		SELECT COALESCE(COUNT(*),0), COALESCE(SUM(tokens_saved),0)
+		FROM requests WHERE date(created_at) = ? AND tool_name = ?`,
+		date, tool,
+	).Scan(&st.RequestCount, &st.TokensSaved)
+	return st, err
+}
+
+// ThisMonthByTool returns stats for the current calendar month filtered to one tool family.
+func (s *DB) ThisMonthByTool(tool string) (Stats, error) {
+	month := time.Now().Format("2006-01")
+	var st Stats
+	err := s.db.QueryRow(`
+		SELECT COALESCE(COUNT(*),0), COALESCE(SUM(tokens_saved),0)
+		FROM requests WHERE strftime('%Y-%m', created_at) = ? AND tool_name = ?`,
+		month, tool,
+	).Scan(&st.RequestCount, &st.TokensSaved)
+	return st, err
+}
+
+// AllTimeByTool returns lifetime stats filtered to one tool family.
+func (s *DB) AllTimeByTool(tool string) (Stats, error) {
+	var st Stats
+	err := s.db.QueryRow(`
+		SELECT COALESCE(COUNT(*),0), COALESCE(SUM(tokens_saved),0)
+		FROM requests WHERE tool_name = ?`, tool,
+	).Scan(&st.RequestCount, &st.TokensSaved)
+	return st, err
+}
+
 // ToolStat holds per-tool breakdown for a period.
 type ToolStat struct {
 	ToolName     string
