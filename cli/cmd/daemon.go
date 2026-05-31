@@ -426,7 +426,15 @@ func buildDaemonTransportWithKey(apiKey, deviceID string) transport.Transport {
 		return transport.NewPassthrough()
 	}
 	worker := transport.NewWorker(workerURLEnv(), apiKey, deviceID)
-	return transport.NewFallback(worker, transport.NewLocal(""))
+	// Local runs first (Bash/Read/WebFetch — zero latency, works on free plan).
+	// Cloud gets the remainder: MCP tools and anything local passes through.
+	return transport.NewLocalFirst(transport.NewLocal(""), worker)
+}
+
+func buildDaemonTransport() transport.Transport {
+	key := resolveAPIKey()
+	did, _ := auth.DeviceID()
+	return buildDaemonTransportWithKey(key, did)
 }
 
 func resolveAPIKey() string {

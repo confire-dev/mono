@@ -408,6 +408,9 @@ func EncodeResult(result intercept.InterceptResult, eventName string) (HookOutpu
 	switch result.Kind {
 	case intercept.ResultReplaceOutput:
 		out.HookSpecificOutput.UpdatedToolOutput = result.ToolOutput
+		if result.Context != "" {
+			out.HookSpecificOutput.AdditionalContext = result.Context
+		}
 		return out, true
 	case intercept.ResultReplaceInput:
 		out.HookSpecificOutput.UpdatedInput = result.ToolInput

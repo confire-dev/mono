@@ -48,13 +48,13 @@ func notifyResult(
 
 	default: // "brand"
 		if savedTokens >= cfg.Notifications.BigSaveTokens {
-			stderrLine  = fmt.Sprintf("🔥 Confire saved ~%s tokens on this %s response.",
+			stderrLine = fmt.Sprintf("🔥 Confire saved ~%s tokens on this %s response.",
 				tokenStr(savedTokens), tool)
-			contextLine = stderrLine
 		} else {
 			stderrLine = fmt.Sprintf("🔥 Confire optimized %s: ~%s → ~%s tokens.",
 				tool, tokenStr(rawTok), tokenStr(optTok))
 		}
+		contextLine = stderrLine
 	}
 
 	return stderrLine, contextLine

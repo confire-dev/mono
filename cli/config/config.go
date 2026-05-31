@@ -53,8 +53,8 @@ func defaults() Config {
 		Notifications: NotificationConfig{
 			Enabled:        true,
 			Style:          "brand",
-			MinSavedTokens: 5_000,
-			BigSaveTokens:  50_000,
+			MinSavedTokens: 200,
+			BigSaveTokens:  5_000,
 		},
 	}
 }
