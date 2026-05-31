@@ -60,17 +60,28 @@ func (t *LocalTransport) handleToolPost(event intercept.InterceptEvent) (interce
 		return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, nil
 	}
 
-	// For Bash, pass the original command to the optimizer for better heuristics.
+	// For Bash, Claude Code sends tool_response as {"stdout":"...","stderr":"...",...}.
+	// Extract stdout, optimize it, then rebuild the full object with updated stdout.
 	if toolName == "bash" {
-		if s, ok := event.Tool.Output.(string); ok {
+		stdout, obj := bashStdout(event.Tool.Output)
+		if stdout != "" {
 			cmd := bashCommand(event.Tool.Input)
-			optimized := optimizer.OptimizeBashWithCmd(s, cmd)
-			if optimized != s && len(optimized) < len(s) {
+			optimized := optimizer.OptimizeBashWithCmd(stdout, cmd)
+			if optimized != stdout && len(optimized) < len(stdout) {
+				var toolOutput any = optimized
+				if obj != nil {
+					rebuilt := make(map[string]any, len(obj))
+					for k, v := range obj {
+						rebuilt[k] = v
+					}
+					rebuilt["stdout"] = optimized
+					toolOutput = rebuilt
+				}
 				return intercept.InterceptResult{
 					Kind:       intercept.ResultReplaceOutput,
-					ToolOutput: optimized,
+					ToolOutput: toolOutput,
 					Stats: &intercept.Stats{
-						BeforeBytes: len(s),
+						BeforeBytes: len(stdout),
 						AfterBytes:  len(optimized),
 						Optimizer:   "local/bash",
 					},
@@ -138,6 +149,21 @@ func bashCommand(input any) string {
 		}
 	}
 	return ""
+}
+
+// bashStdout extracts the stdout text from a Bash tool_response.
+// Claude Code sends it as {"stdout":"...","stderr":"...",...} not a plain string.
+// Returns the stdout string and the original map (nil if input was a plain string).
+func bashStdout(output any) (string, map[string]any) {
+	if s, ok := output.(string); ok {
+		return s, nil
+	}
+	if m, ok := output.(map[string]interface{}); ok {
+		if s, ok := m["stdout"].(string); ok {
+			return s, m
+		}
+	}
+	return "", nil
 }
 
 func (t *LocalTransport) Mode() OptimizerMode { return OptimizerModeLocal }

@@ -22,13 +22,40 @@ func (r *ReadOptimizer) Matches(toolName string) bool {
 func (r *ReadOptimizer) Optimize(data interface{}) interface{} {
 	defer func() { recover() }()
 
+	// Claude Code sends {"type":"text","file":{"filePath":"...","content":"..."}}
+	if m, ok := data.(map[string]interface{}); ok {
+		if fileObj, ok := m["file"].(map[string]interface{}); ok {
+			if content, ok := fileObj["content"].(string); ok {
+				optimized := r.optimizeText(content)
+				if optimized == content {
+					return data
+				}
+				newFile := make(map[string]interface{}, len(fileObj))
+				for k, v := range fileObj {
+					newFile[k] = v
+				}
+				newFile["content"] = optimized
+				result := make(map[string]interface{}, len(m))
+				for k, v := range m {
+					result[k] = v
+				}
+				result["file"] = newFile
+				return result
+			}
+		}
+	}
+
+	// Fallback: plain string (tests, direct calls)
 	text, ok := data.(string)
 	if !ok {
 		return data
 	}
+	return r.optimizeText(text)
+}
 
+func (r *ReadOptimizer) optimizeText(text string) string {
 	if len(text) <= readMaxBytes {
-		return data
+		return text
 	}
 
 	lines := strings.Split(text, "\n")
@@ -39,7 +66,6 @@ func (r *ReadOptimizer) Optimize(data interface{}) interface{} {
 			fmt.Sprintf("\n[confire: %d lines truncated — use offset/limit params to read more]", dropped)
 	}
 
-	// Over byte limit but not line limit
 	truncated := text[:readMaxBytes]
 	dropped := len(text) - readMaxBytes
 	return truncated + fmt.Sprintf("\n[confire: %d bytes truncated]", dropped)

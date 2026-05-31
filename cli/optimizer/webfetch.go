@@ -35,16 +35,44 @@ func (w *WebFetchOptimizer) Matches(toolName string) bool {
 func (w *WebFetchOptimizer) Optimize(data interface{}) interface{} {
 	defer func() { recover() }()
 
+	// Claude Code sends {"bytes":N,"code":200,"codeText":"OK","result":"...markdown...","durationMs":N,"url":"..."}
+	// result is already processed markdown — just cap length if needed.
+	if m, ok := data.(map[string]interface{}); ok {
+		if result, ok := m["result"].(string); ok {
+			optimized := w.optimizeMarkdown(result)
+			if optimized == result {
+				return data
+			}
+			newMap := make(map[string]interface{}, len(m))
+			for k, v := range m {
+				newMap[k] = v
+			}
+			newMap["result"] = optimized
+			return newMap
+		}
+	}
+
+	// Fallback: raw HTML string (tests, direct calls, older Claude Code versions)
 	text, ok := data.(string)
 	if !ok {
 		return data
 	}
+	return w.optimizeHTML(text)
+}
 
+func (w *WebFetchOptimizer) optimizeMarkdown(text string) string {
+	if len(text) <= webfetchMaxBytes {
+		return text
+	}
+	return text[:webfetchMaxBytes] + "\n[confire: truncated]"
+}
+
+func (w *WebFetchOptimizer) optimizeHTML(text string) string {
 	if len(text) < 2_000 {
-		return data
+		return text
 	}
 	if !strings.Contains(text, "<") || !strings.Contains(text, ">") {
-		return data
+		return text
 	}
 
 	result := text
@@ -65,9 +93,8 @@ func (w *WebFetchOptimizer) Optimize(data interface{}) interface{} {
 	if len(result) > webfetchMaxBytes {
 		result = result[:webfetchMaxBytes] + "\n[confire: truncated]"
 	}
-
 	if len(result) >= int(float64(len(text))*0.7) {
-		return data
+		return text
 	}
 	return result
 }
