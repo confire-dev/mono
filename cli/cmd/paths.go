@@ -42,6 +42,10 @@ func daemonSocketPath() string {
 	return filepath.Join(confireDir(), "daemon.sock")
 }
 
+func daemonPIDPath() string {
+	return filepath.Join(confireDir(), "daemon.pid")
+}
+
 func apiKeyEnv() string {
 	return os.Getenv("CONFIRE_KEY")
 }

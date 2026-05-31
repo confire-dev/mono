@@ -9,6 +9,16 @@ const { data: { user } } = await supabase.auth.getUser()
 if (!user) return Astro.redirect('/login')
 
 const nextUrl = Astro.url.searchParams.get('next') ?? '/dashboard'
+
+// Already onboarded — skip straight to destination. Prevents re-entry from
+// expired-session re-auth or direct URL access from overwriting the existing name.
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('name')
+  .eq('id', user.id)
+  .maybeSingle()
+
+if (profile?.name) return Astro.redirect(nextUrl)
 ---
 
 <Layout title="Welcome" bare>

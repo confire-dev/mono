@@ -65,16 +65,6 @@ func runStatus() error {
 		}
 	}
 
-	// ── Daemon ────────────────────────────────────────────────────────────
-	fmt.Printf("\n  %sDaemon%s\n", dim, reset)
-	daemonRunning := isDaemonRunning()
-	fmt.Printf("  %s  Daemon socket      %s\n", tick(daemonRunning), func() string {
-		if daemonRunning {
-			return fmt.Sprintf("%srunning%s  (%s)", green, reset, daemonSocketPath())
-		}
-		return fmt.Sprintf("%snot running%s  — start with: confire daemon", gray, reset)
-	}())
-
 	// ── Account ───────────────────────────────────────────────────────────
 	fmt.Printf("\n  %sAccount%s\n", dim, reset)
 	apiKey, _ := auth.LoadKey()
@@ -97,18 +87,19 @@ func runStatus() error {
 		}
 	}
 
-	// ── Optimizer mode ────────────────────────────────────────────────────
+	// ── Optimizer ─────────────────────────────────────────────────────────
 	fmt.Printf("\n  %sOptimizer%s\n", dim, reset)
-	if !hasKey {
-		fmt.Printf("  %s○%s  Mode               %slocal (Bash, Read, WebFetch, Generic)%s\n",
-			gray, reset, dim, reset)
-		fmt.Printf("          %sLogin for cloud optimizer (Figma, GitHub, Jira, Slack, …)%s\n", dim, reset)
-	} else if daemonRunning {
-		fmt.Printf("  %s  Mode               %scloud + local fallback%s\n", tick(true), green, reset)
-	} else {
-		fmt.Printf("  %s○%s  Mode               %slocal (daemon not running)%s\n",
-			gray, reset, dim, reset)
-		fmt.Printf("          Start daemon: %sconfire daemon%s &\n", cyan, reset)
+	daemonRunning := isDaemonRunning()
+	switch {
+	case !hasKey:
+		fmt.Printf("  %s  Status             %sdisabled — run `confire login` to enable%s\n",
+			tick(false), dim, reset)
+	case daemonRunning:
+		fmt.Printf("  %s  Status             %sactive (cloud + local fallback)%s\n",
+			tick(true), green, reset)
+	default:
+		fmt.Printf("  %s  Status             %sstopped — run `confire start`%s\n",
+			tick(false), dim, reset)
 	}
 
 	// ── Telemetry ─────────────────────────────────────────────────────────

@@ -157,11 +157,26 @@ func runSetup() error {
 		}
 	}
 
+	// Auto-start the daemon so optimization is active immediately.
+	if anyInstalled {
+		fmt.Printf("\n  %sStarting optimizer...%s\n\n", bold, reset)
+		if isDaemonRunning() {
+			fmt.Printf("  %s✓%s  Optimizer already running\n", green, reset)
+		} else if err := launchDaemon(); err != nil {
+			fmt.Printf("  %s○%s  Could not auto-start optimizer — run %sconfire start%s manually\n",
+				gray, reset, cyan, reset)
+		} else {
+			fmt.Printf("  %s✓%s  Optimizer started\n", green, reset)
+		}
+	}
+
 	fmt.Printf("\n  %sNext steps:%s\n", bold, reset)
 	if anyInstalled {
 		fmt.Printf("  • Restart your AI agent to activate the hook.\n")
 	}
-	fmt.Printf("  • Run %sconfire login%s to connect your account.\n", cyan, reset)
+	if key, _ := auth.LoadKey(); key == "" {
+		fmt.Printf("  • Run %sconfire login%s to connect your account.\n", cyan, reset)
+	}
 	fmt.Printf("  • Run %sconfire status%s to verify everything is running.\n\n", cyan, reset)
 	return nil
 }

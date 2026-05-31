@@ -33,15 +33,9 @@ func runHook() error {
 
 	event := hosts.DecodeHookInput(input)
 
-	hint := ""
-	if event.Tool != nil {
-		hint = event.Tool.GetServerHint()
-	}
-
 	// Try daemon first (warm HTTP/2 + cloud optimizer).
-	// If it's not running, fall through to LocalTransport — never block the developer.
-	local := transport.NewLocal(hint)
-	t := transport.NewDaemonClient(daemonSocketPath(), local)
+	// If it's not running, pass through — optimization requires an account and daemon.
+	t := transport.NewDaemonClient(daemonSocketPath(), transport.NewPassthrough())
 
 	result, err := t.Send(event)
 	if err != nil || result.Kind == intercept.ResultPassthrough {

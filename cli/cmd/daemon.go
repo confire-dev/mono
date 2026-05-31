@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -15,16 +16,15 @@ import (
 	"github.com/confire-dev/confire/auth"
 	"github.com/confire-dev/confire/config"
 	"github.com/confire-dev/confire/intercept"
+	"github.com/confire-dev/confire/internal/stats"
 	"github.com/confire-dev/confire/transport"
 	"github.com/spf13/cobra"
 )
 
 var daemonCmd = &cobra.Command{
-	Use:   "daemon",
-	Short: "Start the Confire daemon (long-lived optimizer + HTTP/2 to Worker)",
-	Long: `The daemon holds a warm HTTP/2 connection to the Confire Worker,
-owns the API key, tracks session stats, and serves the hook shim over a
-unix socket. Normally started automatically by the launchd plist.`,
+	Use:    "daemon",
+	Short:  "Start the Confire daemon",
+	Hidden: true, // internal — users use `confire start` / `confire stop`
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runDaemon()
 	},
@@ -57,6 +57,7 @@ type daemonState struct {
 	apiKey   string
 	deviceID string
 	cfg      config.Config
+	statsDB  *stats.DB
 }
 
 func (ds *daemonState) onSessionStart(event intercept.InterceptEvent) {
@@ -87,15 +88,39 @@ func (ds *daemonState) onToolResult(event intercept.InterceptEvent, result inter
 		// Track biggest single save for session summary
 		savedBytes := result.Stats.BeforeBytes - result.Stats.AfterBytes
 		if savedBytes > sess.biggestWinRaw-sess.biggestWinOpt {
-			name := event.Tool.GetServerHint()
+			name := ""
 			if event.Tool != nil {
-				name = event.Tool.Name
+				name = event.Tool.GetServerHint() // returns MCP server name or lowercase tool name
 			}
 			sess.biggestWinTool = normalizeToolName(name)
 			sess.biggestWinRaw  = result.Stats.BeforeBytes
 			sess.biggestWinOpt  = result.Stats.AfterBytes
 		}
-		go ds.postToolEvent(event, result)
+
+		// Record locally first (works offline). eventID ties this to the Worker post.
+		eventID := stats.NewEventID()
+		toolName := ""
+		if event.Tool != nil {
+			toolName = event.Tool.Name
+		}
+		// SyncStatus reflects whether this event can ever reach the Worker.
+		syncStatus := stats.StatusPending
+		if ds.apiKey == "" {
+			syncStatus = stats.StatusNoAccount
+		}
+		if ds.statsDB != nil {
+			ds.statsDB.RecordRequest(stats.Request{
+				EventID:     eventID,
+				ToolName:    stats.ToolFamily(toolName),
+				Optimizer:   result.Stats.Optimizer,
+				BytesBefore: result.Stats.BeforeBytes,
+				BytesAfter:  result.Stats.AfterBytes,
+				Host:        string(event.Host),
+				SyncStatus:  syncStatus,
+			})
+		}
+
+		go ds.postToolEvent(event, result, eventID)
 	}
 }
 
@@ -139,12 +164,12 @@ type telemetryPayload struct {
 	TotalOptBytes   int `json:"optimized_bytes_total,omitempty"`
 }
 
-func (ds *daemonState) postToolEvent(event intercept.InterceptEvent, result intercept.InterceptResult) {
+func (ds *daemonState) postToolEvent(event intercept.InterceptEvent, result intercept.InterceptResult, eventID string) {
 	if ds.apiKey == "" {
 		return
 	}
 	payload := telemetryPayload{
-		EventID:            randomHex(8),
+		EventID:            eventID,
 		EventType:          "tool_call_optimized",
 		CLIVersion:         buildVersion,
 		Integration:        string(event.Host),
@@ -156,11 +181,13 @@ func (ds *daemonState) postToolEvent(event intercept.InterceptEvent, result inte
 		payload.DurationMs = event.Tool.DurationMs
 	}
 	if result.Stats != nil {
-		payload.Optimizer       = result.Stats.Optimizer
-		payload.RawBytes        = result.Stats.BeforeBytes
-		payload.OptimizedBytes  = result.Stats.AfterBytes
+		payload.Optimizer      = result.Stats.Optimizer
+		payload.RawBytes       = result.Stats.BeforeBytes
+		payload.OptimizedBytes = result.Stats.AfterBytes
 	}
-	ds.postEvent(payload)
+	if ds.postEvent(payload) && ds.statsDB != nil {
+		ds.statsDB.MarkSynced(eventID)
+	}
 }
 
 func (ds *daemonState) postSessionEnd(sess *sessionStats) {
@@ -168,7 +195,7 @@ func (ds *daemonState) postSessionEnd(sess *sessionStats) {
 		return
 	}
 	ds.postEvent(telemetryPayload{
-		EventID:            randomHex(8),
+		EventID:            stats.NewEventID(),
 		EventType:          "session_end",
 		CLIVersion:         buildVersion,
 		Integration:        sess.integration,
@@ -179,6 +206,10 @@ func (ds *daemonState) postSessionEnd(sess *sessionStats) {
 		TotalOptBytes:      int(sess.optimizedBytes),
 		AnalyticsConsented: ds.cfg.Telemetry,
 	})
+	// Flush any pending events now that we know the network is up.
+	if ds.statsDB != nil {
+		ds.syncPending()
+	}
 }
 
 func (ds *daemonState) postSessionStart(event intercept.InterceptEvent) {
@@ -186,7 +217,7 @@ func (ds *daemonState) postSessionStart(event intercept.InterceptEvent) {
 		return
 	}
 	ds.postEvent(telemetryPayload{
-		EventID:            randomHex(8),
+		EventID:            stats.NewEventID(),
 		EventType:          "session_start",
 		CLIVersion:         buildVersion,
 		Integration:        string(event.Host),
@@ -195,15 +226,48 @@ func (ds *daemonState) postSessionStart(event intercept.InterceptEvent) {
 	})
 }
 
-func (ds *daemonState) postEvent(payload telemetryPayload) {
+// periodicSync calls syncPending on a fixed interval until the daemon exits.
+func (ds *daemonState) periodicSync(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for range ticker.C {
+		ds.syncPending()
+	}
+}
+
+// syncPending retries unsynced local stats rows against the Worker.
+func (ds *daemonState) syncPending() {
+	pending, err := ds.statsDB.PendingSync(200)
+	if err != nil || len(pending) == 0 {
+		return
+	}
+	for _, row := range pending {
+		payload := telemetryPayload{
+			EventID:            row.EventID,
+			EventType:          "tool_call_optimized",
+			CLIVersion:         buildVersion,
+			Integration:        row.Host,
+			ToolType:           row.ToolName,
+			Optimizer:          row.Optimizer,
+			RawBytes:           int(row.TokensBefore * 4),
+			OptimizedBytes:     int(row.TokensAfter * 4),
+			AnalyticsConsented: ds.cfg.Telemetry,
+		}
+		if ds.postEvent(payload) {
+			ds.statsDB.MarkSynced(row.EventID)
+		}
+	}
+}
+
+func (ds *daemonState) postEvent(payload telemetryPayload) bool {
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return
+		return false
 	}
 	workerURL := workerURLEnv()
 	req, err := http.NewRequest(http.MethodPost, workerURL+"/v1/events", bytes.NewReader(body))
 	if err != nil {
-		return
+		return false
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+ds.apiKey)
@@ -214,9 +278,10 @@ func (ds *daemonState) postEvent(payload telemetryPayload) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return
+		return false
 	}
 	resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
 }
 
 // ── Daemon main ───────────────────────────────────────────────────────────────
@@ -232,31 +297,49 @@ func runDaemon() error {
 	defer func() {
 		listener.Close()
 		os.Remove(socketPath)
+		os.Remove(daemonPIDPath())
 	}()
 	os.Chmod(socketPath, 0600)
 
+	// Write PID file so `confire stop` can signal us.
+	pidPath := daemonPIDPath()
+	os.WriteFile(pidPath, []byte(strconv.Itoa(os.Getpid())), 0600)
+
 	cfg := config.Load()
 
-	apiKey  := resolveAPIKey()
+	apiKey := resolveAPIKey()
 	deviceID := ""
 	if d, err := auth.DeviceID(); err == nil {
 		deviceID = d
 	}
+
+	statsDB, _ := stats.Open(statsDBPath())
 
 	state := &daemonState{
 		sessions: make(map[string]*sessionStats),
 		apiKey:   apiKey,
 		deviceID: deviceID,
 		cfg:      cfg,
+		statsDB:  statsDB,
+	}
+
+	if statsDB != nil {
+		defer statsDB.Close()
 	}
 
 	t := buildDaemonTransportWithKey(apiKey, deviceID)
+
+	// Sync pending events: on startup, then every 5 minutes.
+	if statsDB != nil && apiKey != "" {
+		go state.syncPending()
+		go state.periodicSync(5 * time.Minute)
+	}
 
 	fmt.Fprintf(os.Stderr, "[confire daemon] v%s listening on %s\n", buildVersion, socketPath)
 	if apiKey != "" {
 		fmt.Fprintf(os.Stderr, "[confire daemon] cloud mode → %s\n", workerURLEnv())
 	} else {
-		fmt.Fprintln(os.Stderr, "[confire daemon] local mode — run `confire login` for cloud optimization")
+		fmt.Fprintln(os.Stderr, "[confire daemon] no account — run `confire login` to enable optimization")
 	}
 
 	sigCh := make(chan os.Signal, 1)
@@ -319,42 +402,31 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 		fmt.Fprintln(os.Stderr, stderrLine)
 	}
 
-	// Big save → add one line to Claude's context (visible in conversation)
+	// Big save → add one line to Claude's context (visible in conversation).
 	if contextLine != "" && result.Kind == intercept.ResultReplaceOutput {
 		result.Context = contextLine
-		if result.Kind == intercept.ResultReplaceOutput {
-			// Upgrade to add-context only if there's no tool output to set
-			// (we still send the optimized output + context via hookSpecificOutput)
-		}
 	}
 
 	json.NewEncoder(conn).Encode(result)
 }
 
 func sessionStartNotification(state *daemonState) string {
-	mode := "local"
-	if state.apiKey != "" {
-		mode = "cloud"
+	if state.apiKey == "" {
+		return "⚠️ Confire: not logged in — run `confire login` to enable optimization."
 	}
-	return fmt.Sprintf("✓ Confire v%s active (%s optimizer)", buildVersion, mode)
+	return fmt.Sprintf("✓ Confire v%s active (cloud optimizer)", buildVersion)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 func buildDaemonTransportWithKey(apiKey, deviceID string) transport.Transport {
-	local := transport.NewLocal("")
 	if apiKey == "" {
-		return local
+		// No account → no optimization. Local runs as fallback only when the
+		// Worker can't help (quota exhausted, offline); it is not a free tier.
+		return transport.NewPassthrough()
 	}
 	worker := transport.NewWorker(workerURLEnv(), apiKey, deviceID)
-	return transport.NewFallback(worker, local)
-}
-
-// Keep old name for backward compat with other callers.
-func buildDaemonTransport() transport.Transport {
-	key := resolveAPIKey()
-	did, _ := auth.DeviceID()
-	return buildDaemonTransportWithKey(key, did)
+	return transport.NewFallback(worker, transport.NewLocal(""))
 }
 
 func resolveAPIKey() string {
@@ -370,12 +442,4 @@ func resolveToolType(tool *intercept.Tool) string {
 		return tool.MCPServer
 	}
 	return tool.Name
-}
-
-func randomHex(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = "0123456789abcdef"[time.Now().UnixNano()>>uint(i)&0xf]
-	}
-	return string(b)
 }
