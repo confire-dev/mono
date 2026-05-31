@@ -332,22 +332,22 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 }
 
 func sessionStartNotification(state *daemonState) string {
-	mode := "local"
-	if state.apiKey != "" {
-		mode = "cloud"
+	if state.apiKey == "" {
+		return "⚠️ Confire: not logged in — run `confire login` to enable optimization."
 	}
-	return fmt.Sprintf("✓ Confire v%s active (%s optimizer)", buildVersion, mode)
+	return fmt.Sprintf("✓ Confire v%s active (cloud optimizer)", buildVersion)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 func buildDaemonTransportWithKey(apiKey, deviceID string) transport.Transport {
-	local := transport.NewLocal("")
 	if apiKey == "" {
-		return local
+		// No account → no optimization. Local runs as fallback only when the
+		// Worker can't help (quota exhausted, offline); it is not a free tier.
+		return transport.NewPassthrough()
 	}
 	worker := transport.NewWorker(workerURLEnv(), apiKey, deviceID)
-	return transport.NewFallback(worker, local)
+	return transport.NewFallback(worker, transport.NewLocal(""))
 }
 
 // Keep old name for backward compat with other callers.

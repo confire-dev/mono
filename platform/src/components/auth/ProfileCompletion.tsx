@@ -22,7 +22,11 @@ export function ProfileCompletion({ email, userId, nextUrl = "/dashboard" }: Pro
     if (!name.trim()) return
     setLoading(true)
     setError("")
-    const { error } = await supabase.from("profiles").upsert({ id: userId, email, name: name.trim() })
+    const { error } = await supabase
+      .from("profiles")
+      .update({ name: name.trim() })
+      .eq("id", userId)
+      .is("name", null)
     if (error) { setError(error.message); setLoading(false) }
     else window.location.href = nextUrl
   }

@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"os/exec"
 	"runtime"
 	"time"
@@ -57,6 +56,18 @@ func init() {
 // ── Login ─────────────────────────────────────────────────────────────────
 
 func runLogin() error {
+	// Already logged in — show current account rather than re-running the flow.
+	if key, _ := auth.LoadKey(); key != "" {
+		email, _ := auth.LoadEmail()
+		if email != "" {
+			fmt.Printf("Already logged in as %s.\n", email)
+		} else {
+			fmt.Println("Already logged in.")
+		}
+		fmt.Println("Run `confire whoami` to check your account, or `confire logout` to switch.")
+		return nil
+	}
+
 	deviceID, err := auth.DeviceID()
 	if err != nil {
 		deviceID = "unknown"
@@ -124,11 +135,12 @@ func runLogin() error {
 		srv.Shutdown(shutCtx)
 	}()
 
-	// 4. Open browser
-	fmt.Println("Opening browser for login...")
-	if err := openBrowser(loginURL); err != nil {
-		fmt.Fprintf(os.Stderr, "\nCouldn't open browser. Visit:\n%s\n\n", loginURL)
-	}
+	// 4. Always show the URL so it can be copied to any browser, then try to open it.
+	fmt.Printf("\nOpening browser for login...\n\n")
+	fmt.Printf("  %s\n\n", loginURL)
+	fmt.Printf("If the browser didn't open, copy the URL above.\n")
+	fmt.Printf("Waiting for authorization... (Ctrl+C to cancel)\n\n")
+	openBrowser(loginURL) // best-effort; URL already visible above
 
 	// 5. Wait for the CLI callback (5-minute timeout)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)

@@ -100,9 +100,8 @@ func runStatus() error {
 	// ── Optimizer mode ────────────────────────────────────────────────────
 	fmt.Printf("\n  %sOptimizer%s\n", dim, reset)
 	if !hasKey {
-		fmt.Printf("  %s○%s  Mode               %slocal (Bash, Read, WebFetch, Generic)%s\n",
-			gray, reset, dim, reset)
-		fmt.Printf("          %sLogin for cloud optimizer (Figma, GitHub, Jira, Slack, …)%s\n", dim, reset)
+		fmt.Printf("  %s  Mode               %sdisabled — run `confire login` to enable%s\n",
+			tick(false), dim, reset)
 	} else if daemonRunning {
 		fmt.Printf("  %s  Mode               %scloud + local fallback%s\n", tick(true), green, reset)
 	} else {
