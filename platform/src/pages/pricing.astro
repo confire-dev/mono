@@ -18,7 +18,25 @@ const error = Astro.url.searchParams.get('error')
       <p class="mt-2 text-muted-foreground">Start free. Upgrade when you need more.</p>
     </div>
 
-    <div class="grid w-full max-w-3xl gap-6 sm:grid-cols-3">
+    <!-- Billing interval toggle -->
+    <div class="flex items-center gap-3 rounded-full border bg-muted p-1">
+      <button
+        id="btn-monthly"
+        class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors bg-background shadow text-foreground"
+        onclick="setBilling('monthly')"
+      >
+        Monthly
+      </button>
+      <button
+        id="btn-annual"
+        class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:text-foreground"
+        onclick="setBilling('annual')"
+      >
+        Annual <span class="ml-1 text-xs font-semibold text-green-600">Save ~20%</span>
+      </button>
+    </div>
+
+    <div class="grid w-full max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
 
       <!-- Free -->
       <div class="flex flex-col gap-4 rounded-lg border bg-card p-6">
@@ -28,9 +46,12 @@ const error = Astro.url.searchParams.get('error')
           <p class="text-sm text-muted-foreground">/month</p>
         </div>
         <ul class="flex flex-col gap-2 text-sm text-muted-foreground">
-          <li>✓ 500 cloud optimizations/mo</li>
-          <li>✓ Bash, Read, WebFetch, Generic</li>
-          <li>✓ Local optimizer</li>
+          <li>✓ Claude Code hook</li>
+          <li>✓ Local CLI</li>
+          <li>✓ 4 local optimizers</li>
+          <li>✓ 500 remote requests/mo</li>
+          <li>✓ Universal fallback optimizer</li>
+          <li>✓ Basic token savings stats</li>
         </ul>
         <a
           href="/login?plan=free"
@@ -41,49 +62,142 @@ const error = Astro.url.searchParams.get('error')
       </div>
 
       <!-- Dev -->
-      <div class="flex flex-col gap-4 rounded-lg border bg-card p-6">
-        <div>
-          <p class="text-sm font-medium text-muted-foreground">Dev</p>
-          <p class="mt-1 text-3xl font-bold">$19</p>
-          <p class="text-sm text-muted-foreground">/month</p>
-        </div>
-        <ul class="flex flex-col gap-2 text-sm text-muted-foreground">
-          <li>✓ 5 000 cloud optimizations/mo</li>
-          <li>✓ Figma, GitHub, Jira, Slack</li>
-          <li>✓ Usage dashboard</li>
-        </ul>
-        <a
-          href="/login?plan=dev"
-          class="mt-auto inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
-        >
-          Start Dev plan
-        </a>
-      </div>
-
-      <!-- Pro -->
       <div class="relative flex flex-col gap-4 rounded-lg border-2 border-primary bg-card p-6">
         <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-primary-foreground">
           Most popular
         </span>
         <div>
-          <p class="text-sm font-medium text-muted-foreground">Pro</p>
-          <p class="mt-1 text-3xl font-bold">$49</p>
-          <p class="text-sm text-muted-foreground">/month</p>
+          <p class="text-sm font-medium text-muted-foreground">Dev</p>
+          <p class="mt-1 text-3xl font-bold">
+            <span data-monthly>$10</span>
+            <span data-annual class="hidden">$95</span>
+          </p>
+          <p class="text-sm text-muted-foreground">
+            <span data-monthly>/month</span>
+            <span data-annual class="hidden">/year <span class="text-xs text-green-600">(~$7.92/mo)</span></span>
+          </p>
         </div>
         <ul class="flex flex-col gap-2 text-sm text-muted-foreground">
-          <li>✓ Unlimited cloud optimizations</li>
-          <li>✓ All integrations</li>
-          <li>✓ Advanced dashboard + exports</li>
-          <li>✓ Priority optimizer updates</li>
+          <li>✓ Everything in Free</li>
+          <li>✓ 5,000 remote requests/mo</li>
+          <li>✓ 13 source-specific optimizers</li>
+          <li>✓ Remote optimizer updates</li>
+          <li>✓ Larger input payloads</li>
+          <li>✓ Optimization history</li>
+          <li>✓ Early access to new adapters</li>
         </ul>
         <a
+          data-monthly
+          href="/login?plan=dev"
+          class="mt-auto inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+        >
+          Start Dev plan
+        </a>
+        <a
+          data-annual
+          href="/login?plan=dev_annual"
+          class="hidden mt-auto inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+        >
+          Start Dev annual
+        </a>
+      </div>
+
+      <!-- Pro -->
+      <div class="flex flex-col gap-4 rounded-lg border bg-card p-6">
+        <div class="flex items-start justify-between gap-2">
+          <p class="text-sm font-medium text-muted-foreground">Pro</p>
+          <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground whitespace-nowrap">
+            Heavy sessions
+          </span>
+        </div>
+        <div>
+          <p class="mt-1 text-3xl font-bold">
+            <span data-monthly>$20</span>
+            <span data-annual class="hidden">$195</span>
+          </p>
+          <p class="text-sm text-muted-foreground">
+            <span data-monthly>/month</span>
+            <span data-annual class="hidden">/year <span class="text-xs text-green-600">(~$16.25/mo)</span></span>
+          </p>
+        </div>
+        <ul class="flex flex-col gap-2 text-sm text-muted-foreground">
+          <li>✓ Everything in Dev</li>
+          <li>✓ Unlimited fair-use remote requests*</li>
+          <li>✓ Session Memory Guard</li>
+          <li>✓ PreCompact context optimizer</li>
+          <li>✓ Local memory packs</li>
+          <li>✓ Priority optimizer updates</li>
+          <li>✓ Export data</li>
+        </ul>
+        <a
+          data-monthly
           href="/login?plan=pro"
           class="mt-auto inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
         >
-          Start Pro plan
+          Go Pro
+        </a>
+        <a
+          data-annual
+          href="/login?plan=pro_annual"
+          class="hidden mt-auto inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+        >
+          Go Pro annual
+        </a>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="flex flex-col gap-4 rounded-lg border bg-card p-6">
+        <div>
+          <p class="text-sm font-medium text-muted-foreground">Enterprise</p>
+          <p class="mt-1 text-3xl font-bold">Custom</p>
+          <p class="text-sm text-muted-foreground">&nbsp;</p>
+        </div>
+        <ul class="flex flex-col gap-2 text-sm text-muted-foreground">
+          <li>✓ Self-hosted deployment</li>
+          <li>✓ Local-only optimizer mode</li>
+          <li>✓ Team policy controls</li>
+          <li>✓ Custom optimizers</li>
+          <li>✓ Audit / logging controls</li>
+          <li>✓ SSO / SAML (roadmap)</li>
+          <li>✓ Priority support</li>
+        </ul>
+        <a
+          href="mailto:hello@confire.dev"
+          class="mt-auto inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+        >
+          Contact us
         </a>
       </div>
 
     </div>
+
+    <p class="text-xs text-muted-foreground">
+      *Unlimited fair-use — reasonable-use limits apply.
+    </p>
+
   </div>
 </Layout>
+
+<script>
+  function setBilling(mode: 'monthly' | 'annual') {
+    const isAnnual = mode === 'annual'
+
+    // Toggle button styles
+    const btnMonthly = document.getElementById('btn-monthly')!
+    const btnAnnual  = document.getElementById('btn-annual')!
+    btnMonthly.className = isAnnual
+      ? 'rounded-full px-4 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:text-foreground'
+      : 'rounded-full px-4 py-1.5 text-sm font-medium transition-colors bg-background shadow text-foreground'
+    btnAnnual.className = isAnnual
+      ? 'rounded-full px-4 py-1.5 text-sm font-medium transition-colors bg-background shadow text-foreground'
+      : 'rounded-full px-4 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:text-foreground'
+
+    // Swap price/CTA elements
+    document.querySelectorAll('[data-monthly]').forEach(el => {
+      el.classList.toggle('hidden', isAnnual)
+    })
+    document.querySelectorAll('[data-annual]').forEach(el => {
+      el.classList.toggle('hidden', !isAnnual)
+    })
+  }
+</script>

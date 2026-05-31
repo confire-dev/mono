@@ -65,6 +65,11 @@ export interface Plan {
     priorityOptimizerUpdates: boolean
     customOptimizers: boolean
     ssoSaml: boolean
+    optimizationHistory: boolean
+    earlyAccessAdapters: boolean
+    sessionMemoryGuard: boolean
+    preCompactOptimizer: boolean
+    localMemoryPacks: boolean
   }
 
   optimizers: {
