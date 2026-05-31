@@ -7,7 +7,22 @@ import { MAX_RAW_PAYLOAD_BYTES, getUsageThisPeriod, recordOptimization } from '.
 import { getPlan } from '../lib/plans.js'
 import { canUseRemoteOptimizer, entitlementMessage } from '../lib/entitlement.js'
 
+// 100MB — accounts for the full request body (tool.output + envelope overhead).
+// Checked via Content-Length before JSON parsing so oversized requests are
+// rejected before we spend time decoding them. Chunked requests skip this
+// fast-path and rely on MAX_RAW_PAYLOAD_BYTES after parsing.
+const MAX_TOTAL_REQUEST_BYTES = 100 * 1024 * 1024
+
 export async function handleOptimize(request: Request, env: Env): Promise<Response> {
+  // ── 0. Total body size guard (pre-parse, Content-Length fast-path) ────────
+  const contentLength = parseInt(request.headers.get('Content-Length') ?? '', 10)
+  if (!isNaN(contentLength) && contentLength > MAX_TOTAL_REQUEST_BYTES) {
+    return Response.json(
+      { error: 'payload_too_large', message: `Request body too large (${Math.round(contentLength / 1024 / 1024)}MB). Max ${Math.round(MAX_TOTAL_REQUEST_BYTES / 1024 / 1024)}MB.` },
+      { status: 413 },
+    )
+  }
+
   // ── 1. Parse + validate body ──────────────────────────────────────────────
   let body: OptimizeRequest
   try {
