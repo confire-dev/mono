@@ -1,0 +1,23 @@
+PASS src/auth/login.test.ts
+  ✓ redirects to dashboard on success (45ms)
+  ✓ shows error on invalid credentials (23ms)
+  ✓ clears session on logout (12ms)
+
+PASS src/components/Button.test.tsx
+  ✓ renders correctly (8ms)
+  ✓ handles click (4ms)
+  ✓ disabled state prevents click (6ms)
+  ✓ applies custom className (3ms)
+
+FAIL src/billing/checkout.test.ts
+  ✗ creates stripe checkout session
+    Expected: { url: "https://checkout.stripe.com/pay/cs_test_abc123" }
+    Received: undefined
+
+      at Object.<anonymous> (src/billing/checkout.test.ts:34:15)
+
+  ✓ renders pricing cards (18ms)
+  ✓ displays billing history (31ms)
+
+Tests: 1 failed, 8 passed, 9 total
+Time: 2.31s, estimated 3s

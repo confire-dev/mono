@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acme SaaS - The best platform</title>
+  <meta name="description" content="Acme SaaS platform">
+  <link rel="stylesheet" href="/styles/main.css">
+  <link rel="preload" href="/fonts/inter.woff2" as="font">
+  <style>
+    body { margin: 0; font-family: Inter, sans-serif; }
+    .hero { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .cta-button { background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; }
+    nav a { color: #374151; text-decoration: none; margin: 0 16px; }
+  </style>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=GA-123456"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'GA-123456');
+  </script>
+</head>
+<body>
+  <nav class="navbar" id="main-nav" aria-label="Main navigation">
+    <a href="/" class="logo" aria-label="Home">Acme</a>
+    <a href="/features">Features</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/docs">Docs</a>
+    <a href="/login" class="cta-button">Sign in</a>
+  </nav>
+
+  <script>
+    // Intercom tracking
+    window.intercomSettings = { app_id: "abc123", alignment: "right" };
+    (function(){var w=window;var ic=w.Intercom;if(typeof ic==="function"){ic('reattach_activator');}})();
+  </script>
+
+  <main id="main-content">
+    <section class="hero" data-testid="hero-section">
+      <h1 class="hero-title">Build faster, ship more</h1>
+      <p class="hero-subtitle">The platform that helps engineering teams move from idea to production in hours, not weeks.</p>
+      <a href="/signup" class="cta-button" data-track="hero-cta">Start free trial</a>
+    </section>
+
+    <figure class="hero-image" aria-hidden="true">
+      <picture>
+        <source srcset="/images/dashboard-2x.webp 2x" type="image/webp">
+        <img src="/images/dashboard.png" alt="Product dashboard screenshot" width="1200" height="800" loading="lazy">
+      </picture>
+      <figcaption>The Acme dashboard showing real-time metrics</figcaption>
+    </figure>
+
+    <section class="features" id="features">
+      <h2>Everything your team needs</h2>
+
+      <div class="feature-card" data-feature="optimizer">
+        <img src="/icons/speed.svg" alt="" aria-hidden="true">
+        <h3>Intelligent optimizations</h3>
+        <p>Automatically reduce token usage by up to 80% with smart content filtering and noise removal.</p>
+      </div>
+
+      <div class="feature-card" data-feature="integrations">
+        <img src="/icons/integrations.svg" alt="" aria-hidden="true">
+        <h3>50+ integrations</h3>
+        <p>Connect GitHub, Slack, Jira, Notion, and more. Works with any MCP-compatible tool.</p>
+      </div>
+
+      <div class="feature-card" data-feature="security">
+        <img src="/icons/lock.svg" alt="" aria-hidden="true">
+        <h3>Enterprise security</h3>
+        <p>SOC2 Type II certified. Your data never leaves your region.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; 2025 Acme Inc. All rights reserved.</p>
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+  </footer>
+
+  <script>
+    // Analytics and user tracking
+    document.addEventListener('DOMContentLoaded', function() {
+      const buttons = document.querySelectorAll('[data-track]');
+      buttons.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          gtag('event', 'click', { event_label: btn.dataset.track });
+        });
+      });
+    });
+  </script>
+</body>
+</html>
