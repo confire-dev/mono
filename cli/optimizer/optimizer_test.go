@@ -2,6 +2,7 @@ package optimizer
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -387,6 +388,76 @@ func TestReadOptimizer_ShortFile(t *testing.T) {
 	short := "hello\nworld\n"
 	if got := r.Optimize(short); got != short {
 		t.Error("short file should pass through unchanged")
+	}
+}
+
+// ── websearch ────────────────────────────────────────────────────────────────
+
+func TestWebSearchOptimizer_BraveFormat(t *testing.T) {
+	raw := `{"web":{"results":[{"title":"Cloudflare Workers limits","url":"https://developers.cloudflare.com/workers/platform/limits/","description":"Workers are limited to 1MB script size.","age":"3 days ago","thumbnail":{"src":"https://cdn/img.png"},"meta_url":{"netloc":"developers.cloudflare.com"},"profile":{"name":"Cloudflare","img":"https://cdn/cf.png"},"family_friendly":true,"language":"en","extra_snippets":["Paid plans allow 10MB"]}]}}`
+	w := &WebSearchOptimizer{}
+	result := w.Optimize(raw)
+	out, ok := result.(string)
+	if !ok {
+		t.Fatalf("expected string result")
+	}
+	if !strings.Contains(out, "Cloudflare Workers limits") {
+		t.Error("title should be present")
+	}
+	if !strings.Contains(out, "https://developers.cloudflare.com/workers/platform/limits/") {
+		t.Error("url should be present")
+	}
+	if !strings.Contains(out, "1MB script size") {
+		t.Error("description snippet should be present")
+	}
+	// Noise should be gone
+	if strings.Contains(out, "thumbnail") || strings.Contains(out, "meta_url") || strings.Contains(out, "family_friendly") {
+		t.Error("metadata noise should be stripped")
+	}
+	if len(out) >= len(raw) {
+		t.Error("output should be smaller than input")
+	}
+}
+
+func TestWebSearchOptimizer_GenericFormat(t *testing.T) {
+	raw := `{"results":[{"title":"Exa result one","url":"https://exa.ai/result1","text":"Some content from the page.","publishedDate":"2024-11-01"},{"title":"Exa result two","url":"https://exa.ai/result2","text":"More page content."}]}`
+	w := &WebSearchOptimizer{}
+	result := w.Optimize(raw)
+	out, ok := result.(string)
+	if !ok {
+		t.Fatalf("expected string result")
+	}
+	if !strings.Contains(out, "Exa result one") || !strings.Contains(out, "Exa result two") {
+		t.Error("both results should be present")
+	}
+}
+
+func TestWebSearchOptimizer_CapsAt10(t *testing.T) {
+	var results []string
+	for i := 1; i <= 15; i++ {
+		results = append(results, fmt.Sprintf(`{"title":"Result %d","url":"https://example.com/%d","description":"Desc %d"}`, i, i, i))
+	}
+	raw := `{"results":[` + strings.Join(results, ",") + `]}`
+	w := &WebSearchOptimizer{}
+	out := w.Optimize(raw).(string)
+	if !strings.Contains(out, "5 more results omitted") {
+		t.Errorf("should note 5 omitted results, got: %s", out)
+	}
+}
+
+func TestWebSearchOptimizer_Matches(t *testing.T) {
+	w := &WebSearchOptimizer{}
+	hits := []string{"websearch", "brave_web_search", "brave_local_search", "exa_search", "tavily_search", "web_search", "perplexity_search"}
+	for _, name := range hits {
+		if !w.Matches(name) {
+			t.Errorf("Matches(%q) = false, want true", name)
+		}
+	}
+	misses := []string{"bash", "read", "webfetch", "github_search_code"}
+	for _, name := range misses {
+		if w.Matches(name) {
+			t.Errorf("Matches(%q) = true, want false", name)
+		}
 	}
 }
 

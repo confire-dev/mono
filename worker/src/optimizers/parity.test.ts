@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { optimizeBash } from './bash.js'
 import { optimizeWebFetch } from './webfetch.js'
 import { optimizeGeneric } from './generic.js'
+import { optimizeWebSearch } from './websearch.js'
 import type { InterceptEvent } from '../types.js'
 
 const FIXTURES = join(fileURLToPath(new URL('.', import.meta.url)), '../../..', 'testdata/optimizer')
@@ -19,7 +20,10 @@ function fixture(name: string): string {
 }
 
 function bashEvent(input: string): InterceptEvent {
-  return { tool: { name: 'Bash', output: input, input: {} } }
+  return {
+    host: 'claude-code', strategy: 'hooks', phase: 'tool.post', session: { id: 'test' },
+    tool: { name: 'Bash', output: input, input: {}, isMcp: false },
+  }
 }
 
 // ── Bash ─────────────────────────────────────────────────────────────────────
@@ -162,5 +166,47 @@ describe('generic parity', () => {
     // The MCP envelope optimization is handled by Go's tryOptimizeContent
     // For TS this path goes through extractText → optimizeGeneric separately
     expect(result).toBeNull() // MCP envelope itself isn't stripped by generic
+  })
+})
+
+// ── WebSearch ─────────────────────────────────────────────────────────────────
+
+describe('websearch parity', () => {
+  const input = fixture('websearch-brave.json')
+
+  it('reduces output size significantly', () => {
+    const result = optimizeWebSearch(input)
+    expect(result).not.toBeNull()
+    expect(result!.length).toBeLessThan(input.length * 0.4)
+  })
+
+  it('preserves titles and urls', () => {
+    const result = optimizeWebSearch(input)!
+    expect(result).toMatch(/Cloudflare Workers/)
+    expect(result).toMatch(/developers\.cloudflare\.com/)
+    expect(result).toMatch(/TinyGo/)
+    expect(result).toMatch(/blog\.cloudflare\.com/)
+  })
+
+  it('preserves description snippets', () => {
+    const result = optimizeWebSearch(input)!
+    expect(result).toMatch(/1MB/)
+    expect(result).toMatch(/TinyGo produces/)
+  })
+
+  it('strips thumbnails, meta_url, profile images, family_friendly', () => {
+    const result = optimizeWebSearch(input)!
+    expect(result).not.toMatch(/thumbnail/)
+    expect(result).not.toMatch(/meta_url/)
+    expect(result).not.toMatch(/family_friendly/)
+    expect(result).not.toMatch(/extra_snippets/)
+    expect(result).not.toMatch(/cdn-icons/)
+  })
+
+  it('numbers results sequentially', () => {
+    const result = optimizeWebSearch(input)!
+    expect(result).toMatch(/^1\./m)
+    expect(result).toMatch(/^2\./m)
+    expect(result).toMatch(/^3\./m)
   })
 })

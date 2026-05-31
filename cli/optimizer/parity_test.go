@@ -237,6 +237,56 @@ func TestParityGeneric(t *testing.T) {
 	}
 }
 
+// ── WebSearch ─────────────────────────────────────────────────────────────────
+
+func TestParityWebSearch(t *testing.T) {
+	input := readFixture(t, "websearch-brave.json")
+	w := &WebSearchOptimizer{}
+
+	goResult := w.Optimize(input)
+	goOut, ok := goResult.(string)
+	if !ok || goOut == input {
+		t.Fatal("Go WebSearch: expected optimization to apply")
+	}
+	tsOut := runTS(t, "websearch", input)
+
+	// Both must reduce substantially (Brave JSON is very verbose)
+	if float64(len(goOut)) >= float64(len(input))*0.4 {
+		t.Errorf("Go: not reduced enough (%d -> %d)", len(input), len(goOut))
+	}
+	if float64(len(tsOut)) >= float64(len(input))*0.4 {
+		t.Errorf("TS: not reduced enough (%d -> %d)", len(input), len(tsOut))
+	}
+
+	// Both must preserve titles and URLs
+	for _, signal := range []string{"Cloudflare Workers", "developers.cloudflare.com", "TinyGo", "blog.cloudflare.com"} {
+		if !strings.Contains(goOut, signal) {
+			t.Errorf("Go: signal missing: %q", signal)
+		}
+		if !strings.Contains(tsOut, signal) {
+			t.Errorf("TS: signal missing: %q", signal)
+		}
+	}
+
+	// Both must strip metadata noise
+	for _, noise := range []string{"thumbnail", "meta_url", "family_friendly", "extra_snippets", "cdn-icons"} {
+		if strings.Contains(goOut, noise) {
+			t.Errorf("Go: noise not stripped: %q", noise)
+		}
+		if strings.Contains(tsOut, noise) {
+			t.Errorf("TS: noise not stripped: %q", noise)
+		}
+	}
+
+	// Both must number results
+	if !strings.Contains(goOut, "1.") || !strings.Contains(goOut, "2.") {
+		t.Error("Go: results not numbered")
+	}
+	if !strings.Contains(tsOut, "1.") || !strings.Contains(tsOut, "2.") {
+		t.Error("TS: results not numbered")
+	}
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func keySet(m map[string]interface{}) map[string]bool {

@@ -1,0 +1,65 @@
+{
+  "query": {
+    "original": "cloudflare workers wasm size limit",
+    "spellcheck_off": false,
+    "show_strictly_safe": true,
+    "is_navigational": false,
+    "local_decision": "drop",
+    "local_locations_idx": 0,
+    "country": "us",
+    "bad_results": false,
+    "should_fallback": false,
+    "postal_code": "",
+    "city": "",
+    "header_country": "",
+    "more_results_available": true,
+    "custom_location_label": "",
+    "reddit_cluster": ""
+  },
+  "web": {
+    "type": "search",
+    "results": [
+      {
+        "title": "Cloudflare Workers — WebAssembly size limits",
+        "url": "https://developers.cloudflare.com/workers/platform/limits/",
+        "description": "Workers on the free plan are limited to 1MB total script size. Paid Workers Bundled and Workers Unbound plans allow up to 10MB. A single WASM module may not exceed 10MB uncompressed.",
+        "age": "3 days ago",
+        "page_age": "2024-11-01",
+        "profile": {"name": "Cloudflare Docs", "url": "https://developers.cloudflare.com", "img": "https://cdn-icons/cf.png", "long_name": "Cloudflare Developers"},
+        "meta_url": {"scheme": "https", "netloc": "developers.cloudflare.com", "hostname": "developers.cloudflare.com", "favicon": "https://cdn-icons/cf-favicon.ico", "path": "developers.cloudflare.com › workers › platform › limits"},
+        "thumbnail": {"src": "https://og.cloudflare.com/workers-limits.png", "original": "https://og.cloudflare.com/workers-limits.png", "logo": false, "duplicated": false, "theme_color": ""},
+        "family_friendly": true,
+        "language": "en",
+        "extra_snippets": ["Paid plans support workers larger than 1MB", "WASM modules up to 10MB on paid plans"]
+      },
+      {
+        "title": "Using TinyGo with Cloudflare Workers",
+        "url": "https://blog.cloudflare.com/using-tinygo-with-cloudflare-workers/",
+        "description": "TinyGo produces significantly smaller WASM binaries than standard Go. A simple HTTP handler compiles to ~60KB with TinyGo versus ~3MB with standard Go.",
+        "age": "1 month ago",
+        "page_age": "2024-10-15",
+        "profile": {"name": "Cloudflare Blog", "url": "https://blog.cloudflare.com", "img": "https://cdn-icons/cf-blog.png", "long_name": "The Cloudflare Blog"},
+        "meta_url": {"scheme": "https", "netloc": "blog.cloudflare.com", "hostname": "blog.cloudflare.com", "favicon": "https://cdn-icons/cf-favicon.ico", "path": "blog.cloudflare.com › using-tinygo"},
+        "thumbnail": {"src": "https://blog.cloudflare.com/images/tinygo-wasm.png", "original": "https://blog.cloudflare.com/images/tinygo-wasm.png", "logo": false, "duplicated": false, "theme_color": ""},
+        "family_friendly": true,
+        "language": "en",
+        "extra_snippets": ["TinyGo 0.33 supports Cloudflare Workers", "No garbage collector overhead in hot path"]
+      },
+      {
+        "title": "Go WASM binary size — tips and tricks",
+        "url": "https://evanmcclure.dev/posts/go-wasm-size",
+        "description": "Standard Go WASM binaries include the full runtime and GC. Using GOOS=wasip1 instead of js can shave ~20%. TinyGo with -no-debug flag produces the smallest output.",
+        "age": "2 months ago",
+        "page_age": "2024-09-20",
+        "profile": {"name": "Evan McClure", "url": "https://evanmcclure.dev", "img": "", "long_name": "Evan McClure's Blog"},
+        "meta_url": {"scheme": "https", "netloc": "evanmcclure.dev", "hostname": "evanmcclure.dev", "favicon": "", "path": "evanmcclure.dev › posts › go-wasm-size"},
+        "thumbnail": {},
+        "family_friendly": true,
+        "language": "en",
+        "extra_snippets": []
+      }
+    ]
+  },
+  "news": {"type": "news", "results": []},
+  "videos": null
+}

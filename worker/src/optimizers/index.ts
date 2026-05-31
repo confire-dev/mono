@@ -14,6 +14,7 @@ import { optimizeNotion, handlesNotion } from './notion.js'
 import { optimizePlaywright, handlesPlaywright } from './playwright.js'
 import { optimizeZapier, handlesZapier } from './zapier.js'
 import { optimizeGoogleDrive, handlesGoogleDrive } from './google-drive.js'
+import { optimizeWebSearch, handlesWebSearch } from './websearch.js'
 
 // extractText pulls the relevant string from a tool_response.
 // MCP tools wrap content in {content:[{type:"text",text:"..."}]}.
@@ -72,6 +73,7 @@ function dispatch(rawText: string, event: InterceptEvent): string | null {
   if (handlesBash(event))       return optimizeBash(rawText, event)
   if (handlesRead(event))       return optimizeRead(rawText, event)
   if (handlesWebFetch(event))   return optimizeWebFetch(rawText)
+  if (handlesWebSearch(event))  return optimizeWebSearch(rawText)
   // Generic fallback — handles any unrecognized tool
   return optimizeGeneric(rawText)
 }
@@ -113,7 +115,7 @@ export function runPreOptimizers(event: InterceptEvent): InterceptResult {
 function resolveOptimizerName(event: InterceptEvent): string {
   const n = event.tool?.name?.toLowerCase() ?? ''
   const s = event.tool?.mcpServer?.toLowerCase() ?? ''
-  for (const key of ['figma','github','atlassian','clickup','slack','amplitude','fireflies','notion','playwright','zapier','google_drive','googledrive','bash','read','webfetch']) {
+  for (const key of ['figma','github','atlassian','clickup','slack','amplitude','fireflies','notion','playwright','zapier','google_drive','googledrive','bash','read','webfetch','websearch','brave_','exa_','tavily','perplexity']) {
     if (n.includes(key) || s.includes(key)) return key
   }
   return 'generic'
