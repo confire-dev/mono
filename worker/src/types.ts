@@ -86,6 +86,8 @@ export interface Env {
   SUPABASE_WEBHOOK_SECRET?: string
   // Environment tag
   ENVIRONMENT: string
+  // Feature flags (set in wrangler.toml [vars] or via wrangler secret put)
+  OPTIMIZER_API_ENABLED?: string  // "true" to enable POST /v1/optimize
 }
 
 // ── Worker wire formats ────────────────────────────────────────────────────

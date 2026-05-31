@@ -29,7 +29,13 @@ export default {
       return handleOptimize(request, env)
     }
     // ── Standalone Optimizer API (pre-LLM context reduction) ─────────────
+    // Gated by OPTIMIZER_API_ENABLED env var — returns 404 until launched.
+    // To enable: set OPTIMIZER_API_ENABLED="true" in wrangler.toml or via
+    //   wrangler secret put OPTIMIZER_API_ENABLED
     if (method === 'POST' && url.pathname === '/v1/optimize') {
+      if (env.OPTIMIZER_API_ENABLED !== 'true') {
+        return new Response('Not Found', { status: 404 })
+      }
       return handleOptimizerApi(request, env)
     }
     if (method === 'POST' && url.pathname === '/session/start') {

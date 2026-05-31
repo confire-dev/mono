@@ -5,6 +5,8 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ENVIRONMENT = "production"
+# Feature flags — flip to "true" via wrangler.toml or `wrangler secret put` to enable
+OPTIMIZER_API_ENABLED = "false"
 
 # KV — content-hash optimizer cache (24h TTL, ~1ms lookup)
 # Local dev uses a local SQLite-backed KV store — IDs only matter for production deploy.
