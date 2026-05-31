@@ -136,7 +136,7 @@ export function runPreOptimizers(event: InterceptEvent): InterceptResult {
   return { kind: 'passthrough' }
 }
 
-function resolveOptimizerName(event: InterceptEvent): string {
+export function resolveOptimizerName(event: InterceptEvent): string {
   const n = event.tool?.name?.toLowerCase() ?? ''
   const s = event.tool?.mcpServer?.toLowerCase() ?? ''
   for (const key of ['figma','github','atlassian','clickup','slack','amplitude','fireflies','notion','playwright','zapier','google_drive','googledrive','bash','read','webfetch','websearch','brave_','exa_','tavily','perplexity']) {

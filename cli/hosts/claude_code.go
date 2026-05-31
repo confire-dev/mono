@@ -217,6 +217,13 @@ func hookEntryJSON(matcher, cmd string) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(`{"matcher":%s,"hooks":[{"type":"command","command":%s}]}`, m, c))
 }
 
+// sessionHookEntryJSON is like hookEntryJSON but without a matcher field —
+// SessionStart/SessionEnd don't match against a tool name.
+func sessionHookEntryJSON(cmd string) json.RawMessage {
+	c, _ := json.Marshal(cmd)
+	return json.RawMessage(fmt.Sprintf(`{"hooks":[{"type":"command","command":%s}]}`, c))
+}
+
 // isConfireEntry reports whether a raw hook entry belongs to confire.
 func isConfireEntry(raw json.RawMessage) bool {
 	s := string(raw)
@@ -244,7 +251,7 @@ func patchHooks(top *orderedMap, fn func(phase string, arr []json.RawMessage) []
 		}
 	}
 
-	for _, phase := range []string{"PostToolUse", "PreToolUse"} {
+	for _, phase := range []string{"PostToolUse", "PreToolUse", "SessionStart", "SessionEnd"} {
 		var arr []json.RawMessage
 		if raw, ok := hooksMap.get(phase); ok {
 			_ = json.Unmarshal(raw, &arr)
@@ -291,14 +298,14 @@ func installClaudeCodeHooksAt(settingsPath, binaryPath string) error {
 	hookCmd := fmt.Sprintf(`"%s" hook`, binaryPath)
 
 	if err := patchHooks(top, func(phase string, arr []json.RawMessage) []json.RawMessage {
-		var matcher string
 		switch phase {
 		case "PostToolUse":
-			matcher = ".*"
+			return dedupAppend(arr, hookEntryJSON(".*", hookCmd))
 		case "PreToolUse":
-			matcher = "Read"
+			return dedupAppend(arr, hookEntryJSON("Read", hookCmd))
+		default: // SessionStart, SessionEnd — no tool matcher
+			return dedupAppend(arr, sessionHookEntryJSON(hookCmd))
 		}
-		return dedupAppend(arr, hookEntryJSON(matcher, hookCmd))
 	}); err != nil {
 		return err
 	}

@@ -53,6 +53,13 @@ func (t *LocalTransport) handleToolPost(event intercept.InterceptEvent) (interce
 
 	toolName := strings.ToLower(event.Tool.Name)
 
+	// Write/Edit/Glob have structured output shapes Claude Code requires preserved
+	// (structuredPatch, originalFile, etc.) — never touch them.
+	switch toolName {
+	case "write", "edit", "glob":
+		return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, nil
+	}
+
 	// For Bash, pass the original command to the optimizer for better heuristics.
 	if toolName == "bash" {
 		if s, ok := event.Tool.Output.(string); ok {

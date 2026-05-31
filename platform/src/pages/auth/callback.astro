@@ -10,6 +10,7 @@ const code       = url.searchParams.get('code')
 const token_hash = url.searchParams.get('token_hash')
 const type       = url.searchParams.get('type') as EmailOtpType | null
 const planIntent = normalizePlanIntent(url.searchParams.get('plan'))
+const next       = url.searchParams.get('next') ?? ''
 
 // Exchange code or verify token when present (OAuth / magic-link flows).
 // OTP-verified sessions (verifyOtp called client-side) arrive here without
@@ -38,7 +39,11 @@ const onboardingDone  = !isNewUser
 // ── Free intent ───────────────────────────────────────────────────────────────
 // Never downgrade an already-paid user just because they hit /login?plan=free.
 if (isFreePlan(planIntent)) {
-  return Astro.redirect(onboardingDone ? '/dashboard' : '/onboarding')
+  if (onboardingDone) {
+    return Astro.redirect(next || '/dashboard')
+  }
+  const onboardingUrl = next ? `/onboarding?next=${encodeURIComponent(next)}` : '/onboarding'
+  return Astro.redirect(onboardingUrl)
 }
 
 // ── Paid intent ───────────────────────────────────────────────────────────────
@@ -55,8 +60,9 @@ if (hasActivePaid) {
 // Validate plan and create Stripe Checkout via the Worker.
 const workerUrl = import.meta.env.WORKER_URL
 if (!workerUrl) {
-  // Worker not configured — fall back to free onboarding.
-  return Astro.redirect(onboardingDone ? '/dashboard' : '/onboarding')
+  if (onboardingDone) return Astro.redirect(next || '/dashboard')
+  const onboardingUrl = next ? `/onboarding?next=${encodeURIComponent(next)}` : '/onboarding'
+  return Astro.redirect(onboardingUrl)
 }
 
 const { data: { session } } = await supabase.auth.getSession()
@@ -99,5 +105,7 @@ if (redirectOverride) return Astro.redirect(redirectOverride)
 if (checkoutUrl)      return Astro.redirect(checkoutUrl)
 
 // Checkout creation failed — land somewhere safe.
-return Astro.redirect(onboardingDone ? '/dashboard' : '/onboarding')
+if (onboardingDone) return Astro.redirect(next || '/dashboard')
+const onboardingUrl = next ? `/onboarding?next=${encodeURIComponent(next)}` : '/onboarding'
+return Astro.redirect(onboardingUrl)
 ---

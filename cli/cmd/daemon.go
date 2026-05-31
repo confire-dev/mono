@@ -78,7 +78,16 @@ func (ds *daemonState) onToolResult(event intercept.InterceptEvent, result inter
 	defer ds.mu.Unlock()
 	sess := ds.sessions[event.Session.ID]
 	if sess == nil {
-		return
+		if event.Session.ID == "" {
+			return
+		}
+		// SessionStart hook not configured — create lazily so stats still record.
+		sess = &sessionStats{
+			startedAt:   time.Now(),
+			sessionID:   event.Session.ID,
+			integration: string(event.Host),
+		}
+		ds.sessions[event.Session.ID] = sess
 	}
 	sess.totalCalls++
 	if result.Kind == intercept.ResultReplaceOutput && result.Stats != nil {

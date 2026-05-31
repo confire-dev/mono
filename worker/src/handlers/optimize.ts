@@ -6,6 +6,7 @@ import { trackEvent } from '../lib/analytics.js'
 import { MAX_RAW_PAYLOAD_BYTES, getUsageThisPeriod, recordOptimization } from '../lib/supabase.js'
 import { getPlan } from '../lib/plans.js'
 import { canUseRemoteOptimizer, entitlementMessage } from '../lib/entitlement.js'
+import { resolveOptimizerName } from '../optimizers/index.js'
 
 // 100MB — accounts for the full request body (tool.output + envelope overhead).
 // Checked via Content-Length before JSON parsing so oversized requests are
@@ -72,7 +73,8 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
     : { id: '', cloudOptimizationsUsed: 0, cloudTokensUsed: 0, localOptimizationsCount: 0, savedTokens: 0 }
 
   // ── 6. Entitlement check (plan capabilities + limits) ─────────────────────
-  const optimizer = body.event.tool?.name ?? 'unknown'
+  // Resolve to short name ("figma", "github", …) so it matches plan.optimizers.remote.
+  const optimizer = resolveOptimizerName(body.event)
   const check = canUseRemoteOptimizer({
     plan,
     optimizer,

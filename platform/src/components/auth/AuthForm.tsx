@@ -11,9 +11,10 @@ type Step = "idle" | "email-sent" | "submitting"
 interface Props {
   className?: string
   planIntent?: string
+  next?: string
 }
 
-export function AuthForm({ className, planIntent = "free" }: Props) {
+export function AuthForm({ className, planIntent = "free", next = "" }: Props) {
   const supabase = useMemo(() => createBrowserClient(), [])
   const [step,  setStep]  = useState<Step>("idle")
   const [email, setEmail] = useState("")
@@ -22,10 +23,11 @@ export function AuthForm({ className, planIntent = "free" }: Props) {
 
   const isFree = planIntent === "free"
 
-  // Auth callback carries the plan intent so the server can route correctly.
+  // Auth callback carries plan intent + next so the server can route correctly
+  // after onboarding (e.g. back to the CLI authorize page).
   const callbackUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/auth/callback?plan=${encodeURIComponent(planIntent)}`
-    : `/auth/callback?plan=${encodeURIComponent(planIntent)}`
+    ? `${window.location.origin}/auth/callback?plan=${encodeURIComponent(planIntent)}${next ? `&next=${encodeURIComponent(next)}` : ''}`
+    : `/auth/callback?plan=${encodeURIComponent(planIntent)}${next ? `&next=${encodeURIComponent(next)}` : ''}`
 
   const isLoading = step === "submitting"
 
