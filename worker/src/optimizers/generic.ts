@@ -37,7 +37,7 @@ function isEmpty(v: unknown): boolean {
 
 function isUrlField(key: string): boolean {
   if (KEEP_URL_FIELDS.has(key)) return false
-  return key.endsWith('_url') || key.endsWith('Url') || key.endsWith('URL')
+  return key.endsWith('_url') || key.endsWith('Url') || key.endsWith('URL') || key.endsWith('Uri') || key.endsWith('uri')
 }
 
 function cleanUser(obj: unknown): unknown {

@@ -13,7 +13,7 @@ type Registry struct {
 }
 
 // NewRegistry returns the LOCAL optimizer registry (free tier).
-// Covers infrastructure tools: Bash, Read, WebFetch + Generic fallback.
+// Covers infrastructure tools: Bash, Read, WebFetch, WebSearch + Generic fallback.
 // Platform-specific MCP optimizers (Figma, GitHub, Slack, etc.) run in the
 // Cloudflare Worker only via WorkerTransport — they are the paid tier.
 func NewRegistry(_ string) *Registry {
@@ -24,6 +24,7 @@ func NewRegistry(_ string) *Registry {
 			&BashOptimizer{},
 			&ReadOptimizer{},
 			&WebFetchOptimizer{},
+			&WebSearchOptimizer{},
 		},
 		fallback: &GenericOptimizer{},
 	}
@@ -41,6 +42,7 @@ func NewWorkerRegistry(hint string) *Registry {
 			&BashOptimizer{},
 			&ReadOptimizer{},
 			&WebFetchOptimizer{},
+			&WebSearchOptimizer{},
 		},
 		fallback: &GenericOptimizer{},
 	}

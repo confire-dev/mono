@@ -39,7 +39,7 @@ func isURLField(key string) bool {
 		return false
 	}
 	return strings.HasSuffix(lower, "_url") ||
-		strings.HasSuffix(lower, "url") && key != "url" ||
+		strings.HasSuffix(lower, "url") && lower != "url" ||
 		strings.HasSuffix(lower, "uri")
 }
 

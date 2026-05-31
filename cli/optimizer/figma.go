@@ -53,6 +53,9 @@ var (
 
 	// Line asset variable name detection
 	reLineAssetName = regexp.MustCompile(`^const (imgLine\d+|imgDivider\w*) = "`)
+
+	// Generic frame name filter — compiled once, not per-iteration
+	reSectionFrameName = regexp.MustCompile(`^Frame \d+$`)
 )
 
 type FigmaOptimizer struct {
@@ -203,7 +206,7 @@ func optimizeSparseMetadata(xml string) string {
 	for _, m := range matches {
 		// m[1]=id, m[2]=name, m[3]=y (optional), m[4]=width, m[5]=height
 		name := m[2]
-		if regexp.MustCompile(`^Frame \d+$`).MatchString(name) {
+		if reSectionFrameName.MatchString(name) {
 			continue
 		}
 		y, _ := strconv.Atoi(m[3])

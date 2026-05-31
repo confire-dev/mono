@@ -8,9 +8,11 @@ const TAIL_LINES  = 50    // if over limit, keep first 20 + last (MAX-20) lines
 const MAX_BYTES   = 40_000
 
 // Patterns that indicate a test runner pass line (keep only on failure)
-const TEST_PASS_RE = /^\s*(✓|✔|PASS|passing|ok\s+\S|·\s+✓|\d+ passing)/i
-const TEST_FAIL_RE = /^\s*(✗|✘|FAIL|failing|not ok|×|\d+ failing|Error:|AssertionError)/i
-const PROGRESS_RE  = /[─-╿▀-▟■-◿]|={3,}|#{3,}|\[=+>?\s*\]|\d+%.*\r/
+const TEST_PASS_RE    = /^\s*(✓|✔|PASS|passing|ok\s+\S|·\s+✓|\d+ passing)/i
+const TEST_FAIL_RE    = /^\s*(✗|✘|FAIL|failing|not ok|×|\d+ failing|Error:|AssertionError)/i
+const PROGRESS_RE     = /[─-╿▀-▟■-◿]|={3,}|#{3,}|\[=+>?\s*\]|\d+%.*\r/
+const BUILD_ERROR_RE  = /error TS\d+|error\[E\d+\]|SyntaxError:|Cannot find|Module not found|ld: error|make\[1\].*Error/i
+const BUILD_SUCCESS_RE = /Successfully compiled|Compiled \d+ files|webpack.*built|cargo.*Finished|Build succeeded/i
 
 export function optimizeBash(rawText: string, event: InterceptEvent): string | null {
   if (!rawText || typeof rawText !== 'string') return null
@@ -26,6 +28,10 @@ export function optimizeBash(rawText: string, event: InterceptEvent): string | n
   if (isTestOutput(rawText, cmd)) {
     result = filterTestOutput(lines)
   }
+  // Build output with errors: drop progress/success lines
+  else if (isBuildOutput(rawText)) {
+    result = filterBuildOutput(lines)
+  }
   // Very long output: keep head + tail
   else if (lines.length > MAX_LINES) {
     const head = lines.slice(0, 20)
@@ -39,8 +45,15 @@ export function optimizeBash(rawText: string, event: InterceptEvent): string | n
     .filter(l => !PROGRESS_RE.test(l))
     .join('\n')
 
-  // Hard cap on bytes
-  if (result.length > MAX_BYTES) {
+  // Byte-budget head+tail for few-lines-but-large outputs
+  const HEAD_BYTES = 20_000
+  const TAIL_BYTES = 10_000
+  if (result.length > MAX_BYTES && result.length > HEAD_BYTES + TAIL_BYTES) {
+    const dropped = result.length - HEAD_BYTES - TAIL_BYTES
+    result = result.slice(0, HEAD_BYTES) +
+      `\n[confire: ${dropped} bytes omitted]\n` +
+      result.slice(-TAIL_BYTES)
+  } else if (result.length > MAX_BYTES) {
     result = result.slice(0, MAX_BYTES) + `\n[confire: output truncated at ${MAX_BYTES} bytes]`
   }
 
@@ -50,6 +63,22 @@ export function optimizeBash(rawText: string, event: InterceptEvent): string | n
 function isTestOutput(text: string, cmd: string): boolean {
   return TEST_PASS_RE.test(text) || TEST_FAIL_RE.test(text) ||
     /\b(jest|vitest|mocha|pytest|cargo test|go test|npm test|yarn test)\b/i.test(cmd)
+}
+
+function isBuildOutput(text: string): boolean {
+  return BUILD_ERROR_RE.test(text) && BUILD_SUCCESS_RE.test(text)
+}
+
+function filterBuildOutput(lines: string[]): string {
+  const errorLines: string[] = []
+  let progressCount = 0
+  for (const line of lines) {
+    if (BUILD_ERROR_RE.test(line)) { errorLines.push(line) }
+    else if (BUILD_SUCCESS_RE.test(line) || PROGRESS_RE.test(line)) { progressCount++ }
+    else { errorLines.push(line) }
+  }
+  if (progressCount === 0) return lines.join('\n')
+  return `[confire: ${progressCount} build progress lines omitted]\n` + errorLines.join('\n')
 }
 
 function filterTestOutput(lines: string[]): string {

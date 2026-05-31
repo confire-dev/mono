@@ -1,0 +1,8 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"id\": 42, \"number\": 42, \"title\": \"Fix auth callback routing for plan intent\", \"body\": \"Closes #38. Routes users to Stripe checkout when a paid plan is in the URL.\", \"state\": \"open\", \"draft\": false, \"node_id\": \"PR_kwDOAbc123\", \"html_url\": \"https://github.com/acme/repo/pull/42\", \"url\": \"https://api.github.com/repos/acme/repo/pulls/42\", \"diff_url\": \"https://github.com/acme/repo/pull/42.diff\", \"patch_url\": \"https://github.com/acme/repo/pull/42.patch\", \"issue_url\": \"https://api.github.com/repos/acme/repo/issues/42\", \"commits_url\": \"https://api.github.com/repos/acme/repo/pulls/42/commits\", \"review_comments_url\": \"https://api.github.com/repos/acme/repo/pulls/42/comments\", \"statuses_url\": \"https://api.github.com/repos/acme/repo/statuses/abc123\", \"merge_commit_sha\": null, \"auto_merge\": null, \"active_lock_reason\": null, \"user\": {\"login\": \"alice\", \"id\": 1001, \"node_id\": \"U_kgDOBxyz\", \"avatar_url\": \"https://avatars.githubusercontent.com/u/1001\", \"gravatar_id\": \"\", \"followers_url\": \"https://api.github.com/users/alice/followers\", \"repos_url\": \"https://api.github.com/users/alice/repos\"}, \"labels\": [{\"id\": 1, \"node_id\": \"LA_abc\", \"url\": \"https://api.github.com/repos/acme/repo/labels/bug\", \"name\": \"bug\", \"color\": \"d73a4a\"}], \"author_association\": \"MEMBER\", \"performed_via_github_app\": null}"
+    }
+  ]
+}

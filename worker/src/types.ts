@@ -69,18 +69,25 @@ export interface Env {
   CACHE: KVNamespace
   // Cloudflare Analytics Engine — real-time usage counters
   AE?: AnalyticsEngineDataset
+  // Cloudflare Rate Limiting — per-user request throttling (one binding per plan tier)
+  RL_FREE?: RateLimit
+  RL_DEV?: RateLimit
+  RL_PRO?: RateLimit
   // Supabase — billing truth, user data, dashboard
   SUPABASE_URL?: string
   SUPABASE_ANON_KEY?: string
   SUPABASE_SERVICE_KEY?: string
   // Amplitude — behavioral analytics only (never billing decisions)
   AMPLITUDE_KEY?: string
-  // Stripe — webhooks
+  // Stripe — checkout creation + webhooks
+  STRIPE_SECRET_KEY?: string
   STRIPE_WEBHOOK_SECRET?: string
   // Supabase — database webhooks (set in wrangler secrets)
   SUPABASE_WEBHOOK_SECRET?: string
   // Environment tag
   ENVIRONMENT: string
+  // Feature flags (set in wrangler.toml [vars] or via wrangler secret put)
+  OPTIMIZER_API_ENABLED?: string  // "true" to enable POST /v1/optimize
 }
 
 // ── Worker wire formats ────────────────────────────────────────────────────
@@ -107,4 +114,40 @@ export interface OptimizeResponse {
   result: InterceptResult
   // Optional warning sent to the daemon for display (80%/100% limit nudge, payload too large)
   _warning?: string
+}
+
+// ── Standalone Optimizer API (/v1/optimize) ────────────────────────────────
+// General-purpose optimization endpoint — not tied to Claude Code hooks.
+// Callers send any text/JSON before passing it to Groq, OpenAI, Gemini, etc.
+
+export type OptimizerType =
+  | 'auto'       // default — generic noise stripping
+  | 'json'       // → generic optimizer
+  | 'html'       // → webfetch optimizer
+  | 'search'     // → websearch optimizer (Brave/Exa/Tavily JSON)
+  | 'bash'       // → bash optimizer (log/test output)
+  | 'github'     // → github optimizer
+  | 'slack'      // → slack optimizer
+  | 'figma'      // → figma optimizer
+  | 'jira'       // → jira optimizer
+  | 'notion'     // → notion optimizer
+  | 'confluence' // → confluence optimizer
+  | 'clickup'    // → clickup optimizer
+  | 'amplitude'  // → amplitude optimizer
+  | 'zapier'     // → zapier optimizer
+  | 'playwright' // → playwright optimizer
+
+export interface OptimizerApiRequest {
+  content: string           // text, JSON, HTML, markdown — anything
+  type?: OptimizerType      // hint for which optimizer to use (default: 'auto')
+}
+
+export interface OptimizerApiResponse {
+  result: string            // optimized content (unchanged if no reduction found)
+  optimized: boolean        // false = content returned as-is
+  input_chars: number
+  output_chars: number
+  reduction_pct: number     // 0–100
+  optimizer: string         // which optimizer ran
+  cached: boolean
 }

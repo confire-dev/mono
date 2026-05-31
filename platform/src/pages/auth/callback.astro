@@ -1,6 +1,7 @@
 ---
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { createSupabaseServer } from '@/lib/supabase'
+import { normalizePlanIntent, isFreePlan } from '@/lib/plan-intent'
 
 const supabase = createSupabaseServer(Astro.request, Astro.cookies)
 const url      = new URL(Astro.request.url)
@@ -8,22 +9,17 @@ const url      = new URL(Astro.request.url)
 const code       = url.searchParams.get('code')
 const token_hash = url.searchParams.get('token_hash')
 const type       = url.searchParams.get('type') as EmailOtpType | null
-const nextUrl    = url.searchParams.get('next') ?? '/dashboard'
+const planIntent = normalizePlanIntent(url.searchParams.get('plan'))
 
-let authError = null
-
+// Exchange code or verify token when present (OAuth / magic-link flows).
+// OTP-verified sessions (verifyOtp called client-side) arrive here without
+// either param — the session is already in cookies, so we skip this block.
 if (code) {
   const { error } = await supabase.auth.exchangeCodeForSession(code)
-  authError = error
+  if (error) return Astro.redirect('/login')
 } else if (token_hash && type) {
   const { error } = await supabase.auth.verifyOtp({ token_hash, type })
-  authError = error
-} else {
-  return Astro.redirect('/login')
-}
-
-if (authError) {
-  return Astro.redirect('/login')
+  if (error) return Astro.redirect('/login')
 }
 
 const { data: { user } } = await supabase.auth.getUser()
@@ -31,13 +27,77 @@ if (!user) return Astro.redirect('/login')
 
 const { data: profile } = await supabase
   .from('profiles')
-  .select('name')
+  .select('name, plan, subscription_status, stripe_customer_id')
   .eq('id', user.id)
   .maybeSingle()
 
-return Astro.redirect(
-  !profile?.name
-    ? `/onboarding?next=${encodeURIComponent(nextUrl)}`
-    : nextUrl
-)
+const isNewUser       = !profile?.name
+const hasActivePaid   = profile?.subscription_status === 'active' && profile?.plan !== 'free'
+const onboardingDone  = !isNewUser
+
+// ── Free intent ───────────────────────────────────────────────────────────────
+// Never downgrade an already-paid user just because they hit /login?plan=free.
+if (isFreePlan(planIntent)) {
+  return Astro.redirect(onboardingDone ? '/dashboard' : '/onboarding')
+}
+
+// ── Paid intent ───────────────────────────────────────────────────────────────
+
+// User already has an active paid subscription.
+if (hasActivePaid) {
+  if (profile?.plan === planIntent) {
+    return Astro.redirect('/dashboard?message=already_subscribed')
+  }
+  // Different plan — direct to billing portal for plan changes.
+  return Astro.redirect('/dashboard?message=plan_change_from_billing')
+}
+
+// Validate plan and create Stripe Checkout via the Worker.
+const workerUrl = import.meta.env.WORKER_URL
+if (!workerUrl) {
+  // Worker not configured — fall back to free onboarding.
+  return Astro.redirect(onboardingDone ? '/dashboard' : '/onboarding')
+}
+
+const { data: { session } } = await supabase.auth.getSession()
+const accessToken = session?.access_token
+if (!accessToken) {
+  return Astro.redirect('/login')
+}
+
+let checkoutUrl: string | null = null
+let redirectOverride: string | null = null
+
+try {
+  const res = await fetch(`${workerUrl}/api/checkout/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      planSlug:   planIntent,
+      successUrl: `${url.origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl:  `${url.origin}/billing/cancelled`,
+    }),
+  })
+
+  const data = await res.json() as Record<string, string>
+
+  if (!res.ok) {
+    // Plan validation failed — stay on Free, tell the user.
+    return Astro.redirect(`/pricing?error=invalid_plan`)
+  }
+
+  if (data.redirect)     redirectOverride = data.redirect
+  else if (data.checkoutUrl) checkoutUrl  = data.checkoutUrl
+} catch {
+  // Network error — fall back gracefully.
+}
+
+if (redirectOverride) return Astro.redirect(redirectOverride)
+if (checkoutUrl)      return Astro.redirect(checkoutUrl)
+
+// Checkout creation failed — land somewhere safe.
+return Astro.redirect(onboardingDone ? '/dashboard' : '/onboarding')
 ---

@@ -1,14 +1,15 @@
 ---
 import Layout from '@/layouts/Layout.astro'
 import { AuthForm } from '@/components/auth/AuthForm'
+import { normalizePlanIntent } from '@/lib/plan-intent'
 
-const nextUrl = Astro.url.searchParams.get('next') ?? '/dashboard'
+const planIntent = normalizePlanIntent(Astro.url.searchParams.get('plan'))
 ---
 
 <Layout title="Sign in" bare>
   <div class="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
     <div class="w-full max-w-sm">
-      <AuthForm client:only="react" nextUrl={nextUrl} />
+      <AuthForm client:only="react" planIntent={planIntent} />
     </div>
   </div>
 </Layout>

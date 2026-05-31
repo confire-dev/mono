@@ -213,8 +213,13 @@ Every plan's `config` column is a JSONB object matching this shape:
     payloadCapture: boolean
     exportData: boolean
     priorityOptimizerUpdates: boolean
-    customOptimizers: boolean   // enterprise only
-    ssoSaml: boolean            // enterprise only
+    customOptimizers: boolean       // enterprise only
+    ssoSaml: boolean                // enterprise only
+    optimizationHistory: boolean    // dev+
+    earlyAccessAdapters: boolean    // dev+
+    sessionMemoryGuard: boolean     // pro+ (not yet implemented — feature flag only)
+    preCompactOptimizer: boolean    // pro+ (not yet implemented — feature flag only)
+    localMemoryPacks: boolean       // pro+ (not yet implemented — feature flag only)
   }
   optimizers: {
     local: string[]   // local optimizer names (unlimited, never counted)
@@ -226,6 +231,31 @@ Every plan's `config` column is a JSONB object matching this shape:
   }
 }
 ```
+
+---
+
+## Rate limits
+
+Per-minute rate limits are enforced by the Cloudflare Workers Rate Limiting API.
+They are **not** stored in the `plans` table — they live in `wrangler.toml` bindings
+and are fixed at deploy time.
+
+| Plan tier          | Requests per minute | Binding   |
+|--------------------|---------------------|-----------|
+| free               | 20                  | `RL_FREE` |
+| dev / dev_annual   | 60                  | `RL_DEV`  |
+| pro / pro_annual / enterprise | 200    | `RL_PRO`  |
+
+To change rate limits, update `wrangler.toml` and redeploy. No Supabase change needed.
+
+To create the Cloudflare rate limit namespaces for the first time:
+```bash
+wrangler rate-limit create rl-free   # note the namespace_id, put in wrangler.toml
+wrangler rate-limit create rl-dev
+wrangler rate-limit create rl-pro
+```
+
+See `docs/rate-limits.md` for the user-facing explanation.
 
 ---
 

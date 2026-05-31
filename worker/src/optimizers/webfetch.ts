@@ -1,9 +1,12 @@
 // WebFetch optimizer — strips HTML/CSS/JS noise, keeps main content.
 // 80-90% reduction on typical web pages.
 
+const HEAD_RE    = /<head\b[^>]*>[\s\S]*?<\/head>/gi
 const SCRIPT_RE  = /<script\b[^>]*>[\s\S]*?<\/script>/gi
 const STYLE_RE   = /<style\b[^>]*>[\s\S]*?<\/style>/gi
 const SVG_RE     = /<svg\b[^>]*>[\s\S]*?<\/svg>/gi
+const FIGURE_RE  = /<(figure|picture)\b[^>]*>[\s\S]*?<\/\1>/gi
+const IMG_RE     = /<img\b[^>]*>/gi
 const NAV_RE     = /<(nav|header|footer|aside|menu)\b[^>]*>[\s\S]*?<\/\1>/gi
 const COMMENT_RE = /<!--[\s\S]*?-->/g
 const TAG_RE     = /<[^>]+>/g
@@ -21,9 +24,12 @@ export function optimizeWebFetch(rawText: string): string | null {
   if (!rawText.includes('<') || !rawText.includes('>')) return null
 
   let text = rawText
+  text = text.replace(HEAD_RE, '')
   text = text.replace(SCRIPT_RE, '')
   text = text.replace(STYLE_RE, '')
   text = text.replace(SVG_RE, '[svg]')
+  text = text.replace(FIGURE_RE, '')
+  text = text.replace(IMG_RE, '[image]')
   text = text.replace(NAV_RE, '')
   text = text.replace(COMMENT_RE, '')
   text = text.replace(ATTR_RE, '')

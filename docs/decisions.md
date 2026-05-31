@@ -166,3 +166,52 @@ Supabase                         Amplitude
 **`analytics_consented` flag:** Sent in every `/v1/events` payload.
   - `true`  → Worker writes Supabase + forwards to Amplitude
   - `false` → Worker writes Supabase only (usage accounting still required)
+
+## ADR-012: Cloudflare Workers Rate Limiting API for per-user throttling
+
+**Decision:** Use the Cloudflare Workers Rate Limiting API (one binding per plan tier) for per-minute
+request throttling. Do not store rate limit state in Supabase or KV.
+
+**Rationale:**
+- Workers Rate Limiting runs at the Cloudflare edge in ~1ms with no external calls — adding it
+  between auth and the Supabase usage query adds zero meaningful latency.
+- One fixed binding per tier (`RL_FREE`, `RL_DEV`, `RL_PRO`) maps cleanly to plan groups.
+  The plan_id→tier mapping lives in code (two lines); no DB lookup needed.
+- Keeping rate limits in `wrangler.toml` (not the plans DB) separates two concerns:
+  the DB controls what users can access; wrangler controls how fast they can access it.
+  Changing rate limits is a deploy, not a DB edit — intentionally requires a code review.
+- Alternatives considered:
+  - KV sliding window: adds ~2ms write, complex rollover logic.
+  - Durable Object: precise but heavyweight for per-minute limits; overkill.
+  - IP-based Cloudflare firewall rules: don't distinguish plans; bypass-able behind proxies.
+
+**Rate limits (v1):**
+
+| Plan tier               | Requests per minute |
+|-------------------------|---------------------|
+| Free                    | 20                  |
+| Dev / Dev Annual        | 60                  |
+| Pro / Pro Annual / Enterprise | 200           |
+
+**Local optimizer is never rate-limited** — only remote calls to `POST /api/optimize` are counted.
+
+## ADR-013: Standalone Optimizer API as a thin adapter over the existing engine
+
+**Decision:** Expose `POST /v1/optimize` as a general-purpose pre-LLM context reduction API.
+The endpoint is a thin adapter — it wraps the caller's content in a synthetic `InterceptEvent`
+and calls `handle()`, the same function used by the Claude Code hook path.
+
+**Rationale:**
+- The optimizer functions (`optimizeFigma`, `optimizeGeneric`, `optimizeWebFetch`, …) already
+  take a raw string. They have no dependency on Claude Code specifics — the hook pipeline is
+  just one way to feed them content.
+- A `type` hint (`"json"`, `"html"`, `"github"`, …) maps to a tool name, which routes the
+  synthetic event through `dispatch()` exactly as if it came from a real hook.
+- Zero new optimizer code. Zero new plan/entitlement code. Zero new rate limit code.
+  The only addition is the handler (~140 lines) and the new request/response types.
+- Sharing the same quota counter as hook-based calls in v1 keeps the billing system simple.
+  A separate `apiOptimizationsMonthly` limit can be added if use cases diverge.
+
+**Product angle:** "Call us before calling Groq. Pay us once, pay the LLM less every time."
+The endpoint is meaningful at every tier: Free users get 500 pre-LLM optimizations/month;
+Pro users get effectively unlimited. See `docs/internal/optimizer-api.md` for full details.

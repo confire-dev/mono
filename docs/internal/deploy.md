@@ -14,6 +14,12 @@ wrangler kv namespace create confire-cache --preview
 
 # Analytics Engine dataset
 wrangler analytics-engine dataset create confire_events
+
+# Rate limiting namespaces (one per plan tier)
+wrangler rate-limit create rl-free
+wrangler rate-limit create rl-dev
+wrangler rate-limit create rl-pro
+# → copy the namespace_ids into worker/wrangler.toml under [[rate_limiting]]
 ```
 
 ### 2. Set secrets
@@ -104,6 +110,25 @@ wrangler rollback <deployment-id>
 | `STRIPE_WEBHOOK_SECRET` | Stripe Dashboard → Webhooks → endpoint → Signing secret |
 | `SUPABASE_WEBHOOK_SECRET` | Generate: `openssl rand -base64 32` — use same value in Supabase webhook header |
 | `AMPLITUDE_KEY` | Amplitude → Settings → Projects → API Key |
+
+## Feature flags
+
+Feature flags are `[vars]` in `wrangler.toml`. They can also be overridden at runtime
+without a redeploy using `wrangler secret put <FLAG>`.
+
+| Flag | Default | Effect |
+|---|---|---|
+| `OPTIMIZER_API_ENABLED` | `"false"` | `"true"` enables `POST /v1/optimize` (standalone optimizer API). Returns 404 while disabled. |
+
+**To launch the Optimizer API:**
+```bash
+# Option A — edit wrangler.toml and redeploy (tracked in git)
+OPTIMIZER_API_ENABLED = "true"
+
+# Option B — flip live without touching code (takes effect immediately)
+wrangler secret put OPTIMIZER_API_ENABLED
+# enter: true
+```
 
 ---
 

@@ -33,7 +33,7 @@ CREATE TABLE profiles (
   stripe_customer_id              text UNIQUE,
   stripe_subscription_id          text UNIQUE,
   plan                            text NOT NULL DEFAULT 'free'
-                                    CHECK (plan IN ('free', 'pro')),
+                                    CHECK (plan IN ('free', 'dev', 'dev_annual', 'pro', 'pro_annual', 'enterprise')),
   subscription_status             text NOT NULL DEFAULT 'none'
                                     CHECK (subscription_status IN (
                                       'none', 'trialing', 'active', 'past_due', 'canceled', 'incomplete'
@@ -641,7 +641,9 @@ INSERT INTO plans (id, status, config) VALUES
     "usageDashboard": true, "advancedUsageDashboard": false,
     "cliSessionManagement": true, "payloadCapture": false,
     "exportData": false, "priorityOptimizerUpdates": false,
-    "customOptimizers": false, "ssoSaml": false
+    "customOptimizers": false, "ssoSaml": false,
+    "optimizationHistory": false, "earlyAccessAdapters": false,
+    "sessionMemoryGuard": false, "preCompactOptimizer": false, "localMemoryPacks": false
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],
@@ -661,20 +663,22 @@ INSERT INTO plans (id, status, config) VALUES
   "stripe": { "productId": null, "priceId": null, "checkoutMode": "subscription" },
   "pricing": { "amountCents": 1000, "currency": "usd", "displayPrice": "$10/mo" },
   "limits": {
-    "cloudOptimizationsMonthly": 2000,
-    "cloudTokensMonthly": 20000000,
+    "cloudOptimizationsMonthly": 5000,
+    "cloudTokensMonthly": 50000000,
     "maxRawTokensPerOptimization": 500000,
     "maxPayloadBytes": 5000000,
     "retainedHistoryDays": 60,
     "cliSessions": 5
   },
-  "credits": { "includedMonthly": 2000, "rollover": false, "allowManualGrants": true, "allowPurchases": true },
+  "credits": { "includedMonthly": 5000, "rollover": false, "allowManualGrants": true, "allowPurchases": true },
   "features": {
     "localOptimization": true, "remoteOptimization": true,
     "usageDashboard": true, "advancedUsageDashboard": true,
     "cliSessionManagement": true, "payloadCapture": false,
     "exportData": false, "priorityOptimizerUpdates": false,
-    "customOptimizers": false, "ssoSaml": false
+    "customOptimizers": false, "ssoSaml": false,
+    "optimizationHistory": true, "earlyAccessAdapters": true,
+    "sessionMemoryGuard": false, "preCompactOptimizer": false, "localMemoryPacks": false
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],
@@ -694,20 +698,22 @@ INSERT INTO plans (id, status, config) VALUES
   "stripe": { "productId": null, "priceId": null, "checkoutMode": "subscription" },
   "pricing": { "amountCents": 2000, "currency": "usd", "displayPrice": "$20/mo" },
   "limits": {
-    "cloudOptimizationsMonthly": 5000,
-    "cloudTokensMonthly": 50000000,
+    "cloudOptimizationsMonthly": 999999999,
+    "cloudTokensMonthly": 500000000,
     "maxRawTokensPerOptimization": 750000,
     "maxPayloadBytes": 10000000,
     "retainedHistoryDays": 90,
     "cliSessions": 10
   },
-  "credits": { "includedMonthly": 5000, "rollover": false, "allowManualGrants": true, "allowPurchases": true },
+  "credits": { "includedMonthly": 999999, "rollover": false, "allowManualGrants": true, "allowPurchases": true },
   "features": {
     "localOptimization": true, "remoteOptimization": true,
     "usageDashboard": true, "advancedUsageDashboard": true,
     "cliSessionManagement": true, "payloadCapture": false,
     "exportData": true, "priorityOptimizerUpdates": true,
-    "customOptimizers": false, "ssoSaml": false
+    "customOptimizers": false, "ssoSaml": false,
+    "optimizationHistory": true, "earlyAccessAdapters": true,
+    "sessionMemoryGuard": true, "preCompactOptimizer": true, "localMemoryPacks": true
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],
@@ -725,22 +731,24 @@ INSERT INTO plans (id, status, config) VALUES
   "billingMode": "subscription",
   "interval": "year",
   "stripe": { "productId": null, "priceId": null, "checkoutMode": "subscription" },
-  "pricing": { "amountCents": 9900, "currency": "usd", "displayPrice": "$99/yr" },
+  "pricing": { "amountCents": 9500, "currency": "usd", "displayPrice": "$95/yr" },
   "limits": {
-    "cloudOptimizationsMonthly": 2000,
-    "cloudTokensMonthly": 20000000,
+    "cloudOptimizationsMonthly": 5000,
+    "cloudTokensMonthly": 50000000,
     "maxRawTokensPerOptimization": 500000,
     "maxPayloadBytes": 5000000,
     "retainedHistoryDays": 60,
     "cliSessions": 5
   },
-  "credits": { "includedMonthly": 2000, "rollover": false, "allowManualGrants": true, "allowPurchases": true },
+  "credits": { "includedMonthly": 5000, "rollover": false, "allowManualGrants": true, "allowPurchases": true },
   "features": {
     "localOptimization": true, "remoteOptimization": true,
     "usageDashboard": true, "advancedUsageDashboard": true,
     "cliSessionManagement": true, "payloadCapture": false,
     "exportData": false, "priorityOptimizerUpdates": false,
-    "customOptimizers": false, "ssoSaml": false
+    "customOptimizers": false, "ssoSaml": false,
+    "optimizationHistory": true, "earlyAccessAdapters": true,
+    "sessionMemoryGuard": false, "preCompactOptimizer": false, "localMemoryPacks": false
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],
@@ -758,22 +766,24 @@ INSERT INTO plans (id, status, config) VALUES
   "billingMode": "subscription",
   "interval": "year",
   "stripe": { "productId": null, "priceId": null, "checkoutMode": "subscription" },
-  "pricing": { "amountCents": 19900, "currency": "usd", "displayPrice": "$199/yr" },
+  "pricing": { "amountCents": 19500, "currency": "usd", "displayPrice": "$195/yr" },
   "limits": {
-    "cloudOptimizationsMonthly": 5000,
-    "cloudTokensMonthly": 50000000,
+    "cloudOptimizationsMonthly": 999999999,
+    "cloudTokensMonthly": 500000000,
     "maxRawTokensPerOptimization": 750000,
     "maxPayloadBytes": 10000000,
     "retainedHistoryDays": 90,
     "cliSessions": 10
   },
-  "credits": { "includedMonthly": 5000, "rollover": false, "allowManualGrants": true, "allowPurchases": true },
+  "credits": { "includedMonthly": 999999, "rollover": false, "allowManualGrants": true, "allowPurchases": true },
   "features": {
     "localOptimization": true, "remoteOptimization": true,
     "usageDashboard": true, "advancedUsageDashboard": true,
     "cliSessionManagement": true, "payloadCapture": false,
     "exportData": true, "priorityOptimizerUpdates": true,
-    "customOptimizers": false, "ssoSaml": false
+    "customOptimizers": false, "ssoSaml": false,
+    "optimizationHistory": true, "earlyAccessAdapters": true,
+    "sessionMemoryGuard": true, "preCompactOptimizer": true, "localMemoryPacks": true
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],
@@ -806,7 +816,9 @@ INSERT INTO plans (id, status, config) VALUES
     "usageDashboard": true, "advancedUsageDashboard": true,
     "cliSessionManagement": true, "payloadCapture": true,
     "exportData": true, "priorityOptimizerUpdates": true,
-    "customOptimizers": true, "ssoSaml": true
+    "customOptimizers": true, "ssoSaml": true,
+    "optimizationHistory": true, "earlyAccessAdapters": true,
+    "sessionMemoryGuard": true, "preCompactOptimizer": true, "localMemoryPacks": true
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],

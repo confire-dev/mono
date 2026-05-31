@@ -10,19 +10,22 @@ type Step = "idle" | "email-sent" | "submitting"
 
 interface Props {
   className?: string
-  nextUrl?: string
+  planIntent?: string
 }
 
-export function AuthForm({ className, nextUrl = "/dashboard" }: Props) {
+export function AuthForm({ className, planIntent = "free" }: Props) {
   const supabase = useMemo(() => createBrowserClient(), [])
   const [step,  setStep]  = useState<Step>("idle")
   const [email, setEmail] = useState("")
   const [otp,   setOtp]   = useState("")
   const [error, setError] = useState("")
 
-  const redirectTo = typeof window !== "undefined"
-    ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`
-    : `/auth/callback?next=${encodeURIComponent(nextUrl)}`
+  const isFree = planIntent === "free"
+
+  // Auth callback carries the plan intent so the server can route correctly.
+  const callbackUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/auth/callback?plan=${encodeURIComponent(planIntent)}`
+    : `/auth/callback?plan=${encodeURIComponent(planIntent)}`
 
   const isLoading = step === "submitting"
 
@@ -30,7 +33,7 @@ export function AuthForm({ className, nextUrl = "/dashboard" }: Props) {
     setError("")
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo },
+      options: { redirectTo: callbackUrl },
     })
     if (error) setError(error.message)
   }
@@ -42,7 +45,7 @@ export function AuthForm({ className, nextUrl = "/dashboard" }: Props) {
     setError("")
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
+      options: { shouldCreateUser: true, emailRedirectTo: callbackUrl },
     })
     if (error) { setError(error.message); setStep("idle") }
     else setStep("email-sent")
@@ -55,8 +58,21 @@ export function AuthForm({ className, nextUrl = "/dashboard" }: Props) {
     setError("")
     const { error } = await supabase.auth.verifyOtp({ email, token: otp, type: "email" })
     if (error) { setError(error.message); setStep("email-sent") }
-    else window.location.href = nextUrl
+    // Navigate to the callback so the server handles plan-based routing.
+    else window.location.href = callbackUrl
   }
+
+  const title = step === "email-sent"
+    ? "Check your email"
+    : isFree
+      ? "Start free with Confire"
+      : "Continue to checkout"
+
+  const subtitle = step === "email-sent"
+    ? `We sent a code to ${email}`
+    : isFree
+      ? "Install Confire for Claude Code and optimize your first tool output."
+      : "Log in first, then we'll send you to secure checkout."
 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
@@ -68,14 +84,8 @@ export function AuthForm({ className, nextUrl = "/dashboard" }: Props) {
           </div>
           <span className="sr-only">Confire</span>
         </a>
-        <h1 className="text-xl font-bold">
-          {step === "email-sent" ? "Check your email" : "Welcome to Confire"}
-        </h1>
-        <p className="text-balance text-center text-sm text-muted-foreground">
-          {step === "email-sent"
-            ? `We sent a code to ${email}`
-            : "Sign in or create a free account"}
-        </p>
+        <h1 className="text-xl font-bold">{title}</h1>
+        <p className="text-balance text-center text-sm text-muted-foreground">{subtitle}</p>
       </div>
 
       {/* OTP verify */}

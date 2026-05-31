@@ -14,21 +14,46 @@ import { optimizeNotion, handlesNotion } from './notion.js'
 import { optimizePlaywright, handlesPlaywright } from './playwright.js'
 import { optimizeZapier, handlesZapier } from './zapier.js'
 import { optimizeGoogleDrive, handlesGoogleDrive } from './google-drive.js'
+import { optimizeWebSearch, handlesWebSearch } from './websearch.js'
 
 // extractText pulls the relevant string from a tool_response.
-// MCP tools wrap content in {content:[{type:"text",text:"..."}]}.
-// Native tools (Bash, Read, WebFetch) return the string directly.
+// Handles all common shapes:
+//   Native Claude Code tools  → raw string
+//   MCP tools                 → {content:[{type:"text",text:"..."}]}
+//   OpenAI / Groq / Llama     → {choices:[{message:{content:"..."}}]}
+//   Gemini / Vertex AI        → {candidates:[{content:{parts:[{text:"..."}]}}]}
+//   output-field variant      → {output:"..."}
+//   Fallback                  → JSON.stringify (generic optimizer handles noise)
 export function extractText(toolResponse: unknown): string | null {
   if (typeof toolResponse === 'string') return toolResponse
   if (!toolResponse || typeof toolResponse !== 'object') return null
   const r = toolResponse as Record<string, unknown>
 
+  // MCP format: {content:[{type:"text",text:"..."}]}
   if (Array.isArray(r['content'])) {
     return (r['content'] as unknown[])
       .filter((c): c is Record<string, unknown> => !!c && typeof c === 'object' && (c as Record<string,unknown>)['type'] === 'text')
       .map(c => String(c['text'] ?? ''))
       .join('\n') || null
   }
+
+  // OpenAI / Groq / Llama: {choices:[{message:{content:"..."}, delta:{content:"..."}}]}
+  if (Array.isArray(r['choices']) && (r['choices'] as unknown[]).length > 0) {
+    const first = (r['choices'] as unknown[])[0] as Record<string, unknown>
+    const msg = (first['message'] ?? first['delta']) as Record<string, unknown> | undefined
+    if (msg && typeof msg['content'] === 'string' && msg['content']) return msg['content']
+  }
+
+  // Gemini / Vertex AI: {candidates:[{content:{parts:[{text:"..."}]}}]}
+  if (Array.isArray(r['candidates']) && (r['candidates'] as unknown[]).length > 0) {
+    const first = (r['candidates'] as unknown[])[0] as Record<string, unknown>
+    const content = first['content'] as Record<string, unknown> | undefined
+    if (content && Array.isArray(content['parts']) && (content['parts'] as unknown[]).length > 0) {
+      const text = ((content['parts'] as unknown[])[0] as Record<string, unknown>)['text']
+      if (typeof text === 'string' && text) return text
+    }
+  }
+
   if (typeof r['output'] === 'string') return r['output']
   return JSON.stringify(toolResponse)
 }
@@ -41,10 +66,9 @@ export function rebuildOutput(original: unknown, optimizedText: string): unknown
   const r = original as Record<string, unknown>
   if (Array.isArray(r['content'])) {
     const newContent = (r['content'] as unknown[]).map((c, i) => {
-      if (i === 0 && c && typeof c === 'object' && (c as Record<string,unknown>)['type'] === 'text') {
-        return { ...(c as object), text: optimizedText }
-      }
-      return c
+      if (!c || typeof c !== 'object' || (c as Record<string,unknown>)['type'] !== 'text') return c
+      if (i === 0) return { ...(c as object), text: optimizedText }
+      return { ...(c as object), text: '' }
     })
     return { ...r, content: newContent }
   }
@@ -73,6 +97,7 @@ function dispatch(rawText: string, event: InterceptEvent): string | null {
   if (handlesBash(event))       return optimizeBash(rawText, event)
   if (handlesRead(event))       return optimizeRead(rawText, event)
   if (handlesWebFetch(event))   return optimizeWebFetch(rawText)
+  if (handlesWebSearch(event))  return optimizeWebSearch(rawText)
   // Generic fallback — handles any unrecognized tool
   return optimizeGeneric(rawText)
 }
@@ -114,7 +139,7 @@ export function runPreOptimizers(event: InterceptEvent): InterceptResult {
 function resolveOptimizerName(event: InterceptEvent): string {
   const n = event.tool?.name?.toLowerCase() ?? ''
   const s = event.tool?.mcpServer?.toLowerCase() ?? ''
-  for (const key of ['figma','github','atlassian','clickup','slack','amplitude','fireflies','notion','playwright','zapier','google_drive','googledrive','bash','read','webfetch']) {
+  for (const key of ['figma','github','atlassian','clickup','slack','amplitude','fireflies','notion','playwright','zapier','google_drive','googledrive','bash','read','webfetch','websearch','brave_','exa_','tavily','perplexity']) {
     if (n.includes(key) || s.includes(key)) return key
   }
   return 'generic'

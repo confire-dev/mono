@@ -1,8 +1,10 @@
 import type { Env } from './types.js'
 import { handleOptimize }        from './handlers/optimize.js'
+import { handleOptimizerApi }    from './handlers/optimize-api.js'
 import { handleSessionStart }    from './handlers/session.js'
 import { handleGenerateKey, handleMe } from './handlers/auth.js'
-import { handleTelemetry }       from './handlers/telemetry.js'
+import { handleCreateCheckout }       from './handlers/checkout.js'
+import { handleTelemetry }            from './handlers/telemetry.js'
 import { handleStripeWebhook }   from './handlers/stripe.js'
 import { syncPlansToKV }         from './lib/plans.js'
 import { handleSupabaseWebhook } from './handlers/db-webhook.js'
@@ -26,6 +28,16 @@ export default {
     if (method === 'POST' && url.pathname === '/optimize') {
       return handleOptimize(request, env)
     }
+    // ── Standalone Optimizer API (pre-LLM context reduction) ─────────────
+    // Gated by OPTIMIZER_API_ENABLED env var — returns 404 until launched.
+    // To enable: set OPTIMIZER_API_ENABLED="true" in wrangler.toml or via
+    //   wrangler secret put OPTIMIZER_API_ENABLED
+    if (method === 'POST' && url.pathname === '/v1/optimize') {
+      if (env.OPTIMIZER_API_ENABLED !== 'true') {
+        return new Response('Not Found', { status: 404 })
+      }
+      return handleOptimizerApi(request, env)
+    }
     if (method === 'POST' && url.pathname === '/session/start') {
       return handleSessionStart(request, env)
     }
@@ -41,6 +53,11 @@ export default {
     }
     if (method === 'GET' && url.pathname === '/api/me') {
       return handleMe(request, env)
+    }
+
+    // ── Billing / checkout ────────────────────────────────────────────────
+    if (method === 'POST' && url.pathname === '/api/checkout/create') {
+      return handleCreateCheckout(request, env)
     }
 
     // ── Stripe webhooks ───────────────────────────────────────────────────

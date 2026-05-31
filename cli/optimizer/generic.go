@@ -1,6 +1,9 @@
 package optimizer
 
-import "strings"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // GenericOptimizer applies universal noise stripping to any MCP tool response.
 // Rules ported from leanmcp/optimizers/generic.js:
@@ -41,13 +44,36 @@ func (g *GenericOptimizer) tryOptimizeContent(m map[string]interface{}) interfac
 		return nil
 	}
 
-	// Only process if it looks like JSON
 	trimmed := strings.TrimSpace(text)
 	if len(trimmed) == 0 || (trimmed[0] != '{' && trimmed[0] != '[') {
 		return nil
 	}
 
-	// Already handled by the full stripNulls/stripURLFields path on outer object —
-	// nothing extra to do for generic text content.
-	return nil
+	var parsed interface{}
+	if err := json.Unmarshal([]byte(trimmed), &parsed); err != nil {
+		return nil
+	}
+
+	cleaned := stripNulls(stripURLFields(parsed))
+	out, err := json.Marshal(cleaned)
+	if err != nil || len(out) >= len(text) {
+		return nil
+	}
+
+	newFirst := make(map[string]interface{}, len(first))
+	for k, v := range first {
+		newFirst[k] = v
+	}
+	newFirst["text"] = string(out)
+
+	newContent := make([]interface{}, len(content))
+	copy(newContent, content)
+	newContent[0] = newFirst
+
+	result := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		result[k] = v
+	}
+	result["content"] = newContent
+	return result
 }

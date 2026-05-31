@@ -155,15 +155,18 @@ func (p *picker) render() {
 	}
 	sb.WriteString(fmt.Sprintf("\n  %s%s%s\n", dim, p.hint, reset))
 
-	out := sb.String()
-	p.drawn = strings.Count(out, "\n")
-	fmt.Print(out)
+	raw := sb.String()
+	p.drawn = strings.Count(raw, "\n")
+	// In raw terminal mode \n doesn't emit a carriage return, so lines would
+	// staircase to the right. Replace every \n with \r\n to keep column 0.
+	fmt.Print(strings.ReplaceAll(raw, "\n", "\r\n"))
 }
 
 func (p *picker) clear() {
 	for i := 0; i < p.drawn; i++ {
 		fmt.Print("\033[A\033[2K")
 	}
+	fmt.Print("\r") // return cursor to column 0 after clearing
 	p.drawn = 0
 }
 
