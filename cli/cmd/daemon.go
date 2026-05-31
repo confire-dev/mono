@@ -206,6 +206,10 @@ func (ds *daemonState) postSessionEnd(sess *sessionStats) {
 		TotalOptBytes:      int(sess.optimizedBytes),
 		AnalyticsConsented: ds.cfg.Telemetry,
 	})
+	// Flush any pending events now that we know the network is up.
+	if ds.statsDB != nil {
+		ds.syncPending()
+	}
 }
 
 func (ds *daemonState) postSessionStart(event intercept.InterceptEvent) {
@@ -222,8 +226,16 @@ func (ds *daemonState) postSessionStart(event intercept.InterceptEvent) {
 	})
 }
 
+// periodicSync calls syncPending on a fixed interval until the daemon exits.
+func (ds *daemonState) periodicSync(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for range ticker.C {
+		ds.syncPending()
+	}
+}
+
 // syncPending retries unsynced local stats rows against the Worker.
-// Runs once in the background at daemon startup — best effort.
 func (ds *daemonState) syncPending() {
 	pending, err := ds.statsDB.PendingSync(200)
 	if err != nil || len(pending) == 0 {
@@ -317,9 +329,10 @@ func runDaemon() error {
 
 	t := buildDaemonTransportWithKey(apiKey, deviceID)
 
-	// Retry any events that failed to reach the Worker in a previous session.
+	// Sync pending events: on startup, then every 5 minutes.
 	if statsDB != nil && apiKey != "" {
 		go state.syncPending()
+		go state.periodicSync(5 * time.Minute)
 	}
 
 	fmt.Fprintf(os.Stderr, "[confire daemon] v%s listening on %s\n", buildVersion, socketPath)

@@ -70,7 +70,7 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
     const idempKey = `evt:${event.event_id}`
     const seen = await env.CACHE.get(idempKey)
     if (seen) return Response.json({ ok: true, deduplicated: true })
-    env.CACHE.put(idempKey, '1', { expirationTtl: 86_400 }).catch(() => {})
+    env.CACHE.put(idempKey, '1', { expirationTtl: 604_800 }).catch(() => {}) // 7 days — covers retry window
   }
 
   const cfg = env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY
