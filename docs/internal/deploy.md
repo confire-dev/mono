@@ -111,6 +111,25 @@ wrangler rollback <deployment-id>
 | `SUPABASE_WEBHOOK_SECRET` | Generate: `openssl rand -base64 32` — use same value in Supabase webhook header |
 | `AMPLITUDE_KEY` | Amplitude → Settings → Projects → API Key |
 
+## Feature flags
+
+Feature flags are `[vars]` in `wrangler.toml`. They can also be overridden at runtime
+without a redeploy using `wrangler secret put <FLAG>`.
+
+| Flag | Default | Effect |
+|---|---|---|
+| `OPTIMIZER_API_ENABLED` | `"false"` | `"true"` enables `POST /v1/optimize` (standalone optimizer API). Returns 404 while disabled. |
+
+**To launch the Optimizer API:**
+```bash
+# Option A — edit wrangler.toml and redeploy (tracked in git)
+OPTIMIZER_API_ENABLED = "true"
+
+# Option B — flip live without touching code (takes effect immediately)
+wrangler secret put OPTIMIZER_API_ENABLED
+# enter: true
+```
+
 ---
 
 ## CLI binary release

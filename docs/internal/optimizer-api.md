@@ -1,5 +1,9 @@
 # Optimizer API — Product Concept & Architecture
 
+> **Status: not yet launched.**
+> The endpoint exists in the Worker but returns 404 until `OPTIMIZER_API_ENABLED="true"` is set.
+> See [deploy.md](./deploy.md#feature-flags) for how to enable it.
+
 ## What it is
 
 A standalone HTTP endpoint (`POST /v1/optimize`) that reduces any text or JSON payload
