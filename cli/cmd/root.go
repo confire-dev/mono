@@ -21,9 +21,14 @@ var rootCmd = &cobra.Command{
 Less noise in context = cheaper, faster, sharper AI agents.
 
 Get started:
-  confire setup    detect your AI tools and configure optimization
+  confire setup    install hooks for your AI agent and start the optimizer
   confire login    connect your account (cloud optimization + stats)
-  confire status   show what's running and what's being optimized`,
+  confire status   show current state
+
+Optimizer control:
+  confire start    start the optimizer in the background
+  confire stop     stop the optimizer
+  confire reset    remove hooks and stop (leaves confire installed passively)`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }

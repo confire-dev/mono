@@ -157,6 +157,19 @@ func runSetup() error {
 		}
 	}
 
+	// Auto-start the daemon so optimization is active immediately.
+	if anyInstalled {
+		fmt.Printf("\n  %sStarting optimizer...%s\n\n", bold, reset)
+		if isDaemonRunning() {
+			fmt.Printf("  %s✓%s  Optimizer already running\n", green, reset)
+		} else if err := launchDaemon(); err != nil {
+			fmt.Printf("  %s○%s  Could not auto-start optimizer — run %sconfire start%s manually\n",
+				gray, reset, cyan, reset)
+		} else {
+			fmt.Printf("  %s✓%s  Optimizer started\n", green, reset)
+		}
+	}
+
 	fmt.Printf("\n  %sNext steps:%s\n", bold, reset)
 	if anyInstalled {
 		fmt.Printf("  • Restart your AI agent to activate the hook.\n")

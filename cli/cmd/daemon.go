@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -20,11 +21,9 @@ import (
 )
 
 var daemonCmd = &cobra.Command{
-	Use:   "daemon",
-	Short: "Start the Confire daemon (long-lived optimizer + HTTP/2 to Worker)",
-	Long: `The daemon holds a warm HTTP/2 connection to the Confire Worker,
-owns the API key, tracks session stats, and serves the hook shim over a
-unix socket. Normally started automatically by the launchd plist.`,
+	Use:    "daemon",
+	Short:  "Start the Confire daemon",
+	Hidden: true, // internal — users use `confire start` / `confire stop`
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runDaemon()
 	},
@@ -232,8 +231,13 @@ func runDaemon() error {
 	defer func() {
 		listener.Close()
 		os.Remove(socketPath)
+		os.Remove(daemonPIDPath())
 	}()
 	os.Chmod(socketPath, 0600)
+
+	// Write PID file so `confire stop` can signal us.
+	pidPath := daemonPIDPath()
+	os.WriteFile(pidPath, []byte(strconv.Itoa(os.Getpid())), 0600)
 
 	cfg := config.Load()
 
@@ -256,7 +260,7 @@ func runDaemon() error {
 	if apiKey != "" {
 		fmt.Fprintf(os.Stderr, "[confire daemon] cloud mode → %s\n", workerURLEnv())
 	} else {
-		fmt.Fprintln(os.Stderr, "[confire daemon] local mode — run `confire login` for cloud optimization")
+		fmt.Fprintln(os.Stderr, "[confire daemon] no account — run `confire login` to enable optimization")
 	}
 
 	sigCh := make(chan os.Signal, 1)
