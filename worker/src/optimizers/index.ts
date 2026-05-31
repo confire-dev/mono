@@ -41,10 +41,9 @@ export function rebuildOutput(original: unknown, optimizedText: string): unknown
   const r = original as Record<string, unknown>
   if (Array.isArray(r['content'])) {
     const newContent = (r['content'] as unknown[]).map((c, i) => {
-      if (i === 0 && c && typeof c === 'object' && (c as Record<string,unknown>)['type'] === 'text') {
-        return { ...(c as object), text: optimizedText }
-      }
-      return c
+      if (!c || typeof c !== 'object' || (c as Record<string,unknown>)['type'] !== 'text') return c
+      if (i === 0) return { ...(c as object), text: optimizedText }
+      return { ...(c as object), text: '' }
     })
     return { ...r, content: newContent }
   }

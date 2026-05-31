@@ -10,12 +10,15 @@ import (
 const webfetchMaxBytes = 30_000
 
 var (
+	wfHeadRe    = regexp.MustCompile(`(?is)<head\b[^>]*>.*?</head>`)
 	wfScriptRe  = regexp.MustCompile(`(?is)<script\b[^>]*>.*?</script>`)
 	wfStyleRe   = regexp.MustCompile(`(?is)<style\b[^>]*>.*?</style>`)
 	wfSVGRe     = regexp.MustCompile(`(?is)<svg\b[^>]*>.*?</svg>`)
+	wfFigureRe  = regexp.MustCompile(`(?is)<(?:figure|picture)\b[^>]*>.*?</(?:figure|picture)>`)
+	wfImgRe     = regexp.MustCompile(`(?i)<img\b[^>]*>`)
 	// RE2 has no backreferences — use alternation in the closing tag instead.
 	// Slightly over-matches across mismatched pairs, fine for noise stripping.
-	wfNavRe = regexp.MustCompile(`(?is)<(?:nav|header|footer|aside|menu)\b[^>]*>.*?</(?:nav|header|footer|aside|menu)>`)
+	wfNavRe     = regexp.MustCompile(`(?is)<(?:nav|header|footer|aside|menu)\b[^>]*>.*?</(?:nav|header|footer|aside|menu)>`)
 	wfCommentRe = regexp.MustCompile(`(?s)<!--.*?-->`)
 	wfAttrRe    = regexp.MustCompile(`(?i)\s+(class|style|id|data-[a-z-]+|aria-[a-z-]+|on\w+)="[^"]*"`)
 	wfTagRe     = regexp.MustCompile(`<[^>]+>`)
@@ -45,9 +48,12 @@ func (w *WebFetchOptimizer) Optimize(data interface{}) interface{} {
 	}
 
 	result := text
+	result = wfHeadRe.ReplaceAllString(result, "")
 	result = wfScriptRe.ReplaceAllString(result, "")
 	result = wfStyleRe.ReplaceAllString(result, "")
 	result = wfSVGRe.ReplaceAllString(result, "[svg]")
+	result = wfFigureRe.ReplaceAllString(result, "")
+	result = wfImgRe.ReplaceAllString(result, "[image]")
 	result = wfNavRe.ReplaceAllString(result, "")
 	result = wfCommentRe.ReplaceAllString(result, "")
 	result = wfAttrRe.ReplaceAllString(result, "")

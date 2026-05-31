@@ -72,6 +72,17 @@ export function optimizeGitHub(rawText: string): string | null {
     return JSON.stringify(reviews, null, 2)
   }
 
+  // PR list
+  if (Array.isArray(data) && typeof (data[0] as Record<string,unknown>)?.['head'] === 'object') {
+    return JSON.stringify((data as Record<string,unknown>[]).map(pr => ({
+      number: pr['number'], title: pr['title'], state: pr['state'],
+      draft: pr['draft'], author: cleanUser(pr['user']),
+      branch: (pr['head'] as Record<string,unknown>)?.['ref'],
+      updated: (pr['updated_at'] as string)?.slice(0, 10),
+      labels: (pr['labels'] as Array<Record<string,unknown>>)?.map(l => l['name']) ?? [],
+    })), null, 2)
+  }
+
   // Comments array
   if (Array.isArray(data) && (data[0] as Record<string,unknown>)?.['body'] !== undefined) {
     const humans = data.filter(c => !isBot((c as Record<string,unknown>)['user']))

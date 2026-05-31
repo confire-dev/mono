@@ -2,6 +2,7 @@ package optimizer
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -13,11 +14,13 @@ const (
 )
 
 var (
-	testPassRe = regexp.MustCompile(`(?i)^\s*(✓|✔|PASS|passing|\d+ passing|ok\s+\S|·\s+✓)`)
-	testFailRe = regexp.MustCompile(`(?i)^\s*(✗|✘|FAIL|failing|not ok|×|\d+ failing|Error:|AssertionError)`)
-	progressRe = regexp.MustCompile(`[─╿▀-▟■-◿]|={3,}|#{3,}|\[=+>?\s*\]|\d+%.*\r`)
-	testRunnerRe = regexp.MustCompile(`(?i)\b(jest|vitest|mocha|pytest|cargo\s+test|go\s+test|npm\s+test|yarn\s+test)\b`)
-	summaryCntRe = regexp.MustCompile(`(?i)\d+\s+(passing|failing|skipped|pending)`)
+	testPassRe     = regexp.MustCompile(`(?i)^\s*(✓|✔|PASS|passing|\d+ passing|ok\s+\S|·\s+✓)`)
+	testFailRe     = regexp.MustCompile(`(?i)^\s*(✗|✘|FAIL|failing|not ok|×|\d+ failing|Error:|AssertionError)`)
+	progressRe     = regexp.MustCompile(`[─╿▀-▟■-◿]|={3,}|#{3,}|\[=+>?\s*\]|\d+%.*\r`)
+	testRunnerRe   = regexp.MustCompile(`(?i)\b(jest|vitest|mocha|pytest|cargo\s+test|go\s+test|npm\s+test|yarn\s+test)\b`)
+	summaryCntRe   = regexp.MustCompile(`(?i)\d+\s+(passing|failing|skipped|pending)`)
+	buildErrorRe   = regexp.MustCompile(`(?i)(error TS\d+|error\[E\d+\]|SyntaxError:|Cannot find|Module not found|ld: error|make\[1\].*Error)`)
+	buildSuccessRe = regexp.MustCompile(`(?i)(Successfully compiled|Compiled \d+ files|webpack.*built|cargo.*Finished|Build succeeded)`)
 )
 
 type BashOptimizer struct{}
@@ -59,12 +62,14 @@ func optimizeBashOutput(output, cmd string) string {
 
 	if isTestOutput(output, cmd) {
 		result = filterTestOutput(lines)
+	} else if isBuildOutput(output) {
+		result = filterBuildOutput(lines)
 	} else if len(lines) > bashMaxLines {
 		dropped := len(lines) - bashHeadLines - bashTailLines
 		if dropped > 0 {
 			head := lines[:bashHeadLines]
 			tail := lines[len(lines)-bashTailLines:]
-			marker := []string{"", "[confire: " + itoa(dropped) + " lines omitted]", ""}
+			marker := []string{"", "[confire: " + strconv.Itoa(dropped) + " lines omitted]", ""}
 			combined := append(head, marker...)
 			combined = append(combined, tail...)
 			result = strings.Join(combined, "\n")
@@ -80,9 +85,16 @@ func optimizeBashOutput(output, cmd string) string {
 	}
 	result = strings.Join(kept, "\n")
 
-	// Hard byte cap
-	if len(result) > bashMaxBytes {
-		result = result[:bashMaxBytes] + "\n[confire: output truncated at " + itoa(bashMaxBytes) + " bytes]"
+	// Byte-budget head+tail for few-lines-but-large outputs
+	const headBytes = 20_000
+	const tailBytes = 10_000
+	if len(result) > bashMaxBytes && len(result) > headBytes+tailBytes {
+		dropped := len(result) - headBytes - tailBytes
+		result = result[:headBytes] +
+			"\n[confire: " + strconv.Itoa(dropped) + " bytes omitted]\n" +
+			result[len(result)-tailBytes:]
+	} else if len(result) > bashMaxBytes {
+		result = result[:bashMaxBytes] + "\n[confire: output truncated at " + strconv.Itoa(bashMaxBytes) + " bytes]"
 	}
 
 	if len(result) >= len(output) {
@@ -94,6 +106,29 @@ func optimizeBashOutput(output, cmd string) string {
 func isTestOutput(text, cmd string) bool {
 	return testPassRe.MatchString(text) || testFailRe.MatchString(text) ||
 		testRunnerRe.MatchString(cmd)
+}
+
+func isBuildOutput(text string) bool {
+	return buildErrorRe.MatchString(text) && buildSuccessRe.MatchString(text)
+}
+
+func filterBuildOutput(lines []string) string {
+	var errorLines []string
+	var progressCount int
+	for _, line := range lines {
+		if buildErrorRe.MatchString(line) {
+			errorLines = append(errorLines, line)
+		} else if buildSuccessRe.MatchString(line) || progressRe.MatchString(line) {
+			progressCount++
+		} else {
+			errorLines = append(errorLines, line)
+		}
+	}
+	if progressCount == 0 {
+		return strings.Join(lines, "\n")
+	}
+	header := "[confire: " + strconv.Itoa(progressCount) + " build progress lines omitted]"
+	return header + "\n" + strings.Join(errorLines, "\n")
 }
 
 func filterTestOutput(lines []string) string {
@@ -117,20 +152,9 @@ func filterTestOutput(lines []string) string {
 	}
 
 	if passCount > 0 {
-		header := "[confire: " + itoa(passCount) + " passing tests omitted]"
+		header := "[confire: " + strconv.Itoa(passCount) + " passing tests omitted]"
 		out = append([]string{header}, out...)
 	}
 	return strings.Join(out, "\n")
 }
 
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	buf := make([]byte, 0, 10)
-	for n > 0 {
-		buf = append([]byte{byte('0' + n%10)}, buf...)
-		n /= 10
-	}
-	return string(buf)
-}

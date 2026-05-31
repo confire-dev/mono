@@ -24,6 +24,8 @@ function optimizeSlackText(text: string): string {
   return out.trim()
 }
 
+const MAX_MESSAGES = 30
+
 export function optimizeSlack(rawText: string): string | null {
   if (!rawText || typeof rawText !== 'string') return null
   const isSlack = rawText.includes('Message TS:') || rawText.includes('=== THREAD') ||
@@ -34,7 +36,14 @@ export function optimizeSlack(rawText: string): string | null {
     const p = JSON.parse(rawText) as Record<string,string>
     if (p['messages']) messageText = p['messages']
   } catch { /* raw text */ }
-  return optimizeSlackText(messageText)
+  let text = optimizeSlackText(messageText)
+  const msgCount = (text.match(/^From:/gm) ?? []).length
+  if (msgCount > MAX_MESSAGES) {
+    const msgs = text.split(/(?=^From:)/m)
+    const kept = msgs.slice(-MAX_MESSAGES)
+    text = `[confire: ${msgs.length - MAX_MESSAGES} older messages omitted]\n\n` + kept.join('')
+  }
+  return text
 }
 
 export function handlesSlack(event: InterceptEvent): boolean {

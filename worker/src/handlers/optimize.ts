@@ -98,7 +98,7 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
       rawBytes:    result.stats?.beforeBytes ?? rawOutputSize,
       optimizedBytes: result.stats?.afterBytes ?? rawOutputSize,
       wasCached:   false,
-      analyticsConsented: true,  // TODO: read from user preferences
+      analyticsConsented: false,
     }).catch(() => {})
 
     trackEvent(env.AE, env.AMPLITUDE_KEY, {
