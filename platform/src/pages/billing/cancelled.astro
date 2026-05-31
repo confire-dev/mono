@@ -1,0 +1,39 @@
+---
+import Layout from '@/layouts/Layout.astro'
+import { createSupabaseServer } from '@/lib/supabase'
+
+const supabase = createSupabaseServer(Astro.request, Astro.cookies)
+const { data: { user } } = await supabase.auth.getUser()
+
+// If somehow unauthenticated, send to login. Paid access is not removed here —
+// the Stripe webhook is the only thing that changes the plan.
+if (!user) return Astro.redirect('/login')
+---
+
+<Layout title="Checkout cancelled">
+  <div class="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
+    <div class="w-full max-w-sm flex flex-col items-center gap-6 text-center">
+      <div>
+        <h1 class="text-2xl font-bold">No charge was made</h1>
+        <p class="mt-2 text-sm text-muted-foreground">
+          You cancelled checkout. Your account is still on the Free plan.
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-3 w-full">
+        <a
+          href="/onboarding"
+          class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+        >
+          Continue on Free
+        </a>
+        <a
+          href="/pricing"
+          class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
+        >
+          Try a paid plan again
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

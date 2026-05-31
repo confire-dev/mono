@@ -75,7 +75,8 @@ export interface Env {
   SUPABASE_SERVICE_KEY?: string
   // Amplitude — behavioral analytics only (never billing decisions)
   AMPLITUDE_KEY?: string
-  // Stripe — webhooks
+  // Stripe — checkout creation + webhooks
+  STRIPE_SECRET_KEY?: string
   STRIPE_WEBHOOK_SECRET?: string
   // Supabase — database webhooks (set in wrangler secrets)
   SUPABASE_WEBHOOK_SECRET?: string

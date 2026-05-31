@@ -2,7 +2,8 @@ import type { Env } from './types.js'
 import { handleOptimize }        from './handlers/optimize.js'
 import { handleSessionStart }    from './handlers/session.js'
 import { handleGenerateKey, handleMe } from './handlers/auth.js'
-import { handleTelemetry }       from './handlers/telemetry.js'
+import { handleCreateCheckout }       from './handlers/checkout.js'
+import { handleTelemetry }            from './handlers/telemetry.js'
 import { handleStripeWebhook }   from './handlers/stripe.js'
 import { syncPlansToKV }         from './lib/plans.js'
 import { handleSupabaseWebhook } from './handlers/db-webhook.js'
@@ -41,6 +42,11 @@ export default {
     }
     if (method === 'GET' && url.pathname === '/api/me') {
       return handleMe(request, env)
+    }
+
+    // ── Billing / checkout ────────────────────────────────────────────────
+    if (method === 'POST' && url.pathname === '/api/checkout/create') {
+      return handleCreateCheckout(request, env)
     }
 
     // ── Stripe webhooks ───────────────────────────────────────────────────

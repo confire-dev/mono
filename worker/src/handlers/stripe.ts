@@ -17,6 +17,7 @@ import { getPlans } from '../lib/plans.js'
 
 // Relevant Stripe event types handled in v1.
 type StripeEventType =
+  | 'checkout.session.completed'
   | 'customer.subscription.created'
   | 'customer.subscription.updated'
   | 'customer.subscription.deleted'
@@ -52,6 +53,39 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
   // Dispatch by event type. Unrecognised events are accepted and ignored
   // (Stripe requires 2xx or it retries indefinitely).
   switch (event.type as StripeEventType) {
+    case 'checkout.session.completed': {
+      // Link the Stripe customer ID to the user profile so that subsequent
+      // subscription webhooks (which filter by stripe_customer_id) can find
+      // the correct row for first-time subscribers.
+      const sess           = event.data.object
+      const userId         = sess['client_reference_id'] as string | undefined
+      const stripeCustomer = sess['customer'] as string | undefined
+
+      if (userId && stripeCustomer) {
+        await fetch(
+          `${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`,
+          {
+            method:  'PATCH',
+            headers: {
+              apikey:         env.SUPABASE_SERVICE_KEY!,
+              Authorization:  `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+              'Content-Type': 'application/json',
+              Prefer:         'return=minimal',
+            },
+            body: JSON.stringify({
+              stripe_customer_id: stripeCustomer,
+              updated_at:         new Date().toISOString(),
+            }),
+          },
+        ).catch(() => {})
+        await writeAudit(cfg, userId, 'stripe_customer_linked', {
+          event_id:           event.id,
+          stripe_customer_id: stripeCustomer,
+        })
+      }
+      break
+    }
+
     case 'customer.subscription.created':
     case 'customer.subscription.updated': {
       const sub = event.data.object

@@ -1,0 +1,66 @@
+---
+import Layout from '@/layouts/Layout.astro'
+import { createSupabaseServer } from '@/lib/supabase'
+
+const supabase = createSupabaseServer(Astro.request, Astro.cookies)
+const { data: { user } } = await supabase.auth.getUser()
+if (!user) return Astro.redirect('/login')
+
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('plan, subscription_status')
+  .eq('id', user.id)
+  .maybeSingle()
+
+const isActive = profile?.subscription_status === 'active' && profile?.plan !== 'free'
+---
+
+<Layout title="Payment received">
+  <div class="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
+    <div class="w-full max-w-sm flex flex-col items-center gap-6 text-center">
+      <div class="flex size-12 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400">
+        <svg xmlns="http://www.w3.org/2000/svg" class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+
+      {isActive ? (
+        <>
+          <div>
+            <h1 class="text-2xl font-bold">You're all set!</h1>
+            <p class="mt-2 text-sm text-muted-foreground">Your plan is now active.</p>
+          </div>
+          <a
+            href="/onboarding"
+            class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+          >
+            Get started
+          </a>
+        </>
+      ) : (
+        <>
+          <div>
+            <h1 class="text-2xl font-bold">Payment received</h1>
+            <p class="mt-2 text-sm text-muted-foreground">
+              Activating your plan — this usually takes a few seconds.
+            </p>
+          </div>
+          <div class="flex flex-col gap-3 w-full">
+            <button
+              onclick="window.location.reload()"
+              class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+            >
+              Refresh status
+            </button>
+            <a
+              href="/onboarding"
+              class="text-sm text-muted-foreground underline underline-offset-4 hover:text-primary"
+            >
+              Continue anyway
+            </a>
+          </div>
+        </>
+      )}
+    </div>
+  </div>
+</Layout>

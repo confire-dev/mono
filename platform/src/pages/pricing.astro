@@ -1,8 +1,89 @@
 ---
 import Layout from '@/layouts/Layout.astro'
+
+const error = Astro.url.searchParams.get('error')
 ---
 
 <Layout title="Pricing">
-  <!-- TODO: <PricingTable plans={[free, pro]} /> -->
-  <!-- TODO: <PricingFAQ /> -->
+  <div class="flex min-h-svh flex-col items-center justify-center gap-10 bg-background p-6 md:p-10">
+
+    {error === 'invalid_plan' && (
+      <p class="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+        That plan is no longer available. You can continue on Free or choose another plan below.
+      </p>
+    )}
+
+    <div class="text-center">
+      <h1 class="text-3xl font-bold">Simple, transparent pricing</h1>
+      <p class="mt-2 text-muted-foreground">Start free. Upgrade when you need more.</p>
+    </div>
+
+    <div class="grid w-full max-w-3xl gap-6 sm:grid-cols-3">
+
+      <!-- Free -->
+      <div class="flex flex-col gap-4 rounded-lg border bg-card p-6">
+        <div>
+          <p class="text-sm font-medium text-muted-foreground">Free</p>
+          <p class="mt-1 text-3xl font-bold">$0</p>
+          <p class="text-sm text-muted-foreground">/month</p>
+        </div>
+        <ul class="flex flex-col gap-2 text-sm text-muted-foreground">
+          <li>✓ 500 cloud optimizations/mo</li>
+          <li>✓ Bash, Read, WebFetch, Generic</li>
+          <li>✓ Local optimizer</li>
+        </ul>
+        <a
+          href="/login?plan=free"
+          class="mt-auto inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+        >
+          Get started free
+        </a>
+      </div>
+
+      <!-- Dev -->
+      <div class="flex flex-col gap-4 rounded-lg border bg-card p-6">
+        <div>
+          <p class="text-sm font-medium text-muted-foreground">Dev</p>
+          <p class="mt-1 text-3xl font-bold">$19</p>
+          <p class="text-sm text-muted-foreground">/month</p>
+        </div>
+        <ul class="flex flex-col gap-2 text-sm text-muted-foreground">
+          <li>✓ 5 000 cloud optimizations/mo</li>
+          <li>✓ Figma, GitHub, Jira, Slack</li>
+          <li>✓ Usage dashboard</li>
+        </ul>
+        <a
+          href="/login?plan=dev"
+          class="mt-auto inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+        >
+          Start Dev plan
+        </a>
+      </div>
+
+      <!-- Pro -->
+      <div class="relative flex flex-col gap-4 rounded-lg border-2 border-primary bg-card p-6">
+        <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-primary-foreground">
+          Most popular
+        </span>
+        <div>
+          <p class="text-sm font-medium text-muted-foreground">Pro</p>
+          <p class="mt-1 text-3xl font-bold">$49</p>
+          <p class="text-sm text-muted-foreground">/month</p>
+        </div>
+        <ul class="flex flex-col gap-2 text-sm text-muted-foreground">
+          <li>✓ Unlimited cloud optimizations</li>
+          <li>✓ All integrations</li>
+          <li>✓ Advanced dashboard + exports</li>
+          <li>✓ Priority optimizer updates</li>
+        </ul>
+        <a
+          href="/login?plan=pro"
+          class="mt-auto inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+        >
+          Start Pro plan
+        </a>
+      </div>
+
+    </div>
+  </div>
 </Layout>
