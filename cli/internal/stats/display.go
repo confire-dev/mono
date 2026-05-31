@@ -17,7 +17,7 @@ type SessionStats struct {
 }
 
 // PrintTable renders the full stats table to stdout.
-func PrintTable(session SessionStats, today, month, allTime Stats, tools []ToolStat) {
+func PrintTable(session SessionStats, today, month, allTime Stats, tools []ToolStat, sync SyncCounts) {
 	line := strings.Repeat("─", boxWidth-2)
 	fmt.Printf("┌%s┐\n", line)
 	printCentered("Confire Stats")
@@ -27,6 +27,9 @@ func PrintTable(session SessionStats, today, month, allTime Stats, tools []ToolS
 	printSection("Today", today.RequestCount, today.TokensSaved)
 	printSection("This month", month.RequestCount, month.TokensSaved)
 	printSection("All time", allTime.RequestCount, allTime.TokensSaved)
+
+	fmt.Printf("├%s┤\n", line)
+	printSyncRow(sync)
 
 	fmt.Printf("├%s┤\n", line)
 	printRow("Top tools this month", "")
@@ -45,7 +48,7 @@ func PrintTable(session SessionStats, today, month, allTime Stats, tools []ToolS
 }
 
 // PrintJSON renders stats as machine-readable JSON.
-func PrintJSON(session SessionStats, today, month, allTime Stats, tools []ToolStat) {
+func PrintJSON(session SessionStats, today, month, allTime Stats, tools []ToolStat, sync SyncCounts) {
 	type statJSON struct {
 		Requests    int64 `json:"requests"`
 		TokensSaved int64 `json:"tokens_saved"`
@@ -56,12 +59,18 @@ func PrintJSON(session SessionStats, today, month, allTime Stats, tools []ToolSt
 		AvgReduction float64 `json:"avg_reduction_pct"`
 		Requests     int64   `json:"requests"`
 	}
+	type syncJSON struct {
+		Synced    int64 `json:"synced"`
+		Pending   int64 `json:"pending"`
+		NoAccount int64 `json:"no_account"`
+	}
 	type output struct {
 		Session  statJSON   `json:"session"`
 		Today    statJSON   `json:"today"`
 		Month    statJSON   `json:"this_month"`
 		AllTime  statJSON   `json:"all_time"`
 		TopTools []toolJSON `json:"top_tools_this_month"`
+		Sync     syncJSON   `json:"sync"`
 	}
 
 	var topTools []toolJSON
@@ -80,6 +89,7 @@ func PrintJSON(session SessionStats, today, month, allTime Stats, tools []ToolSt
 		Month:    statJSON{month.RequestCount, month.TokensSaved},
 		AllTime:  statJSON{allTime.RequestCount, allTime.TokensSaved},
 		TopTools: topTools,
+		Sync:     syncJSON{sync.Synced, sync.Pending, sync.NoAccount},
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
@@ -104,6 +114,25 @@ func printSection(label string, requests, tokensSaved int64) {
 	printRow("", "")
 }
 
+func printSyncRow(c SyncCounts) {
+	total := c.Synced + c.Pending + c.NoAccount
+	if total == 0 {
+		printRow("Sync", "no data yet")
+		return
+	}
+	var parts []string
+	if c.Synced > 0 {
+		parts = append(parts, fmt.Sprintf("%s confirmed", formatInt(c.Synced)))
+	}
+	if c.Pending > 0 {
+		parts = append(parts, fmt.Sprintf("%s pending", formatInt(c.Pending)))
+	}
+	if c.NoAccount > 0 {
+		parts = append(parts, fmt.Sprintf("%s local-only", formatInt(c.NoAccount)))
+	}
+	printRow("Sync", strings.Join(parts, " · "))
+}
+
 func printRow(left, right string) {
 	inner := boxWidth - 2
 	if right == "" {
@@ -122,7 +151,6 @@ func printRow(left, right string) {
 }
 
 func formatInt(n int64) string {
-	// Insert commas every 3 digits.
 	s := fmt.Sprintf("%d", n)
 	if len(s) <= 3 {
 		return s

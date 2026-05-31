@@ -98,10 +98,15 @@ func (ds *daemonState) onToolResult(event intercept.InterceptEvent, result inter
 		}
 
 		// Record locally first (works offline). eventID ties this to the Worker post.
-		eventID := randomHex(16)
+		eventID := stats.NewEventID()
 		toolName := ""
 		if event.Tool != nil {
 			toolName = event.Tool.Name
+		}
+		// SyncStatus reflects whether this event can ever reach the Worker.
+		syncStatus := stats.StatusPending
+		if ds.apiKey == "" {
+			syncStatus = stats.StatusNoAccount
 		}
 		if ds.statsDB != nil {
 			ds.statsDB.RecordRequest(stats.Request{
@@ -111,6 +116,7 @@ func (ds *daemonState) onToolResult(event intercept.InterceptEvent, result inter
 				BytesBefore: result.Stats.BeforeBytes,
 				BytesAfter:  result.Stats.AfterBytes,
 				Host:        string(event.Host),
+				SyncStatus:  syncStatus,
 			})
 		}
 
@@ -189,7 +195,7 @@ func (ds *daemonState) postSessionEnd(sess *sessionStats) {
 		return
 	}
 	ds.postEvent(telemetryPayload{
-		EventID:            randomHex(8),
+		EventID:            stats.NewEventID(),
 		EventType:          "session_end",
 		CLIVersion:         buildVersion,
 		Integration:        sess.integration,
@@ -207,7 +213,7 @@ func (ds *daemonState) postSessionStart(event intercept.InterceptEvent) {
 		return
 	}
 	ds.postEvent(telemetryPayload{
-		EventID:            randomHex(16),
+		EventID:            stats.NewEventID(),
 		EventType:          "session_start",
 		CLIVersion:         buildVersion,
 		Integration:        string(event.Host),
@@ -434,12 +440,4 @@ func resolveToolType(tool *intercept.Tool) string {
 		return tool.MCPServer
 	}
 	return tool.Name
-}
-
-func randomHex(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = "0123456789abcdef"[time.Now().UnixNano()>>uint(i)&0xf]
-	}
-	return string(b)
 }

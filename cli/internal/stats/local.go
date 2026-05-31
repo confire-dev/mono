@@ -4,13 +4,25 @@
 package stats
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
+)
+
+// Sync status values for the requests table.
+const (
+	// StatusPending: recorded locally, not yet confirmed by Worker (may be retried).
+	StatusPending = "pending"
+	// StatusSynced: Worker accepted the event (idempotent — safe to retry).
+	StatusSynced = "synced"
+	// StatusNoAccount: no API key; will never be synced (local-only use).
+	StatusNoAccount = "no_account"
 )
 
 // DB wraps the local SQLite stats database.
@@ -42,6 +54,18 @@ func (s *DB) Close() {
 	}
 }
 
+// NewEventID returns a UUID v4 suitable for idempotent sync with the Worker.
+func NewEventID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		// Fallback: mix time + pid (collision-resistant enough for our volumes)
+		return fmt.Sprintf("%x%x%x", time.Now().UnixNano(), os.Getpid(), time.Now().UnixNano()>>32)
+	}
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant bits
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
 // Request is one optimization event to record.
 type Request struct {
 	EventID     string // UUID shared with Worker for idempotent sync
@@ -50,18 +74,26 @@ type Request struct {
 	BytesBefore int
 	BytesAfter  int
 	Host        string // "claude_code", "cursor", …
+	SyncStatus  string // StatusPending | StatusSynced | StatusNoAccount
 }
 
 // SyncRow is a pending-sync record returned by PendingSync.
 type SyncRow struct {
-	EventID       string
-	ToolName      string
-	Optimizer     string
-	TokensBefore  int64
-	TokensAfter   int64
-	TokensSaved   int64
-	Host          string
-	CreatedAt     string
+	EventID      string
+	ToolName     string
+	Optimizer    string
+	TokensBefore int64
+	TokensAfter  int64
+	TokensSaved  int64
+	Host         string
+	CreatedAt    string
+}
+
+// SyncCounts breaks down requests by sync status.
+type SyncCounts struct {
+	Synced    int64
+	Pending   int64
+	NoAccount int64
 }
 
 // RecordRequest writes one optimization event and updates the daily summary.
@@ -71,11 +103,19 @@ func (s *DB) RecordRequest(r Request) error {
 	tokensAfter := r.BytesAfter / 4
 	tokensSaved := tokensBefore - tokensAfter
 
+	syncStatus := r.SyncStatus
+	if syncStatus == "" {
+		syncStatus = StatusPending
+	}
+
 	if _, err := s.db.Exec(`
 		INSERT INTO requests
-		  (event_id, tool_name, optimizer, tokens_before, tokens_after, tokens_saved, cost_saved_usd, host)
-		VALUES (?, ?, ?, ?, ?, ?, 0.0, ?)`,
-		r.EventID, r.ToolName, r.Optimizer, tokensBefore, tokensAfter, tokensSaved, r.Host,
+		  (event_id, tool_name, optimizer, tokens_before, tokens_after, tokens_saved,
+		   cost_saved_usd, host, sync_status)
+		VALUES (?, ?, ?, ?, ?, ?, 0.0, ?, ?)`,
+		r.EventID, r.ToolName, r.Optimizer,
+		tokensBefore, tokensAfter, tokensSaved,
+		r.Host, syncStatus,
 	); err != nil {
 		return err
 	}
@@ -92,16 +132,25 @@ func (s *DB) RecordRequest(r Request) error {
 	return err
 }
 
-// PendingSync returns rows that have not yet been confirmed by the Worker.
-// Called on daemon startup to retry any events that failed to post.
+// MarkSynced marks an event as confirmed by the Worker.
+func (s *DB) MarkSynced(eventID string) error {
+	_, err := s.db.Exec(
+		`UPDATE requests SET sync_status = ?, synced_at = datetime('now') WHERE event_id = ?`,
+		StatusSynced, eventID,
+	)
+	return err
+}
+
+// PendingSync returns events with StatusPending that have not yet reached the Worker.
+// Called at daemon startup to retry offline events.
 func (s *DB) PendingSync(limit int) ([]SyncRow, error) {
 	rows, err := s.db.Query(`
 		SELECT event_id, tool_name, optimizer,
 		       tokens_before, tokens_after, tokens_saved, host, created_at
 		FROM requests
-		WHERE synced_at IS NULL AND event_id != ''
+		WHERE sync_status = ?
 		ORDER BY created_at ASC
-		LIMIT ?`, limit,
+		LIMIT ?`, StatusPending, limit,
 	)
 	if err != nil {
 		return nil, err
@@ -121,13 +170,33 @@ func (s *DB) PendingSync(limit int) ([]SyncRow, error) {
 	return out, nil
 }
 
-// MarkSynced records that an event was accepted by the Worker.
-func (s *DB) MarkSynced(eventID string) error {
-	_, err := s.db.Exec(
-		`UPDATE requests SET synced_at = datetime('now') WHERE event_id = ?`,
-		eventID,
+// GetSyncCounts returns a breakdown of requests by sync_status.
+func (s *DB) GetSyncCounts() (SyncCounts, error) {
+	rows, err := s.db.Query(`
+		SELECT sync_status, COUNT(*) FROM requests GROUP BY sync_status`,
 	)
-	return err
+	if err != nil {
+		return SyncCounts{}, err
+	}
+	defer rows.Close()
+
+	var c SyncCounts
+	for rows.Next() {
+		var status string
+		var count int64
+		if err := rows.Scan(&status, &count); err != nil {
+			continue
+		}
+		switch status {
+		case StatusSynced:
+			c.Synced = count
+		case StatusPending:
+			c.Pending = count
+		case StatusNoAccount:
+			c.NoAccount = count
+		}
+	}
+	return c, nil
 }
 
 // Stats is an aggregated count for a time period.
@@ -241,57 +310,70 @@ func ToolFamily(toolName string) string {
 	return "generic"
 }
 
-// ── Schema + migrations ────────────────────────────────────────────────────
+// ── Schema + migrations ─────────────────────────────────────────────────────
+
+// schemaV1 is the initial schema. Fresh installs skip straight to latest.
+const schemaLatest = `
+CREATE TABLE IF NOT EXISTS requests (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_id      TEXT    NOT NULL DEFAULT '',
+  tool_name     TEXT    NOT NULL,
+  optimizer     TEXT    NOT NULL,
+  tokens_before INTEGER NOT NULL,
+  tokens_after  INTEGER NOT NULL,
+  tokens_saved  INTEGER NOT NULL,
+  cost_saved_usd REAL   NOT NULL DEFAULT 0,
+  host          TEXT    NOT NULL DEFAULT '',
+  sync_status   TEXT    NOT NULL DEFAULT 'pending',
+  synced_at     TEXT,
+  created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS daily_summary (
+  date               TEXT PRIMARY KEY,
+  request_count      INTEGER NOT NULL DEFAULT 0,
+  tokens_saved_total INTEGER NOT NULL DEFAULT 0,
+  cost_saved_total   REAL    NOT NULL DEFAULT 0
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_requests_event_id
+  ON requests (event_id) WHERE event_id != '';
+CREATE INDEX IF NOT EXISTS idx_requests_created
+  ON requests (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_requests_tool_month
+  ON requests (tool_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_requests_sync_status
+  ON requests (sync_status) WHERE sync_status = 'pending';
+`
 
 func migrate(db *sql.DB) error {
 	var version int
 	db.QueryRow(`PRAGMA user_version`).Scan(&version)
 
-	if version < 1 {
-		if _, err := db.Exec(`
-			CREATE TABLE IF NOT EXISTS requests (
-			  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-			  event_id      TEXT    NOT NULL DEFAULT '' UNIQUE,
-			  tool_name     TEXT    NOT NULL,
-			  optimizer     TEXT    NOT NULL,
-			  tokens_before INTEGER NOT NULL,
-			  tokens_after  INTEGER NOT NULL,
-			  tokens_saved  INTEGER NOT NULL,
-			  cost_saved_usd REAL   NOT NULL DEFAULT 0,
-			  host          TEXT    NOT NULL DEFAULT '',
-			  synced_at     TEXT,
-			  created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
-			);
-
-			CREATE TABLE IF NOT EXISTS daily_summary (
-			  date               TEXT PRIMARY KEY,
-			  request_count      INTEGER NOT NULL DEFAULT 0,
-			  tokens_saved_total INTEGER NOT NULL DEFAULT 0,
-			  cost_saved_total   REAL    NOT NULL DEFAULT 0
-			);
-
-			CREATE INDEX IF NOT EXISTS idx_requests_created
-			  ON requests (created_at DESC);
-			CREATE INDEX IF NOT EXISTS idx_requests_tool_month
-			  ON requests (tool_name, created_at DESC);
-			CREATE INDEX IF NOT EXISTS idx_requests_unsynced
-			  ON requests (synced_at) WHERE synced_at IS NULL;
-
-			PRAGMA user_version = 1;
-		`); err != nil {
+	if version == 0 {
+		// Fresh install OR pre-versioned DB — apply full schema, then patch
+		// any missing columns for databases that existed before versioning.
+		if _, err := db.Exec(schemaLatest); err != nil {
+			return err
+		}
+		// Best-effort column additions for pre-versioned databases.
+		// SQLite's ALTER TABLE ADD COLUMN is idempotent-safe: we ignore errors
+		// because "duplicate column name" means it already exists.
+		db.Exec(`ALTER TABLE requests ADD COLUMN event_id TEXT NOT NULL DEFAULT ''`)
+		db.Exec(`ALTER TABLE requests ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending'`)
+		db.Exec(`ALTER TABLE requests ADD COLUMN synced_at TEXT`)
+		// Back-fill: old rows without event_id have empty string — they
+		// match the partial index exclusion (WHERE event_id != '') so they
+		// won't block the UNIQUE constraint.
+		// Rows written before sync_status existed get 'no_account' so they
+		// don't appear in the pending retry queue.
+		db.Exec(`UPDATE requests SET sync_status = 'no_account' WHERE sync_status = '' OR sync_status IS NULL`)
+		if _, err := db.Exec(`PRAGMA user_version = 2`); err != nil {
 			return err
 		}
 	}
 
-	// v1→v2: add sync columns to existing databases (no-op on fresh installs)
-	if version == 0 {
-		// Existing DB from before v1 schema: add missing columns gracefully.
-		// SQLite ignores "duplicate column" errors only via separate statements.
-		db.Exec(`ALTER TABLE requests ADD COLUMN event_id TEXT NOT NULL DEFAULT ''`)
-		db.Exec(`ALTER TABLE requests ADD COLUMN synced_at TEXT`)
-		db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_requests_event_id ON requests (event_id) WHERE event_id != ''`)
-		db.Exec(`CREATE INDEX IF NOT EXISTS idx_requests_unsynced ON requests (synced_at) WHERE synced_at IS NULL`)
-	}
+	// Future migrations: add `if version < N { ... }` blocks here.
 
 	return nil
 }

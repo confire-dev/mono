@@ -80,6 +80,10 @@ func runStats(cmd *cobra.Command) error {
 		// non-fatal
 		topTools = nil
 	}
+	syncCounts, err := db.GetSyncCounts()
+	if err != nil {
+		syncCounts = stats.SyncCounts{}
+	}
 
 	// Session stats: ask the running daemon via a side channel.
 	// For now, zero out — session stats live in the daemon process.
@@ -87,7 +91,7 @@ func runStats(cmd *cobra.Command) error {
 	session := stats.SessionStats{}
 
 	if statsFlagJSON {
-		stats.PrintJSON(session, today, month, allTime, topTools)
+		stats.PrintJSON(session, today, month, allTime, topTools, syncCounts)
 		return nil
 	}
 
@@ -103,7 +107,7 @@ func runStats(cmd *cobra.Command) error {
 		return nil
 	}
 
-	stats.PrintTable(session, today, month, allTime, topTools)
+	stats.PrintTable(session, today, month, allTime, topTools, syncCounts)
 	return nil
 }
 
