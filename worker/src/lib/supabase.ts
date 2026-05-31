@@ -62,20 +62,29 @@ export const MAX_RAW_PAYLOAD_BYTES = 50 * 1024 * 1024 // 50MB absolute max befor
 // ── Auth / key validation ──────────────────────────────────────────────────
 
 // validateApiKey looks up a key by its SHA-256 hash and returns the profile.
+// Two-step: api_keys has FK to auth.users (not profiles), so we can't embed
+// profiles(*) in one PostgREST query. Look up user_id first, then fetch profile.
 // Also updates last_used_at asynchronously.
 export async function validateApiKey(cfg: SupabaseConfig, rawKey: string): Promise<Profile | null> {
   const hash = await sha256(rawKey)
-  const res = await sbFetch(cfg, 'GET',
-    `/rest/v1/api_keys?select=user_id,profiles(*)&key_hash=eq.${encodeURIComponent(hash)}&revoked_at=is.null&limit=1`)
-  if (!res.ok) return null
-  const rows = await res.json() as Array<{ profiles: Profile }>
-  if (!rows.length || !rows[0]?.profiles) return null
+
+  const keyRes = await sbFetch(cfg, 'GET',
+    `/rest/v1/api_keys?select=user_id&key_hash=eq.${encodeURIComponent(hash)}&revoked_at=is.null&limit=1`)
+  if (!keyRes.ok) return null
+  const keyRows = await keyRes.json() as Array<{ user_id: string }>
+  if (!keyRows.length) return null
+
+  const userId = keyRows[0].user_id
 
   // Async side-effect: update last_used_at. Don't block.
   sbFetch(cfg, 'PATCH', `/rest/v1/api_keys?key_hash=eq.${encodeURIComponent(hash)}`,
     { last_used_at: new Date().toISOString() }).catch(() => {})
 
-  return rows[0].profiles
+  const profileRes = await sbFetch(cfg, 'GET',
+    `/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&limit=1`)
+  if (!profileRes.ok) return null
+  const profiles = await profileRes.json() as Profile[]
+  return profiles[0] ?? null
 }
 
 // ── Usage & credits ────────────────────────────────────────────────────────
