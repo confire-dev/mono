@@ -113,3 +113,39 @@ export interface OptimizeResponse {
   // Optional warning sent to the daemon for display (80%/100% limit nudge, payload too large)
   _warning?: string
 }
+
+// ── Standalone Optimizer API (/v1/optimize) ────────────────────────────────
+// General-purpose optimization endpoint — not tied to Claude Code hooks.
+// Callers send any text/JSON before passing it to Groq, OpenAI, Gemini, etc.
+
+export type OptimizerType =
+  | 'auto'       // default — generic noise stripping
+  | 'json'       // → generic optimizer
+  | 'html'       // → webfetch optimizer
+  | 'search'     // → websearch optimizer (Brave/Exa/Tavily JSON)
+  | 'bash'       // → bash optimizer (log/test output)
+  | 'github'     // → github optimizer
+  | 'slack'      // → slack optimizer
+  | 'figma'      // → figma optimizer
+  | 'jira'       // → jira optimizer
+  | 'notion'     // → notion optimizer
+  | 'confluence' // → confluence optimizer
+  | 'clickup'    // → clickup optimizer
+  | 'amplitude'  // → amplitude optimizer
+  | 'zapier'     // → zapier optimizer
+  | 'playwright' // → playwright optimizer
+
+export interface OptimizerApiRequest {
+  content: string           // text, JSON, HTML, markdown — anything
+  type?: OptimizerType      // hint for which optimizer to use (default: 'auto')
+}
+
+export interface OptimizerApiResponse {
+  result: string            // optimized content (unchanged if no reduction found)
+  optimized: boolean        // false = content returned as-is
+  input_chars: number
+  output_chars: number
+  reduction_pct: number     // 0–100
+  optimizer: string         // which optimizer ran
+  cached: boolean
+}

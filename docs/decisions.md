@@ -194,3 +194,24 @@ request throttling. Do not store rate limit state in Supabase or KV.
 | Pro / Pro Annual / Enterprise | 200           |
 
 **Local optimizer is never rate-limited** — only remote calls to `POST /api/optimize` are counted.
+
+## ADR-013: Standalone Optimizer API as a thin adapter over the existing engine
+
+**Decision:** Expose `POST /v1/optimize` as a general-purpose pre-LLM context reduction API.
+The endpoint is a thin adapter — it wraps the caller's content in a synthetic `InterceptEvent`
+and calls `handle()`, the same function used by the Claude Code hook path.
+
+**Rationale:**
+- The optimizer functions (`optimizeFigma`, `optimizeGeneric`, `optimizeWebFetch`, …) already
+  take a raw string. They have no dependency on Claude Code specifics — the hook pipeline is
+  just one way to feed them content.
+- A `type` hint (`"json"`, `"html"`, `"github"`, …) maps to a tool name, which routes the
+  synthetic event through `dispatch()` exactly as if it came from a real hook.
+- Zero new optimizer code. Zero new plan/entitlement code. Zero new rate limit code.
+  The only addition is the handler (~140 lines) and the new request/response types.
+- Sharing the same quota counter as hook-based calls in v1 keeps the billing system simple.
+  A separate `apiOptimizationsMonthly` limit can be added if use cases diverge.
+
+**Product angle:** "Call us before calling Groq. Pay us once, pay the LLM less every time."
+The endpoint is meaningful at every tier: Free users get 500 pre-LLM optimizations/month;
+Pro users get effectively unlimited. See `docs/internal/optimizer-api.md` for full details.

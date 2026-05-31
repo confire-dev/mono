@@ -1,5 +1,6 @@
 import type { Env } from './types.js'
 import { handleOptimize }        from './handlers/optimize.js'
+import { handleOptimizerApi }    from './handlers/optimize-api.js'
 import { handleSessionStart }    from './handlers/session.js'
 import { handleGenerateKey, handleMe } from './handlers/auth.js'
 import { handleCreateCheckout }       from './handlers/checkout.js'
@@ -26,6 +27,10 @@ export default {
     // ── Optimizer (core product) ─────────────────────────────────────────
     if (method === 'POST' && url.pathname === '/optimize') {
       return handleOptimize(request, env)
+    }
+    // ── Standalone Optimizer API (pre-LLM context reduction) ─────────────
+    if (method === 'POST' && url.pathname === '/v1/optimize') {
+      return handleOptimizerApi(request, env)
     }
     if (method === 'POST' && url.pathname === '/session/start') {
       return handleSessionStart(request, env)
