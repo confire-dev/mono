@@ -397,12 +397,16 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 	case intercept.PhaseSessionStart:
 		state.onSessionStart(event)
 		go state.postSessionStart(event)
-		// Return notification for Claude to see.
-		result := intercept.InterceptResult{
-			Kind:    intercept.ResultAddContext,
-			Context: sessionStartNotification(state),
+		// Only inject context into Claude when something requires Claude's awareness.
+		// A healthy balanced session injects nothing — saving context is the product.
+		if notice := sessionStartNotification(state); notice != "" {
+			json.NewEncoder(conn).Encode(intercept.InterceptResult{
+				Kind:    intercept.ResultAddContext,
+				Context: notice,
+			})
+		} else {
+			json.NewEncoder(conn).Encode(intercept.InterceptResult{Kind: intercept.ResultPassthrough})
 		}
-		json.NewEncoder(conn).Encode(result)
 		return
 
 	case intercept.PhaseSessionEnd:
@@ -527,11 +531,24 @@ func (ds *daemonState) sanitizeOutput(event intercept.InterceptEvent) intercept.
 	return event
 }
 
+// sessionStartNotification returns a string to inject into Claude's context,
+// or "" if everything is healthy and no injection is needed.
+// A healthy balanced session injects nothing — saving context is the product.
 func sessionStartNotification(state *daemonState) string {
-	if state.apiKey == "" {
-		return "⚠️ Confire: not logged in — run `confire login` to enable optimization."
+	mode := state.cfg.EffectiveMode()
+	switch {
+	case state.apiKey == "":
+		return "⚠️ Confire: not logged in — cloud optimization disabled. Run `confire login`."
+	case mode == "strict":
+		return "[Confire] Strict mode active. Dangerous tool calls will be blocked, not just reviewed."
+	case mode == "bypass":
+		return "[Confire] Bypass mode active. Firewall and optimization are disabled."
+	default:
+		// Healthy: balanced or observe mode with account. Log to stderr only.
+		fmt.Fprintf(os.Stderr, "[confire] v%s active — %s mode, %d rules loaded\n",
+			buildVersion, mode, len(state.guardrail.Rules()))
+		return ""
 	}
-	return fmt.Sprintf("✓ Confire v%s active (cloud optimizer)", buildVersion)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

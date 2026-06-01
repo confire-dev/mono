@@ -22,7 +22,8 @@ func New(engine *policy.Engine, mode policy.Mode) *Handler {
 	return &Handler{engine: engine, mode: mode}
 }
 
-func (h *Handler) ID() string { return "guardrail" }
+func (h *Handler) ID() string    { return "guardrail" }
+func (h *Handler) Rules() []policy.Rule { return h.engine.Rules() }
 
 func (h *Handler) Phases() []intercept.Phase {
 	return []intercept.Phase{intercept.PhaseToolPre}
@@ -85,9 +86,9 @@ Claude is about to run: %s — %s
 Risk:              %s severity
 Why this matters:  %s
 
-How to proceed:
-- If this is intentional, tell Claude to proceed and it will retry.
-- Or use a safer alternative command/tool.`,
+ACTION REQUIRED — ask the user:
+"Confire flagged this command. Do you want me to run it anyway?
+If yes: run 'confire bypass-next' in your terminal, then tell me to retry."`,
 		m.Rule.Name,
 		e.Tool.Name,
 		inputExcerpt(e.Tool, 120),
