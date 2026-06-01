@@ -60,6 +60,15 @@ const (
 	ResultReplaceInput  ResultKind = "replace-input"
 	ResultAddContext    ResultKind = "add-context"
 	ResultCompact       ResultKind = "compact"
+
+	// Firewall result kinds (PreToolUse).
+	ResultBlock  ResultKind = "block"  // prevent tool execution, explain why
+	ResultReview ResultKind = "review" // block + invite user to allow/retry
+	ResultWarn   ResultKind = "warn"   // allow but inject advisory context
+
+	// Firewall result kinds (PostToolUse).
+	ResultSanitize ResultKind = "sanitize" // replace output with sanitized version
+	ResultRedact   ResultKind = "redact"   // replace output with redacted version
 )
 
 type InterceptResult struct {
@@ -67,6 +76,7 @@ type InterceptResult struct {
 	ToolOutput any        `json:"toolOutput,omitempty"`
 	ToolInput  any        `json:"toolInput,omitempty"`
 	Context    string     `json:"context,omitempty"`
+	Reason     string     `json:"reason,omitempty"` // block/review human-readable explanation
 	Stats      *Stats     `json:"stats,omitempty"`
 }
 

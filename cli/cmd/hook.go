@@ -50,6 +50,26 @@ func runClaudeCodeHook(raw map[string]any) error {
 
 	event := hosts.DecodeHookInput(input)
 	result := sendToDaemon(event)
+
+	// PreToolUse block/review: write JSON to stdout and exit 2 to block the tool.
+	if input.HookEventName == "PreToolUse" {
+		if payload := hosts.EncodePreToolResult(result); payload != nil {
+			os.Stdout.Write(payload)
+			os.Exit(2) // Claude Code reads exit 2 as a block decision.
+		}
+		// Warn: inject context but allow the tool to proceed.
+		if result.Kind == intercept.ResultWarn && result.Context != "" {
+			out := hosts.HookOutput{
+				HookSpecificOutput: hosts.HookSpecificOutput{
+					HookEventName:     input.HookEventName,
+					AdditionalContext: result.Context,
+				},
+			}
+			return json.NewEncoder(os.Stdout).Encode(out)
+		}
+		return nil
+	}
+
 	if result.Kind == intercept.ResultPassthrough {
 		return nil
 	}

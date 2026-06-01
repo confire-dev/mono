@@ -44,6 +44,34 @@ type Config struct {
 
 	// Notifications controls 🔥 save notifications.
 	Notifications NotificationConfig `json:"notifications"`
+
+	// Mode controls firewall behavior: "observe"|"balanced"|"strict"|"bypass".
+	// Default: "balanced".
+	Mode string `json:"mode,omitempty"`
+
+	// FirewallEnabled controls whether the tool/context firewall is active.
+	// nil means true (default on). Use pointer so we can distinguish unset from false.
+	FirewallEnabled *bool `json:"firewall_enabled,omitempty"`
+}
+
+// IsFirewallEnabled returns true unless the firewall has been explicitly disabled
+// or mode is set to bypass.
+func (c *Config) IsFirewallEnabled() bool {
+	if c.FirewallEnabled != nil && !*c.FirewallEnabled {
+		return false
+	}
+	if c.Mode == "bypass" {
+		return false
+	}
+	return true
+}
+
+// EffectiveMode returns the firewall mode, defaulting to "balanced".
+func (c *Config) EffectiveMode() string {
+	if c.Mode == "" {
+		return "balanced"
+	}
+	return c.Mode
 }
 
 func defaults() Config {

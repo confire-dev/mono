@@ -15,8 +15,11 @@ import (
 
 	"github.com/confire-dev/confire/auth"
 	"github.com/confire-dev/confire/config"
+	"github.com/confire-dev/confire/guardrail"
 	"github.com/confire-dev/confire/intercept"
 	"github.com/confire-dev/confire/internal/stats"
+	"github.com/confire-dev/confire/policy"
+	"github.com/confire-dev/confire/sanitize"
 	"github.com/confire-dev/confire/transport"
 	"github.com/spf13/cobra"
 )
@@ -49,15 +52,22 @@ type sessionStats struct {
 	biggestWinTool string
 	biggestWinRaw  int
 	biggestWinOpt  int
+	// Firewall stats
+	blockedCalls    int
+	reviewedCalls   int
+	warnedCalls     int
+	sanitizedCalls  int
+	secretsRedacted int
 }
 
 type daemonState struct {
-	mu       sync.Mutex
-	sessions map[string]*sessionStats
-	apiKey   string
-	deviceID string
-	cfg      config.Config
-	statsDB  *stats.DB
+	mu        sync.Mutex
+	sessions  map[string]*sessionStats
+	apiKey    string
+	deviceID  string
+	cfg       config.Config
+	statsDB   *stats.DB
+	guardrail *guardrail.Handler
 }
 
 func (ds *daemonState) onSessionStart(event intercept.InterceptEvent) {
@@ -324,12 +334,17 @@ func runDaemon() error {
 
 	statsDB, _ := stats.Open(statsDBPath())
 
+	// Initialize guardrail (PreToolUse firewall).
+	policyEngine := policy.NewEngine(policy.LoadRules())
+	mode := policy.Mode(cfg.EffectiveMode())
+
 	state := &daemonState{
-		sessions: make(map[string]*sessionStats),
-		apiKey:   apiKey,
-		deviceID: deviceID,
-		cfg:      cfg,
-		statsDB:  statsDB,
+		sessions:  make(map[string]*sessionStats),
+		apiKey:    apiKey,
+		deviceID:  deviceID,
+		cfg:       cfg,
+		statsDB:   statsDB,
+		guardrail: guardrail.New(policyEngine, mode),
 	}
 
 	if statsDB != nil {
@@ -394,6 +409,28 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 		state.onSessionEnd(event)
 		json.NewEncoder(conn).Encode(intercept.InterceptResult{Kind: intercept.ResultPassthrough})
 		return
+
+	case intercept.PhaseToolPre:
+		// Firewall: evaluate before the tool executes.
+		// bypass-next flag allows one-shot override.
+		if policy.ConsumeBypassNext() {
+			json.NewEncoder(conn).Encode(intercept.InterceptResult{Kind: intercept.ResultPassthrough})
+			return
+		}
+		if state.cfg.IsFirewallEnabled() && state.guardrail != nil {
+			result, _ := state.guardrail.Run(event)
+			state.onFirewallResult(event, result)
+			json.NewEncoder(conn).Encode(result)
+		} else {
+			json.NewEncoder(conn).Encode(intercept.InterceptResult{Kind: intercept.ResultPassthrough})
+		}
+		return
+	}
+
+	// PostToolUse and other tool phases — run sanitization then optimizer.
+	// Step 1: sanitize the raw output before optimization.
+	if state.cfg.IsFirewallEnabled() && event.Phase == intercept.PhaseToolPost {
+		event = state.sanitizeOutput(event)
 	}
 
 	// Tool calls → optimize + track stats + notify.
@@ -419,6 +456,75 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 	}
 
 	json.NewEncoder(conn).Encode(result)
+}
+
+// onFirewallResult tracks PreToolUse firewall decisions.
+func (ds *daemonState) onFirewallResult(event intercept.InterceptEvent, result intercept.InterceptResult) {
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+	sess := ds.sessions[event.Session.ID]
+	if sess == nil {
+		return
+	}
+	switch result.Kind {
+	case intercept.ResultBlock:
+		sess.blockedCalls++
+	case intercept.ResultReview:
+		sess.reviewedCalls++
+	case intercept.ResultWarn:
+		sess.warnedCalls++
+	}
+}
+
+// sanitizeOutput runs secret redaction and prompt-injection sanitization
+// on the raw tool output before it goes to the optimizer.
+// Returns the (potentially modified) event.
+func (ds *daemonState) sanitizeOutput(event intercept.InterceptEvent) intercept.InterceptEvent {
+	if event.Tool == nil || event.Tool.Output == nil {
+		return event
+	}
+	text, ok := sanitize.OutputToString(event.Tool.Output)
+	if !ok || len(text) < 100 {
+		return event
+	}
+
+	modified := false
+	sess := ds.sessions[event.Session.ID]
+
+	// Secret redaction.
+	redacted, count, _ := sanitize.Redact(text)
+	if count > 0 {
+		text = redacted
+		modified = true
+		if sess != nil {
+			ds.mu.Lock()
+			sess.secretsRedacted += count
+			sess.sanitizedCalls++
+			ds.mu.Unlock()
+		}
+		fmt.Fprintf(os.Stderr, "[confire] redacted %d secret(s) from %s output\n", count, event.Tool.Name)
+	}
+
+	// Prompt-injection sanitization.
+	sanitized, found, _ := sanitize.Sanitize(text)
+	if found {
+		text = sanitized
+		modified = true
+		if sess != nil {
+			ds.mu.Lock()
+			sess.sanitizedCalls++
+			ds.mu.Unlock()
+		}
+		fmt.Fprintf(os.Stderr, "[confire] sanitized prompt-injection pattern from %s output\n", event.Tool.Name)
+	}
+
+	if modified {
+		// Clone the tool to avoid mutating shared state.
+		toolCopy := *event.Tool
+		toolCopy.Output = text
+		event.Tool = &toolCopy
+	}
+	return event
 }
 
 func sessionStartNotification(state *daemonState) string {
