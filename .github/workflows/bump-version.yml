@@ -4,12 +4,7 @@ name: Bump version
 # decides the next semver bump (patch/minor/major), updates CHANGELOG.md,
 # commits, and creates a new tag — which then triggers the release workflow.
 #
-# Conventional commit prefixes:
-#   feat!: / BREAKING CHANGE  →  major
-#   feat:                      →  minor
-#   fix: / chore: / docs: etc  →  patch
-#
-# A commit with only chore(release): is skipped to avoid loops.
+# See docs/internal/conventional-commits.md
 
 on:
   push:
@@ -36,32 +31,39 @@ jobs:
       - name: Determine next version
         id: semver
         run: |
-          # Latest tag (or 0.0.0 if none)
+          # Latest tag (or v0.0.0 placeholder when the repo has no tags yet)
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Last tag: $LAST_TAG"
 
-          # Commits since last tag
-          COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s")
-
-          # Skip if only a release bump commit is present
-          if echo "$COMMITS" | grep -qv "^chore(release):"; then
-            : # there are real commits to process
+          if git rev-parse "$LAST_TAG" >/dev/null 2>&1; then
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s")
           else
-            echo "No new commits since $LAST_TAG — skipping bump."
+            COMMITS=$(git log --pretty=format:"%s")
+          fi
+
+          # Skip when there is nothing to release, or only the release bump commit
+          if [ -z "$COMMITS" ]; then
+            echo "No commits since $LAST_TAG — skipping bump."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if echo "$COMMITS" | grep -qv "^chore(release):"; then
+            : # real commits present
+          else
+            echo "Only release bump commit(s) since $LAST_TAG — skipping bump."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Determine bump level
+          # Determine bump level from conventional commit subjects
           BUMP="patch"
-          if echo "$COMMITS" | grep -qE "^feat!:|BREAKING CHANGE"; then
+          if echo "$COMMITS" | grep -qE "^feat(\([^)]+\))?!:"; then
             BUMP="major"
-          elif echo "$COMMITS" | grep -qE "^feat(\(.+\))?:"; then
+          elif echo "$COMMITS" | grep -qE "^feat(\([^)]+\))?:"; then
             BUMP="minor"
           fi
           echo "Bump level: $BUMP"
 
-          # Strip leading 'v', split into parts
           VERSION="${LAST_TAG#v}"
           MAJOR=$(echo "$VERSION" | cut -d. -f1)
           MINOR=$(echo "$VERSION" | cut -d. -f2)
@@ -88,20 +90,24 @@ jobs:
         run: |
           DATE=$(date -u +%Y-%m-%d)
 
-          # Collect commits since last tag, grouped by type
-          COMMITS=$(git log "${LAST}..HEAD" --pretty=format:"- %s (%h)" 2>/dev/null)
+          if git rev-parse "$LAST" >/dev/null 2>&1; then
+            COMMITS=$(git log "${LAST}..HEAD" --pretty=format:"- %s (%h)")
+          else
+            COMMITS=$(git log --pretty=format:"- %s (%h)")
+          fi
 
-          FEAT=$(echo "$COMMITS"   | grep "^- feat"    || true)
-          FIX=$(echo "$COMMITS"    | grep "^- fix"     || true)
-          CHORE=$(echo "$COMMITS"  | grep "^- chore\|^- docs\|^- refactor\|^- perf\|^- test" || true)
+          # Drop merge commits and release bump commits from the changelog body
+          COMMITS=$(echo "$COMMITS" | grep -Ev "^- Merge |^- chore\(release\):" || true)
 
-          # Build new entry
+          FEAT=$(echo "$COMMITS"  | grep -E "^- feat(\([^)]+\))?!:" || true)
+          FIX=$(echo "$COMMITS"   | grep -E "^- fix(\([^)]+\))?:" || true)
+          OTHER=$(echo "$COMMITS" | grep -Ev "^- feat(\([^)]+\))?!:|^- fix(\([^)]+\)?:" || true)
+
           ENTRY="## ${NEXT} — ${DATE}\n\n"
           [ -n "$FEAT"  ] && ENTRY="${ENTRY}### Features\n${FEAT}\n\n"
           [ -n "$FIX"   ] && ENTRY="${ENTRY}### Fixes\n${FIX}\n\n"
-          [ -n "$CHORE" ] && ENTRY="${ENTRY}### Other\n${CHORE}\n\n"
+          [ -n "$OTHER" ] && ENTRY="${ENTRY}### Other\n${OTHER}\n\n"
 
-          # Prepend to CHANGELOG.md (create if missing)
           if [ -f CHANGELOG.md ]; then
             printf "%b\n---\n\n" "$ENTRY" | cat - CHANGELOG.md > /tmp/cl.md
           else
@@ -109,7 +115,6 @@ jobs:
           fi
           mv /tmp/cl.md CHANGELOG.md
 
-          # Stamp version into Homebrew formula template
           VER="${NEXT#v}"
           sed -i "s/version \"[^\"]*\"/version \"${VER}\"/" homebrew/confire.rb || true
 
