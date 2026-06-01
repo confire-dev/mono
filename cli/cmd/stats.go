@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/confire-dev/confire/internal/stats"
@@ -11,13 +10,11 @@ import (
 
 var statsCmd = &cobra.Command{
 	Use:   "stats",
-	Short: "Show local optimization stats",
-	Long: `Displays token savings from local stats.
-Stats are stored locally in ~/.confire/stats.db and never sent anywhere.
+	Short: "Show optimization savings",
+	Long: `Shows tokens saved and request counts from local stats (this month and all time).
 
 Examples:
-  confire stats              show all periods
-  confire stats --today      today only
+  confire stats              summary view
   confire stats --month      this month only
   confire stats --tool bash  filter by tool
   confire stats --json       machine-readable output
@@ -46,6 +43,10 @@ func init() {
 
 func statsDBPath() string {
 	return filepath.Join(confireDir(), "stats.db")
+}
+
+func dashboardURL() string {
+	return platformURL() + "/dashboard"
 }
 
 func runStats(cmd *cobra.Command) error {
@@ -86,40 +87,78 @@ func runStats(cmd *cobra.Command) error {
 	if statsErr != nil {
 		return fmt.Errorf("read stats: %w", statsErr)
 	}
-	topTools, err := db.TopToolsThisMonth(4)
-	if err != nil {
-		// non-fatal
-		topTools = nil
-	}
-	syncCounts, err := db.GetSyncCounts()
-	if err != nil {
-		syncCounts = stats.SyncCounts{}
-	}
-
-	// Session stats: ask the running daemon via a side channel.
-	// For now, zero out — session stats live in the daemon process.
-	// Future: expose a /stats socket endpoint on the daemon.
-	session := stats.SessionStats{}
 
 	if statsFlagJSON {
-		stats.PrintJSON(session, today, month, allTime, topTools, syncCounts)
+		topTools, _ := db.TopToolsThisMonth(4)
+		syncCounts, _ := db.GetSyncCounts()
+		stats.PrintJSON(stats.SessionStats{}, today, month, allTime, topTools, syncCounts)
 		return nil
 	}
 
-	// Narrow output when a flag narrows the period.
+	toolLabel := ""
+	if statsFlagTool != "" {
+		toolLabel = statsFlagTool
+	}
+
 	if statsFlagToday {
-		fmt.Fprintf(os.Stdout, "Today: %s requests · %s tokens saved\n",
-			formatNumber(today.RequestCount), formatNumber(today.TokensSaved))
+		printStatsPeriod("Today", today, toolLabel)
 		return nil
 	}
 	if statsFlagMonth {
-		fmt.Fprintf(os.Stdout, "This month: %s requests · %s tokens saved\n",
-			formatNumber(month.RequestCount), formatNumber(month.TokensSaved))
+		printStatsPeriod("This month", month, toolLabel)
 		return nil
 	}
 
-	stats.PrintTable(session, today, month, allTime, topTools, syncCounts)
+	printStatsSummary(month, allTime, toolLabel)
 	return nil
+}
+
+func printStatsSummary(month, allTime stats.Stats, toolFilter string) {
+	title := "confire stats"
+	if toolFilter != "" {
+		title = fmt.Sprintf("confire stats · %s", toolFilter)
+	}
+	fmt.Printf("\n%s[%s]%s\n\n", bold, title, reset)
+
+	if allTime.RequestCount == 0 {
+		fmt.Printf("  %sNo optimizations recorded yet.%s\n", dim, reset)
+		fmt.Printf("  %sRun `confire start` and use your agent to begin saving tokens.%s\n\n", dim, reset)
+	} else {
+		fmt.Printf("  %s%s%s %stokens saved%s\n",
+			bold, green, formatNumber(allTime.TokensSaved), dim, reset)
+		fmt.Printf("  %sall time%s\n\n", dim, reset)
+
+		printStatsRow("This month", month)
+		printStatsRow("All time", allTime)
+		fmt.Println()
+	}
+
+	fmt.Printf("  %sFull history →%s %s\n\n", dim, reset, dashboardURL())
+}
+
+func printStatsPeriod(label string, s stats.Stats, toolFilter string) {
+	title := label
+	if toolFilter != "" {
+		title = fmt.Sprintf("%s · %s", label, toolFilter)
+	}
+	fmt.Printf("\n%s[%s]%s\n\n", bold, title, reset)
+
+	if s.RequestCount == 0 {
+		fmt.Printf("  %sNo data for this period.%s\n\n", dim, reset)
+	} else {
+		fmt.Printf("  %s%s%s %stokens saved%s\n",
+			bold, green, formatNumber(s.TokensSaved), dim, reset)
+		fmt.Printf("  %s%d requests%s\n\n", dim, s.RequestCount, reset)
+	}
+
+	fmt.Printf("  %sFull history →%s %s\n\n", dim, reset, dashboardURL())
+}
+
+func printStatsRow(label string, s stats.Stats) {
+	fmt.Printf("  %-12s %s%s%s requests · %s%s%s saved\n",
+		label+":",
+		cyan, formatNumber(s.RequestCount), reset,
+		green, formatNumber(s.TokensSaved), reset)
 }
 
 func formatNumber(n int64) string {

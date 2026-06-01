@@ -1,5 +1,5 @@
 ---
-import Layout from '@/layouts/Layout.astro'
+import AppLayout from '@/layouts/AppLayout.astro'
 import { CliAuthorizeCard } from '@/components/auth/CliAuthorizeCard'
 import { createSupabaseServer } from '@/lib/supabase'
 
@@ -10,27 +10,21 @@ const callbackURL = Astro.url.searchParams.get('callback')    ?? ''
 const deviceId    = Astro.url.searchParams.get('device_id')   ?? ''
 const cliVersion  = Astro.url.searchParams.get('cli_version') ?? ''
 
-// Reject anything that isn't a localhost CLI callback
 if (!callbackURL.match(/^http:\/\/(127\.0\.0\.1|localhost):\d+/)) {
   return Astro.redirect('/login')
 }
 
-// Not logged in — send to login, then come back here
 if (!user) {
   const next = `/cli/login?callback=${encodeURIComponent(callbackURL)}&device_id=${encodeURIComponent(deviceId)}&cli_version=${encodeURIComponent(cliVersion)}`
   return Astro.redirect(`/login?next=${encodeURIComponent(next)}`)
 }
 ---
 
-<Layout title="Authorize CLI" bare>
-  <div class="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
-    <div class="w-full max-w-sm">
-      <CliAuthorizeCard
-        client:only="react"
-        user={{ email: user.email ?? '', id: user.id }}
-        device={{ id: deviceId, cliVersion }}
-        callbackURL={callbackURL}
-      />
-    </div>
-  </div>
-</Layout>
+<AppLayout title="Authorize CLI">
+  <CliAuthorizeCard
+    client:only="react"
+    user={{ email: user.email ?? '', id: user.id }}
+    device={{ id: deviceId, cliVersion }}
+    callbackURL={callbackURL}
+  />
+</AppLayout>

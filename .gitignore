@@ -48,3 +48,5 @@ pnpm-lock.yaml.bak
 # Astro build
 platform/dist/
 platform/.astro/
+
+.claude

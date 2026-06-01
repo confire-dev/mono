@@ -1,5 +1,5 @@
 ---
-import Layout from '@/layouts/Layout.astro'
+import AppLayout from '@/layouts/AppLayout.astro'
 import { ProfileCompletion } from '@/components/auth/ProfileCompletion'
 import { createSupabaseServer } from '@/lib/supabase'
 
@@ -10,8 +10,6 @@ if (!user) return Astro.redirect('/login')
 
 const nextUrl = Astro.url.searchParams.get('next') ?? '/dashboard'
 
-// Already onboarded — skip straight to destination. Prevents re-entry from
-// expired-session re-auth or direct URL access from overwriting the existing name.
 const { data: profile } = await supabase
   .from('profiles')
   .select('name')
@@ -21,15 +19,11 @@ const { data: profile } = await supabase
 if (profile?.name) return Astro.redirect(nextUrl)
 ---
 
-<Layout title="Welcome" bare>
-  <div class="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
-    <div class="w-full max-w-sm">
-      <ProfileCompletion
-        client:only="react"
-        email={user.email ?? ''}
-        userId={user.id}
-        nextUrl={nextUrl}
-      />
-    </div>
-  </div>
-</Layout>
+<AppLayout title="Welcome">
+  <ProfileCompletion
+    client:only="react"
+    email={user.email ?? ''}
+    userId={user.id}
+    nextUrl={nextUrl}
+  />
+</AppLayout>

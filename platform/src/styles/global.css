@@ -1,110 +1,162 @@
+@import "./kumo.css";
 @import "tailwindcss";
-/*
-  ---break---
-*/
-@custom-variant dark (&:is(.dark *));
 
 /*
-  shadcn/ui design tokens — populated by `npx shadcn@latest init`.
-  Tailwind v4 CSS-first config: all tokens defined here, no tailwind.config.js.
-  Run `npx shadcn@latest init` to fill these in with your chosen base color.
+  Confire marketing design system tokens.
+  App pages (login, dashboard, etc.) use Kumo via AppLayout — not these styles.
 */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.5rem;
+    --confire-bg: #111111;
+    --confire-bg-footer: #0d0d0d;
+    --confire-bg-nav: rgba(17, 17, 17, 0.9);
+    --confire-bg-card: #181818;
+    --confire-bg-card-featured: #1a1a1a;
+    --confire-bg-card-2: #1e1e1e;
+    --confire-bg-code: #141414;
+    --confire-border: #252525;
+    --confire-border-subtle: #1e1e1e;
+    --confire-border-footer: #1a1a1a;
+    --confire-border-mid: #2e2e2e;
+    --confire-border-soft: #2a2a2a;
+    --confire-border-strong: #3a3a3a;
+    --confire-accent: #f4811f;
+    --confire-accent-dim: rgba(244, 129, 31, 0.15);
+    --confire-accent-dot: rgba(0, 0, 0, 0.09);
+    --confire-green: #2dd9a0;
+    --confire-green-dim: rgba(45, 217, 160, 0.12);
+    --confire-white: #ffffff;
+    --confire-white-hover: rgba(255, 255, 255, 0.9);
+    --confire-inverse: #111111;
+    --confire-text: #ffffff;
+    --confire-text-dim: #a1a1aa;
+    --confire-text-muted: #555560;
+    --confire-text-secondary: #666666;
+    --confire-text-tertiary: #888888;
+    --confire-text-subtle: #444444;
+    --confire-text-faint: #333333;
+    --confire-text-inactive: #777777;
+    --confire-text-caption: #555555;
+    --confire-text-hover: #cccccc;
+    --confire-text-quote: #f0ece3;
+    --confire-text-on-accent: rgba(255, 255, 255, 0.8);
+    --confire-text-on-accent-dim: rgba(255, 255, 255, 0.75);
+    --confire-text-on-accent-faint: rgba(255, 255, 255, 0.5);
+    --confire-surface-hover: rgba(255, 255, 255, 0.05);
+    --confire-surface-hover-subtle: rgba(255, 255, 255, 0.02);
+    --confire-surface-subtle: rgba(255, 255, 255, 0.04);
+    --confire-surface-marquee: rgba(0, 0, 0, 0.15);
+    --confire-border-ghost: rgba(255, 255, 255, 0.15);
+    --confire-border-ghost-strong: rgba(255, 255, 255, 0.35);
+    --confire-border-on-accent: rgba(255, 255, 255, 0.12);
+    --confire-border-on-accent-dashed: rgba(255, 255, 255, 0.3);
+    --confire-code-text: #c9d1d9;
+    --confire-code-comment: #6e7681;
+    --confire-code-string: #a5d6ff;
+    --confire-code-keyword: #ff7b72;
+    --confire-code-number: #79c0ff;
+    --confire-code-line: #333333;
+    --confire-code-tab-inactive: #4a4a55;
+    --confire-square: #363636;
+    --confire-max-w: 72rem;
+    --confire-pad: 2.5rem;
   }
 
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
-
-@layer base {
-  * { border-color: hsl(var(--border)); }
-  body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-  }
-}
-
-/*
-  ---break---
-*/
-
-:root {
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-
-/*
-  ---break---
-*/
-
-.dark {
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-
-/*
-  ---break---
-*/
 
 @theme inline {
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-confire-bg: var(--confire-bg);
+  --color-confire-bg-footer: var(--confire-bg-footer);
+  --color-confire-bg-nav: var(--confire-bg-nav);
+  --color-confire-card: var(--confire-bg-card);
+  --color-confire-card-featured: var(--confire-bg-card-featured);
+  --color-confire-card-2: var(--confire-bg-card-2);
+  --color-confire-code: var(--confire-bg-code);
+  --color-confire-border: var(--confire-border);
+  --color-confire-border-subtle: var(--confire-border-subtle);
+  --color-confire-border-footer: var(--confire-border-footer);
+  --color-confire-border-mid: var(--confire-border-mid);
+  --color-confire-border-soft: var(--confire-border-soft);
+  --color-confire-border-strong: var(--confire-border-strong);
+  --color-confire-accent: var(--confire-accent);
+  --color-confire-accent-dim: var(--confire-accent-dim);
+  --color-confire-accent-dot: var(--confire-accent-dot);
+  --color-confire-green: var(--confire-green);
+  --color-confire-green-dim: var(--confire-green-dim);
+  --color-confire-white: var(--confire-white);
+  --color-confire-white-hover: var(--confire-white-hover);
+  --color-confire-inverse: var(--confire-inverse);
+  --color-confire-text: var(--confire-text);
+  --color-confire-dim: var(--confire-text-dim);
+  --color-confire-muted: var(--confire-text-muted);
+  --color-confire-secondary: var(--confire-text-secondary);
+  --color-confire-tertiary: var(--confire-text-tertiary);
+  --color-confire-subtle: var(--confire-text-subtle);
+  --color-confire-faint: var(--confire-text-faint);
+  --color-confire-inactive: var(--confire-text-inactive);
+  --color-confire-caption: var(--confire-text-caption);
+  --color-confire-hover-text: var(--confire-text-hover);
+  --color-confire-quote: var(--confire-text-quote);
+  --color-confire-on-accent: var(--confire-text-on-accent);
+  --color-confire-on-accent-dim: var(--confire-text-on-accent-dim);
+  --color-confire-on-accent-faint: var(--confire-text-on-accent-faint);
+  --color-confire-hover: var(--confire-surface-hover);
+  --color-confire-hover-subtle: var(--confire-surface-hover-subtle);
+  --color-confire-surface-subtle: var(--confire-surface-subtle);
+  --color-confire-marquee: var(--confire-surface-marquee);
+  --color-confire-ghost-border: var(--confire-border-ghost);
+  --color-confire-ghost-border-strong: var(--confire-border-ghost-strong);
+  --color-confire-on-accent-border: var(--confire-border-on-accent);
+  --color-confire-on-accent-border-dashed: var(--confire-border-on-accent-dashed);
+  --color-confire-code-text: var(--confire-code-text);
+  --color-confire-code-comment: var(--confire-code-comment);
+  --color-confire-code-string: var(--confire-code-string);
+  --color-confire-code-keyword: var(--confire-code-keyword);
+  --color-confire-code-number: var(--confire-code-number);
+  --color-confire-code-line: var(--confire-code-line);
+  --color-confire-code-tab-inactive: var(--confire-code-tab-inactive);
+  --color-confire-square: var(--confire-square);
+
+  --animate-confire-marquee: confire-marquee 28s linear infinite;
+  --animate-confire-float: confire-float 3s ease-in-out infinite;
+  --animate-confire-dash: confire-dash 1s linear infinite;
+}
+
+@keyframes confire-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes confire-float {
+  0%, 100% { transform: var(--confire-rot, rotate(0deg)) translateY(0); }
+  50% { transform: var(--confire-rot, rotate(0deg)) translateY(-6px); }
+}
+
+@keyframes confire-dash {
+  to { stroke-dashoffset: -20; }
+}
+
+.confire-dot-grid {
+  background-color: var(--confire-bg);
+  background-image: radial-gradient(circle, var(--confire-bg-card-2) 1px, transparent 1px);
+  background-size: 22px 22px;
+  color: var(--confire-text);
+  font-family: var(--font-sans);
+}
+
+.confire-cta-surface {
+  background-color: var(--confire-accent);
+  background-image: radial-gradient(circle, var(--confire-accent-dot) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+.confire-cta-glow {
+  background: radial-gradient(ellipse, rgba(255, 220, 140, 0.45) 0%, transparent 70%);
 }

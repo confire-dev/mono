@@ -1,8 +1,8 @@
 ---
-import Layout from '@/layouts/Layout.astro'
+import AppLayout from '@/layouts/AppLayout.astro'
 import { DashboardApp } from '@/components/dashboard/DashboardApp'
 ---
 
-<Layout title="Dashboard" bare>
+<AppLayout title="Dashboard">
   <DashboardApp client:only="react" />
-</Layout>
+</AppLayout>

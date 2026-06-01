@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Check, Zap, Terminal } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { Badge, Button, LayerCard, Text } from '@cloudflare/kumo'
+import { CheckIcon } from '@phosphor-icons/react'
+import { AppShell } from '@/components/app/AppShell'
 
 interface Props {
   user: { email: string; id: string }
@@ -39,7 +38,6 @@ export function CliAuthorizeCard({ user, device, callbackURL }: Props) {
         message: string
       }
       setState('done')
-      // Redirect browser to the CLI's local callback server with the key
       const params = new URLSearchParams({ api_key: apiKey, email, message })
       setTimeout(() => { window.location.href = `${callbackURL}?${params}` }, 800)
     } catch (e) {
@@ -50,73 +48,78 @@ export function CliAuthorizeCard({ user, device, callbackURL }: Props) {
 
   if (state === 'done') {
     return (
-      <div className="flex flex-col items-center gap-4 text-center">
-        <div className="flex size-12 items-center justify-center rounded-full bg-green-500/10">
-          <Check className="size-6 text-green-500" />
+      <AppShell>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="flex size-12 items-center justify-center rounded-full bg-kumo-success-tint/70">
+            <CheckIcon className="size-6 text-kumo-success" weight="bold" />
+          </div>
+          <Text variant="heading2" as="h1">You're connected</Text>
+          <Text variant="secondary" size="sm">Returning to your terminal…</Text>
+          <Badge variant="outline">{user.email}</Badge>
         </div>
-        <h1 className="text-xl font-bold">You're connected</h1>
-        <p className="text-sm text-muted-foreground">Returning to your terminal…</p>
-        <Badge variant="outline" className="text-xs">{user.email}</Badge>
-      </div>
+      </AppShell>
     )
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex items-center gap-3">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Zap className="size-5" />
-          </div>
-          <Terminal className="size-5 text-muted-foreground" />
+    <AppShell>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <Text variant="heading3" as="span">Confire</Text>
+          <Text variant="heading2" as="h1">Authorize Confire CLI</Text>
+          <Text variant="secondary" size="sm">Grant CLI access to your account</Text>
         </div>
-        <h1 className="text-xl font-bold">Authorize Confire CLI</h1>
-        <p className="text-sm text-muted-foreground">Grant CLI access to your account</p>
-      </div>
 
-      <div className="rounded-lg border p-4 text-sm flex flex-col gap-2">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Signed in as</span>
-          <span className="font-medium">{user.email}</span>
+        <LayerCard className="flex flex-col gap-2 rounded-lg p-4">
+          <div className="flex justify-between text-sm">
+            <Text variant="secondary" size="sm" as="span">Signed in as</Text>
+            <Text size="sm" as="span" bold>{user.email}</Text>
+          </div>
+          {device.cliVersion && (
+            <div className="flex justify-between text-sm">
+              <Text variant="secondary" size="sm" as="span">CLI version</Text>
+              <Text size="sm" as="span" bold>{device.cliVersion}</Text>
+            </div>
+          )}
+          {device.id && (
+            <div className="flex justify-between text-sm">
+              <Text variant="secondary" size="sm" as="span">Device ID</Text>
+              <Text variant="mono-secondary" as="span">{device.id.slice(0, 8)}…</Text>
+            </div>
+          )}
+        </LayerCard>
+
+        <div className="flex flex-col gap-2">
+          <Text variant="secondary" size="xs" as="p" DANGEROUS_className="font-medium uppercase tracking-wide">
+            Requested access
+          </Text>
+          <ul className="flex flex-col gap-1.5">
+            {REQUESTED_ACCESS.map(item => (
+              <li key={item} className="flex items-start gap-2">
+                <CheckIcon className="mt-0.5 size-3.5 shrink-0 text-kumo-success" weight="bold" />
+                <Text size="sm" as="span">{item}</Text>
+              </li>
+            ))}
+          </ul>
         </div>
-        {device.cliVersion && (
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">CLI version</span>
-            <span className="font-medium">{device.cliVersion}</span>
-          </div>
+
+        <hr className="border-kumo-hairline" />
+
+        {state === 'error' && (
+          <Text variant="error" size="sm" as="p" DANGEROUS_className="text-center">
+            {error}
+          </Text>
         )}
-        {device.id && (
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Device ID</span>
-            <span className="font-mono text-xs text-muted-foreground">{device.id.slice(0, 8)}…</span>
-          </div>
-        )}
+
+        <Button onClick={authorize} variant="primary" loading={state === 'loading'}>
+          Authorize CLI
+        </Button>
+
+        <Text variant="secondary" size="xs" as="p" DANGEROUS_className="text-center">
+          This connects <strong className="text-kumo-default">{user.email}</strong> to the CLI on this device.
+          Revoke access anytime from your dashboard.
+        </Text>
       </div>
-
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Requested access</p>
-        <ul className="flex flex-col gap-1.5">
-          {REQUESTED_ACCESS.map(item => (
-            <li key={item} className="flex items-start gap-2 text-sm">
-              <Check className="mt-0.5 size-3.5 shrink-0 text-green-500" />
-              {item}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <Separator />
-
-      {state === 'error' && <p className="text-center text-sm text-destructive">{error}</p>}
-
-      <Button onClick={authorize} disabled={state === 'loading'}>
-        {state === 'loading' ? 'Authorizing…' : 'Authorize CLI'}
-      </Button>
-
-      <p className="text-center text-xs text-muted-foreground">
-        This connects <strong>{user.email}</strong> to the CLI on this device.
-        Revoke access anytime from your dashboard.
-      </p>
-    </div>
+    </AppShell>
   )
 }
