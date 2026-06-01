@@ -101,7 +101,32 @@ func runVSCodeHook(raw map[string]any) error {
 
 	event := hosts.DecodeVSCodeHookInput(input)
 	result := sendToDaemon(event)
-	if result.Kind == intercept.ResultPassthrough {
+
+	switch strings.ToLower(input.HookEventName) {
+	case "sessionstart":
+		msg := result.SystemMessage
+		if msg == "" {
+			msg = result.Context
+		}
+		if msg == "" {
+			return nil
+		}
+		return json.NewEncoder(os.Stdout).Encode(
+			hosts.EncodeVSCodeContext(msg, input.HookEventName),
+		)
+
+	case "pretooluse":
+		out, shouldWrite := hosts.EncodeVSCodePreToolResult(result, input.HookEventName)
+		if !shouldWrite {
+			return nil
+		}
+		return json.NewEncoder(os.Stdout).Encode(out)
+
+	case "stop":
+		return nil
+	}
+
+	if result.Kind == intercept.ResultPassthrough && result.Context == "" {
 		return nil
 	}
 

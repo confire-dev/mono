@@ -172,6 +172,8 @@ func normalizeToolName(name string) string {
 	switch strings.ToLower(name) {
 	case "shell":
 		return "bash"
+	case "runterminalcommand":
+		return "bash"
 	default:
 		return strings.ToLower(name)
 	}

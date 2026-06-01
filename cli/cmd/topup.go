@@ -160,7 +160,7 @@ func fetchAccountCredits(apiKey string) (*accountCredits, error) {
 		return nil, err
 	}
 	if info.Error != "" {
-		return nil, fmt.Errorf(info.Error)
+		return nil, fmt.Errorf("%s", info.Error)
 	}
 	return &info, nil
 }

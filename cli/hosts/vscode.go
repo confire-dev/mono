@@ -19,7 +19,7 @@ func (h *VSCodeHost) ID() string    { return "vscode" }
 func (h *VSCodeHost) Label() string { return "VS Code (Copilot)" }
 func (h *VSCodeHost) Strategies() []Strategy { return []Strategy{StrategyHooks} }
 func (h *VSCodeHost) Preferred() Strategy    { return StrategyHooks }
-func (h *VSCodeHost) ComingSoon() bool       { return true }
+func (h *VSCodeHost) ComingSoon() bool       { return false }
 
 func (h *VSCodeHost) Detect() bool {
 	home, _ := os.UserHomeDir()
@@ -99,8 +99,11 @@ type VSCodeHookOutput struct {
 }
 
 type vsCodeSpecificOutput struct {
-	HookEventName     string `json:"hookEventName"`
-	AdditionalContext string `json:"additionalContext,omitempty"`
+	HookEventName            string `json:"hookEventName"`
+	AdditionalContext        string `json:"additionalContext,omitempty"`
+	PermissionDecision       string `json:"permissionDecision,omitempty"`
+	PermissionDecisionReason string `json:"permissionDecisionReason,omitempty"`
+	UpdatedInput             any    `json:"updatedInput,omitempty"`
 }
 
 // IsVSCodeHook returns true when the raw JSON looks like a VS Code Copilot hook.
@@ -128,18 +131,66 @@ func DecodeVSCodeHookInput(input VSCodeHookInput) intercept.InterceptEvent {
 	}
 
 	if input.ToolName != "" {
+		toolName := vscodeCanonicalToolName(input.ToolName)
 		e.Tool = &intercept.Tool{
-			Name:   input.ToolName,
+			Name:   toolName,
 			Input:  input.ToolInput,
 			Output: input.ToolResponse,
 			UseID:  input.ToolUseID,
-			IsMCP:  IsVSCodeMCPTool(input.ToolName),
+			IsMCP:  IsVSCodeMCPTool(toolName),
 		}
 		if e.Tool.IsMCP {
 			e.Tool.MCPServer = MCPServerName(input.ToolName)
 		}
 	}
 	return e
+}
+
+func vscodeCanonicalToolName(name string) string {
+	switch strings.ToLower(name) {
+	case "runterminalcommand":
+		return "Bash"
+	default:
+		return name
+	}
+}
+
+// EncodeVSCodePreToolResult maps firewall decisions to VS Code PreToolUse output.
+// Ref: https://code.visualstudio.com/docs/copilot/customization/hooks#_pretooluse
+func EncodeVSCodePreToolResult(result intercept.InterceptResult, eventName string) (VSCodeHookOutput, bool) {
+	out := VSCodeHookOutput{Continue: true}
+	spec := vsCodeSpecificOutput{HookEventName: eventName}
+
+	switch result.Kind {
+	case intercept.ResultBlock, intercept.ResultReview:
+		spec.PermissionDecision = "deny"
+		spec.PermissionDecisionReason = result.Reason
+	case intercept.ResultWarn:
+		if result.Context == "" {
+			return VSCodeHookOutput{Continue: true}, false
+		}
+		spec.PermissionDecision = "allow"
+		spec.AdditionalContext = result.Context
+	case intercept.ResultReplaceInput:
+		spec.PermissionDecision = "allow"
+		spec.UpdatedInput = result.ToolInput
+	default:
+		return VSCodeHookOutput{Continue: true}, false
+	}
+
+	out.HookSpecificOutput = &spec
+	return out, true
+}
+
+// EncodeVSCodeContext wraps text in hookSpecificOutput for SessionStart/PostToolUse.
+func EncodeVSCodeContext(context, eventName string) VSCodeHookOutput {
+	return VSCodeHookOutput{
+		Continue: true,
+		HookSpecificOutput: &vsCodeSpecificOutput{
+			HookEventName:     eventName,
+			AdditionalContext: context,
+		},
+	}
 }
 
 // EncodeVSCodeResult translates an InterceptResult into VS Code hook output.
@@ -180,12 +231,17 @@ func IsVSCodeMCPTool(name string) bool {
 }
 
 func mapVSCodePhase(event string) intercept.Phase {
-	switch event {
-	case "SessionStart":  return intercept.PhaseSessionStart
-	case "Stop":          return intercept.PhaseSessionEnd
-	case "PreToolUse":    return intercept.PhaseToolPre
-	case "PostToolUse":   return intercept.PhaseToolPost
-	default:              return intercept.Phase(event)
+	switch strings.ToLower(event) {
+	case "sessionstart":
+		return intercept.PhaseSessionStart
+	case "stop":
+		return intercept.PhaseSessionEnd
+	case "pretooluse":
+		return intercept.PhaseToolPre
+	case "posttooluse":
+		return intercept.PhaseToolPost
+	default:
+		return intercept.Phase(event)
 	}
 }
 
@@ -227,7 +283,7 @@ func installVSCodeHooks(binaryPath string, local bool) error {
 		current.Hooks = map[string][]vsCodeHookEntry{}
 	}
 
-	for _, event := range []string{"PostToolUse", "SessionStart"} {
+	for _, event := range []string{"PreToolUse", "PostToolUse", "SessionStart", "Stop"} {
 		kept := current.Hooks[event][:0]
 		for _, e := range current.Hooks[event] {
 			if !strings.Contains(e.Command, "confire") {
