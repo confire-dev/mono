@@ -2,11 +2,12 @@
 ## Author: Efe <efe@efebehar.dev>
 ##
 ## Usage:
-##   make dev      build dev binary (symbols kept, fast)
-##   make release  build hardened release binary (garble + stripped)
-##   make test     run unit tests
-##   make e2e      run end-to-end tests (requires built binary)
-##   make all      dev + test
+##   make dev           build dev binary (symbols kept, fast)
+##   make release       build hardened binary for current platform (garble + stripped)
+##   make dist          cross-compile all release targets into dist/
+##   make test          run unit tests
+##   make e2e           run end-to-end tests (requires built binary)
+##   make all           dev + test
 
 BINARY     := confire
 PKG        := github.com/confire-dev/confire
@@ -27,7 +28,16 @@ REL_FLAGS  := $(BASE_FLAGS) -s -w
 GARBLE     := $(shell go env GOPATH)/bin/garble
 GARBLE_FLAGS := -literals -seed=random -tiny
 
-.PHONY: all dev release test e2e clean install
+DIST_DIR   := dist
+
+# Cross-compile targets (CGO_ENABLED=0 — modernc/sqlite is pure Go)
+TARGETS := \
+	darwin/amd64 \
+	darwin/arm64 \
+	linux/amd64  \
+	linux/arm64
+
+.PHONY: all dev release dist test e2e clean install checksums
 
 all: dev test
 
@@ -35,15 +45,34 @@ all: dev test
 dev:
 	go build -trimpath -ldflags "$(BASE_FLAGS)" -o $(BINARY) .
 
-## release: hardened binary — garble obfuscation + stripped symbols
-## Use this for all distributed binaries.
+## release: hardened binary for the current platform (garble + stripped)
 release:
 	CGO_ENABLED=1 $(GARBLE) $(GARBLE_FLAGS) build \
 		-trimpath \
 		-ldflags "$(REL_FLAGS)" \
 		-o $(BINARY) .
 	@echo "Release binary: $$(ls -lh $(BINARY) | awk '{print $$5}')"
-	@echo "Symbols:        $$(nm $(BINARY) 2>/dev/null | wc -l | tr -d ' ') (should be 0 for release)"
+	@echo "Symbols:        $$(nm $(BINARY) 2>/dev/null | wc -l | tr -d ' ') (should be 0)"
+
+## dist: cross-compile all targets into dist/ with plain go build + stripped flags
+##       (garble does not support cross-compilation; use release: for the local platform)
+dist: clean-dist
+	@mkdir -p $(DIST_DIR)
+	@$(foreach TARGET,$(TARGETS), \
+		$(eval OS   := $(word 1,$(subst /, ,$(TARGET)))) \
+		$(eval ARCH := $(word 2,$(subst /, ,$(TARGET)))) \
+		echo "  building $(OS)/$(ARCH)..." && \
+		CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) \
+			go build -trimpath -ldflags "$(REL_FLAGS)" \
+			-o "$(DIST_DIR)/$(BINARY)_$(OS)_$(ARCH)" . ; \
+	)
+	@$(MAKE) --no-print-directory checksums
+
+## checksums: generate SHA-256 checksums for all dist/ binaries
+checksums:
+	@cd $(DIST_DIR) && sha256sum $(BINARY)_* > $(BINARY)_checksums.txt
+	@echo "Checksums:"
+	@cat $(DIST_DIR)/$(BINARY)_checksums.txt
 
 ## test: run unit + integration tests (no subprocess, uses httptest)
 test:
@@ -61,3 +90,6 @@ install:
 clean:
 	rm -f $(BINARY)
 	go clean -testcache
+
+clean-dist:
+	rm -rf $(DIST_DIR)

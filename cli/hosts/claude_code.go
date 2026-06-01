@@ -299,10 +299,8 @@ func installClaudeCodeHooksAt(settingsPath, binaryPath string) error {
 
 	if err := patchHooks(top, func(phase string, arr []json.RawMessage) []json.RawMessage {
 		switch phase {
-		case "PostToolUse":
+		case "PostToolUse", "PreToolUse":
 			return dedupAppend(arr, hookEntryJSON(".*", hookCmd))
-		case "PreToolUse":
-			return dedupAppend(arr, hookEntryJSON("Read", hookCmd))
 		default: // SessionStart, SessionEnd — no tool matcher
 			return dedupAppend(arr, sessionHookEntryJSON(hookCmd))
 		}
@@ -404,6 +402,29 @@ func DecodeHookInput(input HookInput) intercept.InterceptEvent {
 		}
 	}
 	return e
+}
+
+// claudeBlockOutput is the JSON structure Claude Code reads for PreToolUse blocks.
+// Claude Code exits with code 2 and reads this from stdout to show the reason.
+type claudeBlockOutput struct {
+	Decision string `json:"decision"`
+	Reason   string `json:"reason"`
+}
+
+// EncodePreToolResult returns the JSON payload for a PreToolUse block/review result.
+// The caller should write this to stdout and exit with code 2.
+// Returns nil if the result is not a block/review (i.e. passthrough/warn/allow).
+func EncodePreToolResult(result intercept.InterceptResult) []byte {
+	switch result.Kind {
+	case intercept.ResultBlock, intercept.ResultReview:
+		b, _ := json.Marshal(claudeBlockOutput{
+			Decision: "block",
+			Reason:   result.Reason,
+		})
+		return b
+	default:
+		return nil
+	}
 }
 
 // EncodeResult translates an InterceptResult into the HookOutput Claude Code expects.

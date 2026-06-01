@@ -1,0 +1,124 @@
+name: Bump version
+
+# Runs on every push to main. Reads conventional commits since the last tag,
+# decides the next semver bump (patch/minor/major), updates CHANGELOG.md,
+# commits, and creates a new tag — which then triggers the release workflow.
+#
+# Conventional commit prefixes:
+#   feat!: / BREAKING CHANGE  →  major
+#   feat:                      →  minor
+#   fix: / chore: / docs: etc  →  patch
+#
+# A commit with only chore(release): is skipped to avoid loops.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine next version
+        id: semver
+        run: |
+          # Latest tag (or 0.0.0 if none)
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Last tag: $LAST_TAG"
+
+          # Commits since last tag
+          COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s")
+
+          # Skip if only a release bump commit is present
+          if echo "$COMMITS" | grep -qv "^chore(release):"; then
+            : # there are real commits to process
+          else
+            echo "No new commits since $LAST_TAG — skipping bump."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Determine bump level
+          BUMP="patch"
+          if echo "$COMMITS" | grep -qE "^feat!:|BREAKING CHANGE"; then
+            BUMP="major"
+          elif echo "$COMMITS" | grep -qE "^feat(\(.+\))?:"; then
+            BUMP="minor"
+          fi
+          echo "Bump level: $BUMP"
+
+          # Strip leading 'v', split into parts
+          VERSION="${LAST_TAG#v}"
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3)
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH+1)) ;;
+          esac
+
+          NEXT="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "Next version: $NEXT"
+          echo "next=${NEXT}"       >> "$GITHUB_OUTPUT"
+          echo "bump=${BUMP}"       >> "$GITHUB_OUTPUT"
+          echo "last=${LAST_TAG}"   >> "$GITHUB_OUTPUT"
+          echo "skip=false"         >> "$GITHUB_OUTPUT"
+
+      - name: Update CHANGELOG.md
+        if: steps.semver.outputs.skip != 'true'
+        env:
+          NEXT: ${{ steps.semver.outputs.next }}
+          LAST: ${{ steps.semver.outputs.last }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+
+          # Collect commits since last tag, grouped by type
+          COMMITS=$(git log "${LAST}..HEAD" --pretty=format:"- %s (%h)" 2>/dev/null)
+
+          FEAT=$(echo "$COMMITS"   | grep "^- feat"    || true)
+          FIX=$(echo "$COMMITS"    | grep "^- fix"     || true)
+          CHORE=$(echo "$COMMITS"  | grep "^- chore\|^- docs\|^- refactor\|^- perf\|^- test" || true)
+
+          # Build new entry
+          ENTRY="## ${NEXT} — ${DATE}\n\n"
+          [ -n "$FEAT"  ] && ENTRY="${ENTRY}### Features\n${FEAT}\n\n"
+          [ -n "$FIX"   ] && ENTRY="${ENTRY}### Fixes\n${FIX}\n\n"
+          [ -n "$CHORE" ] && ENTRY="${ENTRY}### Other\n${CHORE}\n\n"
+
+          # Prepend to CHANGELOG.md (create if missing)
+          if [ -f CHANGELOG.md ]; then
+            printf "%b\n---\n\n" "$ENTRY" | cat - CHANGELOG.md > /tmp/cl.md
+          else
+            printf "# Changelog\n\n%b\n" "$ENTRY" > /tmp/cl.md
+          fi
+          mv /tmp/cl.md CHANGELOG.md
+
+          # Stamp version into Homebrew formula template
+          VER="${NEXT#v}"
+          sed -i "s/version \"[^\"]*\"/version \"${VER}\"/" homebrew/confire.rb || true
+
+      - name: Commit and tag
+        if: steps.semver.outputs.skip != 'true'
+        env:
+          NEXT: ${{ steps.semver.outputs.next }}
+        run: |
+          git add CHANGELOG.md homebrew/confire.rb
+          git commit -m "chore(release): ${NEXT} [skip ci]"
+          git tag "${NEXT}"
+          git push origin main --tags

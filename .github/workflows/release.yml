@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write  # needed to create GitHub releases and upload assets
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: darwin
+            goarch: amd64
+            suffix: darwin_amd64
+          - goos: darwin
+            goarch: arm64
+            suffix: darwin_arm64
+          - goos: linux
+            goarch: amd64
+            suffix: linux_amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux_arm64
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so git describe works
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Build
+        working-directory: cli
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          COMMIT="${GITHUB_SHA::8}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          PKG="github.com/confire-dev/confire"
+          LDFLAGS="-s -w \
+            -X '${PKG}/cmd.buildVersion=${VERSION}' \
+            -X '${PKG}/cmd.buildCommit=${COMMIT}' \
+            -X '${PKG}/cmd.buildDate=${DATE}'"
+          go build -trimpath -ldflags "${LDFLAGS}" -o "confire_${{ matrix.suffix }}" .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: confire_${{ matrix.suffix }}
+          path: cli/confire_${{ matrix.suffix }}
+          retention-days: 1
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum confire_* > confire_checksums.txt
+
+      - name: Show dist
+        run: ls -lh dist/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/confire_darwin_amd64
+            dist/confire_darwin_arm64
+            dist/confire_linux_amd64
+            dist/confire_linux_arm64
+            dist/confire_checksums.txt
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+      - name: Update Homebrew formula
+        # Stamps the real version + sha256 values into homebrew/confire.rb
+        # and commits back to main so the tap repo pull is always up-to-date.
+        # Runs only when HOMEBREW_TAP_TOKEN secret is set.
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          SHA_DARWIN_AMD64=$(grep "confire_darwin_amd64"  dist/confire_checksums.txt | awk '{print $1}')
+          SHA_DARWIN_ARM64=$(grep "confire_darwin_arm64"  dist/confire_checksums.txt | awk '{print $1}')
+          SHA_LINUX_AMD64=$(grep  "confire_linux_amd64"   dist/confire_checksums.txt | awk '{print $1}')
+          SHA_LINUX_ARM64=$(grep  "confire_linux_arm64"   dist/confire_checksums.txt | awk '{print $1}')
+          VER="${VERSION#v}"  # strip leading 'v'
+
+          sed -i \
+            -e "s/version \"[^\"]*\"/version \"${VER}\"/" \
+            -e "s/PLACEHOLDER_SHA256_DARWIN_AMD64/${SHA_DARWIN_AMD64}/" \
+            -e "s/PLACEHOLDER_SHA256_DARWIN_ARM64/${SHA_DARWIN_ARM64}/" \
+            -e "s/PLACEHOLDER_SHA256_LINUX_AMD64/${SHA_LINUX_AMD64}/"   \
+            -e "s/PLACEHOLDER_SHA256_LINUX_ARM64/${SHA_LINUX_ARM64}/"   \
+            homebrew/confire.rb
+
+          # Push updated formula to the Homebrew tap repo.
+          git clone \
+            "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/confire-ai/homebrew-confire.git" \
+            tap-repo
+          cp homebrew/confire.rb tap-repo/Formula/confire.rb
+          cd tap-repo
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/confire.rb
+          git diff --staged --quiet || git commit -m "chore: bump confire to ${VERSION}"
+          git push
+
