@@ -373,3 +373,207 @@ deployment with policy controls.
 - Margin: 99.9%
 
 **Conversion path:**
+
+0 top-ups/mo  → happy Developer user
+1-2 top-ups   → power user, still cheaper than Team
+3+ top-ups    → "Team plan = unlimited" prompt fires
+→ email captures Team waitlist
+
+---
+
+## API Overage Pricing
+
+Developer tier includes 1M optimized tokens/month.
+
+**Overage:** $0.50 per 1M tokens optimized
+
+**Example economics:**
+
+CV Builder app processing 1,000 CVs/month:
+- Average CV input: 8,000 tokens
+- Total: 8M tokens
+- Confire cost: 1M free + 7M × $0.50/1M = $3.50
+- OpenAI savings: ~$80-100/month (from optimized input)
+- Net saving to developer: ~$77-96/month
+- Net revenue to Confire: $3.50/month
+
+**At scale:**
+SaaS processing 100k documents/month:
+- 800M tokens through Confire
+- $0.50 × 800 = $400/month to Confire
+- OpenAI savings: ~$8,000-10,000/month
+- Customer wins 20x return on Confire spend
+
+---
+
+## Annual Pricing Strategy
+
+Annual pricing for Developer: $95/year
+- Monthly equivalent: $7.92
+- Effective savings: 20.8%
+- Presented as: "2 months free"
+
+**Why annual matters:**
+- Procurement-friendly for small teams
+- Cash flow advantage (year of revenue upfront)
+- Higher retention (annual subscribers churn ~50% less)
+- Some companies require annual contracts
+
+**Launch decision:**
+Start with monthly only on Day 1.
+Add annual toggle when 50+ active subscribers exist
+and 3+ request annual billing.
+
+---
+
+## What This Pricing Communicates
+
+### Free is real, not a trial
+500 requests forever. Generic optimizer works on any
+tool. Local install with no account friction. Not a
+crippled demo.
+
+### Developer is the workhorse
+$10/month is impulse-buy territory. All 13 specific
+optimizers = transformative jump from Free. API access
+included = unlocks new use cases beyond coding agents.
+This is the primary conversion target.
+
+### Top-ups respect users
+Heavy users don't get cut off. Top-ups never expire.
+$5 feels like an add-on, not "buying another month."
+Margins are high. Users feel in control.
+
+### Team is for organizations (when ready)
+$20/seat doubles per-user price but adds session
+memory, unlimited fair-use, and team management.
+Don't ship this until org features exist.
+
+### Enterprise is for serious orgs
+Self-hosted is the SOC2 path. Custom optimizers
+create lock-in. Per-seat economics scale. SSO
+positions for IT review. Don't undersell — higher
+prices = serious vendor.
+
+---
+
+## Launch Configuration
+
+**Day 1 pricing page shows:**
+
+┌─────────────┬─────────────────┐
+│    Free     │   Developer     │
+│     $0      │      $10        │
+│  /month     │     /month      │
+│             │                 │
+│  500 req/mo │  5,000 req/mo   │
+│  Local      │  All optimizers │
+│  Generic    │  API access     │
+│             │  Dashboard      │
+│             │  $5 top-ups     │
+└─────────────┴─────────────────┘
+──────────────────────────────────
+Team plans coming soon
+For organizations needing
+multi-seat management, SSO,
+and self-hosted deployment.
+→ Get notified
+──────────────────────────────────
+
+**Email capture for Team:**
+- Email field
+- Optional: team size (1-10 / 10-50 / 50-500 / 500+)
+- Optional: company name
+
+**The email signup becomes your enterprise
+pipeline before you write a single sales page.**
+
+---
+
+## Stripe Product Configuration
+
+### Products to create
+
+1. **Developer Monthly**
+   - Recurring: $10.00/month
+   - Trial: none
+   - Includes: 5,000 requests/month
+
+2. **Developer Annual**
+   - Recurring: $95.00/year
+   - Trial: none
+   - Includes: 5,000 requests/month
+   - (Add when launching annual)
+
+3. **Top-up Pack**
+   - One-time: $5.00
+   - Includes: 5,000 additional requests
+   - Stackable, never expires
+
+### Future products
+
+4. **Team Monthly** ($20/seat)
+   - Recurring per quantity
+   - Includes: unlimited fair-use
+
+5. **Team Annual** ($195/seat)
+   - Recurring per quantity
+
+6. **Enterprise** - manual invoicing, no Stripe product needed
+
+---
+
+## Open Questions
+
+1. **When to launch annual?**
+   Recommendation: monthly only Day 1. Add annual
+   when first 50 customers exist.
+
+2. **When to launch Team?**
+   Recommendation: ship when org-level management
+   (session memory, team dashboard, centralized billing)
+   exists. Estimate: 6-8 weeks post-launch.
+
+3. **When to launch Enterprise sales?**
+   Recommendation: reactive only at first. Let
+   inbound from Team waitlist drive conversations.
+   Build sales page when 5+ enterprise leads in pipeline.
+
+4. **Should API have separate tier?**
+   Recommendation: keep bundled. Most early API users
+   are individual developers building side projects.
+   They already fit Developer tier. Pure API customers
+   at scale → Team tier with custom limits.
+
+5. **Free tier abuse prevention?**
+   Recommendation: rate limit per IP + email verification.
+   500 req/mo limits ROI of abuse anyway. Don't
+   over-engineer this on Day 1.
+
+---
+
+## Pricing Evolution Roadmap
+
+**Month 1 (launch):**
+- Free + Developer only
+- Monthly billing only
+- Top-ups available
+- Team email capture
+
+**Month 2-3:**
+- Annual billing toggle
+- Email Team waitlist with progress updates
+- First Team beta with select customers
+
+**Month 4-6:**
+- Team plan launches
+- Existing Developer users grandfathered to Team
+- Enterprise sales page (if 5+ inbound leads)
+
+**Month 6-12:**
+- Enterprise self-hosted option
+- SSO/SAML
+- Custom optimizer development service
+- Volume discounts for >100 seats
+
+
