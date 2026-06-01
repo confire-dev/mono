@@ -15,7 +15,7 @@ import { handle } from '../engine.js'
 import { authenticate } from '../lib/auth.js'
 import { cacheKey, cacheGet, cachePut } from '../lib/cache.js'
 import { trackEvent } from '../lib/analytics.js'
-import { MAX_RAW_PAYLOAD_BYTES, getUsageThisPeriod, recordOptimization } from '../lib/supabase.js'
+import { MAX_RAW_PAYLOAD_BYTES, getUsageThisPeriod, getCreditBalance, recordOptimization } from '../lib/supabase.js'
 import { getPlan } from '../lib/plans.js'
 import { canUseRemoteOptimizer, entitlementMessage } from '../lib/entitlement.js'
 
@@ -92,6 +92,11 @@ export async function handleOptimizerApi(request: Request, env: Env): Promise<Re
     ? await getUsageThisPeriod(cfg, user.id, plan.id)
     : { id: '', cloudOptimizationsUsed: 0, cloudTokensUsed: 0, localOptimizationsCount: 0, savedTokens: 0 }
 
+  const creditBalance = cfg
+    ? await getCreditBalance(cfg, user.id)
+    : null
+  const purchasedCredits = creditBalance?.purchased_credits ?? 0
+
   // ── 5. Entitlement check ──────────────────────────────────────────────────
   const toolName = TYPE_TO_TOOL[body.type ?? 'auto'] ?? 'generic'
   const rawBytes = new TextEncoder().encode(body.content).length
@@ -104,6 +109,7 @@ export async function handleOptimizerApi(request: Request, env: Env): Promise<Re
       cloudOptimizationsUsed: usageThisPeriod.cloudOptimizationsUsed,
       cloudTokensUsed:        usageThisPeriod.cloudTokensUsed,
     },
+    purchasedCreditsRemaining: purchasedCredits,
   })
   if (!check.allowed) {
     return Response.json(
@@ -158,6 +164,7 @@ export async function handleOptimizerApi(request: Request, env: Env): Promise<Re
       optimizedBytes: result.stats?.afterBytes  ?? rawBytes,
       wasCached:      false,
       analyticsConsented: false,
+      ...(check.usePurchasedCredit ? { usePurchasedCredit: true as const } : {}),
     }).catch(() => {})
 
     trackEvent(env.AE, env.AMPLITUDE_KEY, {

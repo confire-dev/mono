@@ -76,10 +76,17 @@ func runStatus() error {
 		email, _ := auth.LoadEmail()
 		// Try to fetch live account info from Worker
 		if info, err := fetchAccountInfo(apiKey); err == nil {
+			limit := info.EffectiveLimit
+			if limit == 0 {
+				limit = info.Limit
+			}
 			fmt.Printf("%s%s%s · %s%s plan%s · %s%d/%d%s credits\n",
 				green, info.Email, reset,
 				bold, info.Plan, reset,
-				cyan, info.Used, info.Limit, reset)
+				cyan, info.Used, limit, reset)
+			if info.PurchasedCredits > 0 {
+				fmt.Printf("       %s+%d top-up credits available%s\n", dim, info.PurchasedCredits, reset)
+			}
 		} else if email != "" {
 			fmt.Printf("%s%s%s %s(offline)%s\n", green, email, reset, dim, reset)
 		} else {
@@ -127,10 +134,12 @@ func isDaemonRunning() bool {
 
 // fetchAccountInfo calls Worker /api/me to get live account state.
 type accountInfo struct {
-	Email string `json:"email"`
-	Plan  string `json:"plan"`
-	Used  int    `json:"used"`
-	Limit int    `json:"limit"`
+	Email            string `json:"email"`
+	Plan             string `json:"plan"`
+	Used             int    `json:"used"`
+	Limit            int    `json:"limit"`
+	PurchasedCredits int    `json:"purchasedCredits"`
+	EffectiveLimit   int    `json:"effectiveLimit"`
 }
 
 func fetchAccountInfo(apiKey string) (*accountInfo, error) {

@@ -303,6 +303,38 @@ BEGIN
 END;
 $$;
 
+-- consume_purchased_credits: deduct from the purchased top-up pool only.
+-- Used when monthly plan usage is exhausted but purchased credits remain.
+CREATE OR REPLACE FUNCTION consume_purchased_credits(
+  p_user_id    uuid,
+  p_amount     integer DEFAULT 1,
+  p_session_id text    DEFAULT NULL
+) RETURNS boolean LANGUAGE plpgsql AS $$
+DECLARE
+  v_purchased integer;
+BEGIN
+  SELECT purchased_credits INTO v_purchased
+  FROM credit_balances
+  WHERE user_id = p_user_id
+  FOR UPDATE;
+
+  IF v_purchased IS NULL OR v_purchased < p_amount THEN
+    RETURN false;
+  END IF;
+
+  UPDATE credit_balances SET
+    purchased_credits = purchased_credits - p_amount,
+    updated_at = now()
+  WHERE user_id = p_user_id;
+
+  INSERT INTO credit_ledger (user_id, event_type, amount, source, metadata)
+  VALUES (p_user_id, 'usage', -p_amount, 'stripe_topup',
+    jsonb_build_object('session_id', p_session_id, 'pool', 'purchased'));
+
+  RETURN true;
+END;
+$$;
+
 -- grant_credits: add credits (from subscription refresh, manual grant, purchase).
 CREATE OR REPLACE FUNCTION grant_credits(
   p_user_id        uuid,

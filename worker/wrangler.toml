@@ -49,6 +49,7 @@ simple = { limit = 200, period = 60 }
 # SUPABASE_SERVICE_KEY     — Supabase service role key (server-side only)
 # AMPLITUDE_KEY            — Amplitude HTTP API key
 # STRIPE_WEBHOOK_SECRET    — Stripe webhook signing secret
+# STRIPE_TOPUP_PRICE_ID    — one-time top-up pack price ID ($5 / 5,000 credits)
 # SUPABASE_WEBHOOK_SECRET  — shared secret for Supabase DB webhooks
 #                            Set in Supabase: Database → Webhooks → HTTP Headers
 #                            Key: Authorization   Value: Bearer <this secret>

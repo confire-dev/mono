@@ -3,7 +3,7 @@ import { handle } from '../engine.js'
 import { authenticate } from '../lib/auth.js'
 import { cacheKey, cacheGet, cachePut } from '../lib/cache.js'
 import { trackEvent } from '../lib/analytics.js'
-import { MAX_RAW_PAYLOAD_BYTES, getUsageThisPeriod, recordOptimization } from '../lib/supabase.js'
+import { MAX_RAW_PAYLOAD_BYTES, getUsageThisPeriod, getCreditBalance, recordOptimization } from '../lib/supabase.js'
 import { getPlan } from '../lib/plans.js'
 import { canUseRemoteOptimizer, entitlementMessage } from '../lib/entitlement.js'
 import { resolveOptimizerName } from '../optimizers/index.js'
@@ -72,6 +72,11 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
     ? await getUsageThisPeriod(cfg, user.id, plan.id)
     : { id: '', cloudOptimizationsUsed: 0, cloudTokensUsed: 0, localOptimizationsCount: 0, savedTokens: 0 }
 
+  const creditBalance = cfg
+    ? await getCreditBalance(cfg, user.id)
+    : null
+  const purchasedCredits = creditBalance?.purchased_credits ?? 0
+
   // ── 6. Entitlement check (plan capabilities + limits) ─────────────────────
   // Resolve to short name ("figma", "github", …) so it matches plan.optimizers.remote.
   const optimizer = resolveOptimizerName(body.event)
@@ -84,6 +89,7 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
       cloudOptimizationsUsed: usageThisPeriod.cloudOptimizationsUsed,
       cloudTokensUsed:        usageThisPeriod.cloudTokensUsed,
     },
+    purchasedCreditsRemaining: purchasedCredits,
   })
 
   if (!check.allowed) {
@@ -125,6 +131,7 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
       optimizedBytes: result.stats?.afterBytes ?? rawOutputSize,
       wasCached:   false,
       analyticsConsented: false,
+      ...(check.usePurchasedCredit ? { usePurchasedCredit: true as const } : {}),
     }).catch(() => {})
 
     trackEvent(env.AE, env.AMPLITUDE_KEY, {
@@ -143,7 +150,8 @@ export async function handleOptimize(request: Request, env: Env): Promise<Respon
   // ── 10. Approaching-limit nudge ───────────────────────────────────────────
   const responseResult = { ...result } as typeof result & { _warning?: string }
   if (check.approachingLimit && check.approachingLimitMessage) {
-    responseResult._warning = `⚠️ ${check.approachingLimitMessage} · confire.dev/upgrade`
+    const suffix = check.usePurchasedCredit ? '' : ' · confire.dev/upgrade'
+    responseResult._warning = `⚠️ ${check.approachingLimitMessage}${suffix}`
   }
 
   return Response.json({ result: responseResult } satisfies OptimizeResponse)

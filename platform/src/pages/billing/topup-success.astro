@@ -1,0 +1,39 @@
+---
+import Layout from '@/layouts/Layout.astro'
+import { createSupabaseServer } from '@/lib/supabase'
+
+const supabase = createSupabaseServer(Astro.request, Astro.cookies)
+const { data: { user } } = await supabase.auth.getUser()
+if (!user) return Astro.redirect('/login')
+---
+
+<Layout title="Credits added">
+  <div class="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
+    <div class="w-full max-w-sm flex flex-col items-center gap-6 text-center">
+      <div class="flex size-12 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400">
+        <svg xmlns="http://www.w3.org/2000/svg" class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+
+      <div>
+        <h1 class="text-2xl font-bold">Credits added</h1>
+        <p class="mt-2 text-sm text-muted-foreground">
+          Your top-up is processing — credits usually appear within a few seconds.
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-3 w-full">
+        <p class="text-sm text-muted-foreground">
+          Return to your terminal — <code class="rounded bg-muted px-1 py-0.5 text-xs">confire topup</code> will confirm automatically.
+        </p>
+        <a
+          href="/onboarding"
+          class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+        >
+          Continue
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

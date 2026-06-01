@@ -1,5 +1,5 @@
 import type { Env } from '../types.js'
-import { upsertProfile, generateApiKey, validateApiKey, getUsageThisPeriod } from '../lib/supabase.js'
+import { upsertProfile, generateApiKey, validateApiKey, getUsageThisPeriod, getCreditBalance } from '../lib/supabase.js'
 import { getPlan } from '../lib/plans.js'
 import { trackEvent } from '../lib/analytics.js'
 
@@ -65,14 +65,19 @@ export async function handleMe(request: Request, env: Env): Promise<Response> {
 
   const plan  = await getPlan(user.plan, env)
   const usage = await getUsageThisPeriod(cfg, user.id, plan.id)
+  const credits = await getCreditBalance(cfg, user.id)
+  const purchasedCredits = credits?.purchased_credits ?? 0
+  const planLimit = plan.limits.cloudOptimizationsMonthly
 
   return Response.json({
-    email:    user.email,
-    plan:     plan.name,
-    planId:   plan.id,
-    used:     usage.cloudOptimizationsUsed,
-    limit:    plan.limits.cloudOptimizationsMonthly,
-    limits:   plan.limits,
-    features: plan.features,
+    email:            user.email,
+    plan:             plan.name,
+    planId:           plan.id,
+    used:             usage.cloudOptimizationsUsed,
+    limit:            planLimit,
+    purchasedCredits,
+    effectiveLimit:   planLimit + purchasedCredits,
+    limits:           plan.limits,
+    features:         plan.features,
   })
 }

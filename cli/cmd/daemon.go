@@ -412,6 +412,8 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 	}
 
 	// Big save → add one line to Claude's context (visible in conversation).
+	// Entitlement nudges (ResultAddContext) already carry result.Context from
+	// the worker and are forwarded as-is — no mutation needed here.
 	if contextLine != "" && result.Kind == intercept.ResultReplaceOutput {
 		result.Context = contextLine
 	}

@@ -4,6 +4,7 @@ import { handleOptimizerApi }    from './handlers/optimize-api.js'
 import { handleSessionStart }    from './handlers/session.js'
 import { handleGenerateKey, handleMe } from './handlers/auth.js'
 import { handleCreateCheckout }       from './handlers/checkout.js'
+import { handleCreateTopup }          from './handlers/topup.js'
 import { handleTelemetry }            from './handlers/telemetry.js'
 import { handleStripeWebhook }   from './handlers/stripe.js'
 import { syncPlansToKV }         from './lib/plans.js'
@@ -58,6 +59,9 @@ export default {
     // ── Billing / checkout ────────────────────────────────────────────────
     if (method === 'POST' && url.pathname === '/api/checkout/create') {
       return handleCreateCheckout(request, env)
+    }
+    if (method === 'POST' && url.pathname === '/api/topup/create') {
+      return handleCreateTopup(request, env)
     }
 
     // ── Stripe webhooks ───────────────────────────────────────────────────

@@ -26,6 +26,8 @@ export interface EntitlementCheck {
     limit: number
     type: 'optimizations' | 'tokens'
   }
+  // Deduct from purchased_credits when recording usage (over plan monthly cap)
+  usePurchasedCredit?: boolean
   // True when usage is ≥80% of limit — show a nudge but still allow
   approachingLimit?: boolean
   approachingLimitMessage?: string
@@ -42,6 +44,7 @@ export interface EntitlementArgs {
   payloadBytes: number
   rawTokensEstimate: number   // estimate: payloadBytes / 4
   usageThisPeriod: UsageThisPeriod
+  purchasedCreditsRemaining?: number
 }
 
 export function canUseRemoteOptimizer(args: EntitlementArgs): EntitlementCheck {
@@ -78,15 +81,42 @@ export function canUseRemoteOptimizer(args: EntitlementArgs): EntitlementCheck {
 
   // ── Monthly usage checks ───────────────────────────────────────────────────
 
-  if (usageThisPeriod.cloudOptimizationsUsed >= limits.cloudOptimizationsMonthly) {
+  const planLimit  = limits.cloudOptimizationsMonthly
+  const purchased  = args.purchasedCreditsRemaining ?? 0
+  const used       = usageThisPeriod.cloudOptimizationsUsed
+  const effectiveLimit = planLimit + purchased
+
+  if (used >= planLimit) {
+    if (purchased <= 0) {
+      return {
+        allowed: false,
+        reason: 'monthly_optimizations_exceeded',
+        usage: {
+          used,
+          limit: planLimit,
+          type:  'optimizations',
+        },
+      }
+    }
+    // Over monthly plan cap — allow via purchased top-up credits
+    if (usageThisPeriod.cloudTokensUsed >= limits.cloudTokensMonthly) {
+      return {
+        allowed: false,
+        reason: 'monthly_tokens_exceeded',
+        usage: {
+          used:  usageThisPeriod.cloudTokensUsed,
+          limit: limits.cloudTokensMonthly,
+          type:  'tokens',
+        },
+      }
+    }
+    const remaining = effectiveLimit - used
     return {
-      allowed: false,
-      reason: 'monthly_optimizations_exceeded',
-      usage: {
-        used:  usageThisPeriod.cloudOptimizationsUsed,
-        limit: limits.cloudOptimizationsMonthly,
-        type:  'optimizations',
-      },
+      allowed: true,
+      usePurchasedCredit: true,
+      approachingLimit: remaining <= Math.max(1, Math.floor(purchased * 0.2)),
+      approachingLimitMessage: `${used}/${planLimit} plan credits used · ${remaining} top-up credits remaining`,
+      usage: { used, limit: effectiveLimit, type: 'optimizations' },
     }
   }
 
@@ -104,16 +134,16 @@ export function canUseRemoteOptimizer(args: EntitlementArgs): EntitlementCheck {
 
   // ── Allowed — check if approaching limit for nudge ────────────────────────
 
-  const optPct = usageThisPeriod.cloudOptimizationsUsed / limits.cloudOptimizationsMonthly
+  const optPct = used / planLimit
   if (optPct >= 0.8) {
-    const remaining = limits.cloudOptimizationsMonthly - usageThisPeriod.cloudOptimizationsUsed
+    const remaining = planLimit - used
     return {
       allowed: true,
       approachingLimit: true,
-      approachingLimitMessage: `${usageThisPeriod.cloudOptimizationsUsed}/${limits.cloudOptimizationsMonthly} cloud optimizations used · ${remaining} remaining`,
+      approachingLimitMessage: `${used}/${planLimit} cloud optimizations used · ${remaining} remaining`,
       usage: {
-        used:  usageThisPeriod.cloudOptimizationsUsed,
-        limit: limits.cloudOptimizationsMonthly,
+        used,
+        limit: planLimit,
         type:  'optimizations',
       },
     }
@@ -132,8 +162,8 @@ export function entitlementMessage(check: EntitlementCheck, planName: string): s
       return [
         `⚠️ Confire: ${check.usage?.used}/${check.usage?.limit} cloud optimizations used this month.`,
         planName === 'Free'
-          ? 'Upgrade to Dev ($10/mo) or Pro ($20/mo) at confire.dev/upgrade'
-          : 'Local optimization still active.',
+          ? 'Run `confire topup` for extra credits or upgrade at confire.dev/upgrade'
+          : 'Run `confire topup` for extra credits. Local optimization still active.',
       ].join(' ')
 
     case 'payload_too_large':

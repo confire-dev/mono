@@ -74,7 +74,7 @@ export async function validateApiKey(cfg: SupabaseConfig, rawKey: string): Promi
   const keyRows = await keyRes.json() as Array<{ user_id: string }>
   if (!keyRows.length) return null
 
-  const userId = keyRows[0].user_id
+  const userId = keyRows[0]!.user_id
 
   // Async side-effect: update last_used_at. Don't block.
   sbFetch(cfg, 'PATCH', `/rest/v1/api_keys?key_hash=eq.${encodeURIComponent(hash)}`,
@@ -147,6 +147,35 @@ export async function getUsageThisPeriod(
   }
 }
 
+// getCreditBalance returns the user's credit pool (included + bonus + purchased).
+export async function getCreditBalance(
+  cfg: SupabaseConfig,
+  userId: string,
+): Promise<CreditBalance | null> {
+  const res = await sbFetch(cfg, 'GET',
+    `/rest/v1/credit_balances?user_id=eq.${encodeURIComponent(userId)}&select=user_id,included_credits,bonus_credits,purchased_credits,total_credits&limit=1`)
+  if (!res.ok) return null
+  const rows = await res.json() as CreditBalance[]
+  return rows[0] ?? null
+}
+
+// consumePurchasedCredits deducts from the purchased pool only (top-up overflow usage).
+// Returns false if insufficient purchased credits.
+export async function consumePurchasedCredits(
+  cfg: SupabaseConfig,
+  userId: string,
+  amount: number,
+  sessionId?: string,
+): Promise<boolean> {
+  const res = await sbFetch(cfg, 'POST', '/rest/v1/rpc/consume_purchased_credits', {
+    p_user_id:    userId,
+    p_amount:     amount,
+    p_session_id: sessionId ?? null,
+  })
+  if (!res.ok) return false
+  return (await res.json()) as boolean
+}
+
 // Legacy UsageInfo — keep for auth.ts compatibility (will be removed next pass)
 export interface UsageInfo {
   ok: boolean
@@ -171,20 +200,30 @@ export async function recordOptimization(
     durationMs?: number
     wasCached: boolean
     analyticsConsented: boolean
+    usePurchasedCredit?: boolean
   }
 ): Promise<void> {
   const bytesSaved  = params.rawBytes - params.optimizedBytes
   const rawTokens   = Math.round(params.rawBytes / 4)   // ~4 bytes per token
   const savedTokens = Math.round(bytesSaved / 4)
 
-  // 1. Increment the active usage_period (new approach — replaces monthly_usage)
+  // Local optimizers run entirely on-device — no cloud resources consumed,
+  // no credits charged. Cloud optimizers (Figma, GitHub, etc.) count against limits.
+  const isLocal = params.optimizer.startsWith('local/')
+
+  // 1. Increment the active usage_period
   await sbFetch(cfg, 'POST', '/rest/v1/rpc/increment_usage_period', {
     p_user_id:          params.userId,
     p_plan_id:          params.planId,
-    p_cloud_opts:       1,
-    p_cloud_tokens:     rawTokens,
+    p_cloud_opts:       isLocal ? 0 : 1,
+    p_cloud_tokens:     isLocal ? 0 : rawTokens,
     p_saved_tokens:     savedTokens,
   })
+
+  // 1b. Over plan limit — deduct from purchased top-up pool
+  if (!isLocal && params.usePurchasedCredit) {
+    await consumePurchasedCredits(cfg, params.userId, 1, params.sessionId || undefined)
+  }
 
   // 2. Write per-call detail (powers the dashboard)
   await sbFetch(cfg, 'POST', '/rest/v1/tool_call_summaries', {
@@ -196,7 +235,23 @@ export async function recordOptimization(
     raw_bytes:       params.rawBytes,
     optimized_bytes: params.optimizedBytes,
     was_cached:      params.wasCached,
-    credits_used:    1,
+    credits_used:    isLocal ? 0 : 1,
+  })
+}
+
+// ── Top-up credits ────────────────────────────────────────────────────────────
+
+// grantPurchasedCredits adds one-time purchased credits to a user's balance.
+// Idempotent via stripe_event_id — safe to call on webhook retry.
+export async function grantPurchasedCredits(
+  cfg: SupabaseConfig,
+  params: { userId: string; credits: number; stripeEventId: string },
+): Promise<void> {
+  await sbFetch(cfg, 'POST', '/rest/v1/rpc/grant_credits', {
+    p_user_id:         params.userId,
+    p_purchased:       params.credits,
+    p_source:          'stripe_topup',
+    p_stripe_event_id: params.stripeEventId,
   })
 }
 

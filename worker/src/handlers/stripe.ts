@@ -11,6 +11,7 @@ import type { Env } from '../types.js'
 import {
   handleSubscriptionUpdated,
   handleSubscriptionCanceled,
+  grantPurchasedCredits,
   writeAudit,
 } from '../lib/supabase.js'
 import { getPlans } from '../lib/plans.js'
@@ -54,34 +55,35 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
   // (Stripe requires 2xx or it retries indefinitely).
   switch (event.type as StripeEventType) {
     case 'checkout.session.completed': {
-      // Link the Stripe customer ID to the user profile so that subsequent
-      // subscription webhooks (which filter by stripe_customer_id) can find
-      // the correct row for first-time subscribers.
       const sess           = event.data.object
       const userId         = sess['client_reference_id'] as string | undefined
       const stripeCustomer = sess['customer'] as string | undefined
+      const metadata       = (sess['metadata'] ?? {}) as Record<string, string>
 
+      // ── Top-up: grant purchased credits ───────────────────────────────────
+      if (metadata['type'] === 'topup' && userId) {
+        const totalCredits = parseInt(metadata['total_credits'] ?? '0', 10)
+        if (totalCredits > 0) {
+          await grantPurchasedCredits(cfg, {
+            userId,
+            credits:       totalCredits,
+            stripeEventId: event.id,   // idempotency — safe on webhook retry
+          })
+          await writeAudit(cfg, userId, 'topup_credits_granted', {
+            event_id:       event.id,
+            total_credits:  totalCredits,
+            quantity:       metadata['quantity'],
+          })
+        }
+        if (stripeCustomer) {
+          await linkStripeCustomer(env, cfg, userId, stripeCustomer, event.id)
+        }
+        break
+      }
+
+      // ── Subscription checkout: link Stripe customer to profile ────────────
       if (userId && stripeCustomer) {
-        await fetch(
-          `${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`,
-          {
-            method:  'PATCH',
-            headers: {
-              apikey:         env.SUPABASE_SERVICE_KEY!,
-              Authorization:  `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-              'Content-Type': 'application/json',
-              Prefer:         'return=minimal',
-            },
-            body: JSON.stringify({
-              stripe_customer_id: stripeCustomer,
-              updated_at:         new Date().toISOString(),
-            }),
-          },
-        ).catch(() => {})
-        await writeAudit(cfg, userId, 'stripe_customer_linked', {
-          event_id:           event.id,
-          stripe_customer_id: stripeCustomer,
-        })
+        await linkStripeCustomer(env, cfg, userId, stripeCustomer, event.id)
       }
       break
     }
@@ -147,6 +149,35 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
   }
 
   return Response.json({ received: true })
+}
+
+async function linkStripeCustomer(
+  env: Env,
+  cfg: { url: string; serviceKey: string },
+  userId: string,
+  stripeCustomer: string,
+  eventId: string,
+): Promise<void> {
+  await fetch(
+    `${env.SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`,
+    {
+      method:  'PATCH',
+      headers: {
+        apikey:         env.SUPABASE_SERVICE_KEY!,
+        Authorization:  `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer:         'return=minimal',
+      },
+      body: JSON.stringify({
+        stripe_customer_id: stripeCustomer,
+        updated_at:         new Date().toISOString(),
+      }),
+    },
+  ).catch(() => {})
+  await writeAudit(cfg, userId, 'stripe_customer_linked', {
+    event_id:           eventId,
+    stripe_customer_id: stripeCustomer,
+  })
 }
 
 // ── Signature verification ─────────────────────────────────────────────────
