@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "git-destructive",
+      "name": "Review destructive git operation",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": { "tool_name": "Bash" },
+      "patterns": [
+        {
+          "id": "force-push",
+          "regex": "\\bgit\\s+push\\b.*--force",
+          "message": "Force push can rewrite remote branch history and affect open PRs."
+        },
+        {
+          "id": "reset-hard",
+          "contains": "git reset --hard",
+          "message": "Hard reset discards local commits and staged changes permanently."
+        },
+        {
+          "id": "clean-force",
+          "regex": "\\bgit\\s+clean\\s+.*-[a-zA-Z]*f",
+          "message": "git clean -f deletes untracked files which cannot be recovered."
+        },
+        {
+          "id": "rebase-main",
+          "regex": "\\bgit\\s+rebase\\s+(main|master|origin/main|origin/master)\\b",
+          "message": "Rebasing onto main rewrites commit history and may cause conflicts if pushed."
+        },
+        {
+          "id": "branch-delete",
+          "regex": "\\bgit\\s+branch\\s+-D\\b",
+          "message": "Deleting a branch with -D is not recoverable if it has no remote."
+        }
+      ]
+    },
+    {
+      "id": "github-cli-review",
+      "name": "Review GitHub CLI mutation",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "medium",
+      "match": { "tool_name": "Bash" },
+      "patterns": [
+        {
+          "id": "pr-close",
+          "contains": "gh pr close",
+          "message": "Closing a PR discards all review comments and may surprise collaborators."
+        },
+        {
+          "id": "pr-merge",
+          "contains": "gh pr merge",
+          "message": "Merging a PR modifies the shared branch and triggers CI/CD pipelines."
+        }
+      ]
+    },
+    {
+      "id": "github-cli-block",
+      "name": "Block repo deletion",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "block",
+      "severity": "high",
+      "match": { "tool_name": "Bash", "command_contains": ["gh repo delete"] },
+      "message": "Repository deletion is irreversible. Use the GitHub web UI with explicit confirmation."
+    },
+    {
+      "id": "filesystem-destructive",
+      "name": "Review destructive filesystem change",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": { "tool_name": "Bash" },
+      "patterns": [
+        {
+          "id": "rm-rf",
+          "regex": "\\brm\\s+-[a-zA-Z]*r[a-zA-Z]*f\\b|\\brm\\s+-[a-zA-Z]*f[a-zA-Z]*r\\b",
+          "message": "Recursive force delete permanently removes files with no trash recovery."
+        },
+        {
+          "id": "chmod-777",
+          "regex": "\\bchmod\\s+(-R\\s+)?777\\b",
+          "message": "chmod 777 makes files world-writable, which is a security risk."
+        }
+      ]
+    },
+    {
+      "id": "database-destructive",
+      "name": "Review destructive database operation",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": { "tool_name": "Bash" },
+      "patterns": [
+        {
+          "id": "drop-truncate",
+          "regex": "\\b(drop\\s+(database|table)|truncate\\s+table)\\b",
+          "message": "Dropping or truncating a database table is destructive and may be hard to reverse."
+        },
+        {
+          "id": "delete-no-where",
+          "regex": "\\bdelete\\s+from\\s+\\w[\\w.]*\\s*;",
+          "message": "DELETE without a WHERE clause removes all rows from the table."
+        },
+        {
+          "id": "supabase-reset",
+          "contains": "supabase db reset",
+          "message": "supabase db reset wipes and recreates the local database."
+        },
+        {
+          "id": "supabase-push",
+          "contains": "supabase db push",
+          "message": "supabase db push applies migrations to a remote database."
+        },
+        {
+          "id": "prisma-reset",
+          "contains": "prisma migrate reset",
+          "message": "prisma migrate reset drops and recreates the database, deleting all data."
+        }
+      ]
+    },
+    {
+      "id": "package-publish",
+      "name": "Review package publish",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": {
+        "tool_name": "Bash",
+        "command_regex": "\\b(npm|pnpm|yarn|bun)\\s+publish\\b"
+      },
+      "message": "Publishing a package to a registry is public and irreversible."
+    },
+    {
+      "id": "deploy-prod",
+      "name": "Review production deployment",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": {
+        "tool_name": "Bash",
+        "command_regex": "vercel\\s+--prod|netlify\\s+deploy\\s+--prod|fly\\s+deploy|railway\\s+up\\b"
+      },
+      "message": "This command deploys to production and affects live users."
+    },
+    {
+      "id": "infra-mutation",
+      "name": "Review infrastructure mutation",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": { "tool_name": "Bash" },
+      "patterns": [
+        {
+          "id": "docker-push",
+          "contains": "docker push",
+          "message": "Pushing a Docker image publishes it to a registry and may overwrite a tag."
+        },
+        {
+          "id": "kubectl",
+          "regex": "\\bkubectl\\s+(apply|delete)\\b",
+          "message": "kubectl apply/delete modifies live Kubernetes workloads."
+        },
+        {
+          "id": "terraform",
+          "regex": "\\bterraform\\s+(apply|destroy)\\b",
+          "message": "terraform apply/destroy modifies real cloud infrastructure."
+        }
+      ]
+    },
+    {
+      "id": "secret-file-read",
+      "name": "Review reading secret files",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "medium",
+      "match": {
+        "tool_names": ["Bash", "Read"],
+        "command_regex": "(^|[\\s/])\\.env(\\.(local|prod|production|staging|test))?(\\s|$|\")|[\\s/](id_rsa|id_ed25519|\\.aws/credentials|\\.kube/config|\\.npmrc|\\.pypirc)(\\s|$|\")"
+      },
+      "message": "This accesses a file that likely contains real secrets or credentials."
+    },
+    {
+      "id": "mcp-mutation",
+      "name": "Review mutating MCP tool",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "medium",
+      "match": {
+        "tool_prefix": "mcp__",
+        "tool_name_regex": "__(create|update|delete|remove|send|post|publish|merge|approve|refund|charge|transfer|invite|execute|run|write|deploy|close|archive)(_|\\z)"
+      },
+      "message": "This MCP tool appears to mutate external state."
+    },
+    {
+      "id": "secret-scan-output",
+      "name": "Redact secrets from tool output",
+      "enabled": true,
+      "phase": "PostToolUse",
+      "action": "redact",
+      "severity": "high",
+      "match": { "output_secret_scan": true },
+      "message": "Common secret-like values were redacted before entering context."
+    },
+    {
+      "id": "injection-scan-output",
+      "name": "Sanitize prompt-injection from tool output",
+      "enabled": true,
+      "phase": "PostToolUse",
+      "action": "sanitize",
+      "severity": "high",
+      "match": { "output_injection_scan": true },
+      "message": "Suspicious instruction-like text was removed from untrusted tool output."
+    }
+  ]
+}

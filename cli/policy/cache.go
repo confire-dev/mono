@@ -20,8 +20,8 @@ func CachePath() string {
 	return filepath.Join(home, ".confire", "policies", "cache.json")
 }
 
-// LoadRules returns the merged rule set: built-in rules + cached custom rules.
-// Built-in rules always load. Custom rules overlay on top (same ID = override).
+// LoadRules returns the merged rule set: bundled rules + cached custom rules.
+// Bundled rules always load. Custom rules overlay on top (same ID = override).
 // Never returns an error — missing or corrupt cache silently uses built-ins only.
 func LoadRules() []Rule {
 	builtin := BuiltinRules()

@@ -1,5 +1,5 @@
 // Package policy defines the Confire rule schema and evaluation engine.
-// Built-in rules live in this package (free tier).
+// Bundled rules live in policy/rules/*.json (embedded at build time).
 // Custom rules are cloud-managed, fetched by cache.go, and evaluated locally.
 package policy
 
