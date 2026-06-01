@@ -789,7 +789,7 @@ INSERT INTO plans (id, status, config) VALUES
   "telemetry": { "requiredUsageMetering": true, "optionalProductAnalyticsDefault": true }
 }'),
 
-('pro_annual', 'active', '{
+('pro_annual', 'hidden', '{
   "id": "pro_annual",
   "name": "Pro (Annual)",
   "tagline": "For power users who optimize every session.",
