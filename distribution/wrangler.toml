@@ -16,3 +16,6 @@ zone_name = "confire.dev"
 [[routes]]
 pattern = "releases.confire.dev/*"
 zone_name = "confire.dev"
+
+[dev]
+port = 8789

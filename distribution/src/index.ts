@@ -4,12 +4,17 @@ interface Env {
 
 const GET_HOST = 'get.confire.dev'
 const RELEASES_HOST = 'releases.confire.dev'
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return new Response('Method not allowed', { status: 405 })
+    }
+
+    if (LOCAL_HOSTS.has(url.hostname)) {
+      return handleLocalDev(url.pathname, env, request.method)
     }
 
     if (url.hostname === GET_HOST) {
@@ -24,6 +29,24 @@ export default {
   },
 } satisfies ExportedHandler<Env>
 
+/** Single-port local dev: /latest.json + /install.sh vs /{version}/binary paths. */
+async function handleLocalDev(pathname: string, env: Env, method: string): Promise<Response> {
+  if (pathname === '/' || pathname === '/install.sh') {
+    return serveObject(env, 'install.sh', 'text/x-shellscript; charset=utf-8', 'public, max-age=300', method)
+  }
+  if (pathname === '/latest.json') {
+    return serveObject(env, 'latest.json', 'application/json; charset=utf-8', 'public, max-age=60', method)
+  }
+  const key = pathname.replace(/^\//, '')
+  if (!isSafeObjectKey(key)) {
+    return new Response('Not found', { status: 404 })
+  }
+  const cache = key.endsWith('latest.json')
+    ? 'public, max-age=60'
+    : 'public, max-age=31536000, immutable'
+  return serveObject(env, key, contentType(key), cache, method)
+}
+
 async function handleGetHost(pathname: string, env: Env, method: string): Promise<Response> {
   if (pathname === '/' || pathname === '/install.sh') {
     return serveObject(env, 'install.sh', 'text/x-shellscript; charset=utf-8', 'public, max-age=300', method)
@@ -34,13 +57,21 @@ async function handleGetHost(pathname: string, env: Env, method: string): Promis
   return new Response('Not found', { status: 404 })
 }
 
+function isSafeObjectKey(key: string): boolean {
+  if (!key || key.startsWith('/') || key.includes('//')) return false
+  for (const segment of key.split('/')) {
+    if (segment === '..' || segment === '.') return false
+  }
+  return true
+}
+
 async function handleReleasesHost(pathname: string, env: Env, method: string): Promise<Response> {
   const key = pathname.replace(/^\//, '')
-  if (!key || key.includes('..') || key.includes('//')) {
+  if (!isSafeObjectKey(key)) {
     return new Response('Not found', { status: 404 })
   }
 
-  const cache = key === 'latest.json'
+  const cache = key.endsWith('latest.json')
     ? 'public, max-age=60'
     : 'public, max-age=31536000, immutable'
 
