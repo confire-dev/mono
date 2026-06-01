@@ -218,7 +218,7 @@ If you ever want to cancel or change plans, just reply here or go to your accoun
 ### Step 1: Install
 
 ```bash
-curl -fsSL https://install.confire.dev | sh
+curl -fsSL https://get.confire.dev | sh
 ```
 
 Or with Homebrew:

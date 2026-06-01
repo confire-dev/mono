@@ -154,6 +154,57 @@ go install mvdan.cc/garble@latest
 
 ---
 
+## CLI distribution (get.confire.dev / releases.confire.dev)
+
+Public install URLs for a **private source repo**. Binaries and `install.sh` live in R2; a small Worker serves them on custom subdomains.
+
+| URL | Purpose |
+|-----|---------|
+| `https://get.confire.dev` | `install.sh` (curl pipe target) |
+| `https://get.confire.dev/latest.json` | Version manifest |
+| `https://releases.confire.dev/vX.Y.Z/confire_*` | Platform binaries + checksums |
+
+### One-time setup
+
+```bash
+# 1. Create R2 bucket
+cd distribution
+pnpm exec wrangler r2 bucket create confire-releases
+
+# 2. Deploy the distribution worker (routes: get + releases subdomains)
+pnpm deploy
+# Requires CLOUDFLARE_API_TOKEN + account in wrangler login / CI secrets
+
+# 3. DNS (Cloudflare zone confire.dev) — proxied orange-cloud records:
+#    get.confire.dev      → Worker route (wrangler.toml)
+#    releases.confire.dev → Worker route (wrangler.toml)
+```
+
+### GitHub Actions secrets (release workflow)
+
+| Secret | Purpose |
+|--------|---------|
+| `CLOUDFLARE_API_TOKEN` | R2 upload on tag push (`scripts/publish-release-r2.sh`) |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
+
+Token needs **Account → R2 → Edit** (and Workers deploy if using the same token in CI).
+
+### Manual publish (hotfix)
+
+```bash
+# After building dist/ binaries locally or from CI artifacts:
+chmod +x scripts/publish-release-r2.sh
+./scripts/publish-release-r2.sh v0.3.0 ./dist
+```
+
+User install command:
+
+```bash
+curl -fsSL https://get.confire.dev | sh
+```
+
+---
+
 ## Platform (Astro)
 
 The platform deploys to Cloudflare Pages.

@@ -1,11 +1,12 @@
 #!/usr/bin/env sh
 # Confire installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/confire-ai/mono/main/install.sh | sh
-# Or:    curl -fsSL https://raw.githubusercontent.com/confire-ai/mono/main/install.sh | sh -s -- --version v0.3.0
+# Usage: curl -fsSL https://get.confire.dev | sh
+# Or:    curl -fsSL https://get.confire.dev | sh -s -- --version v0.3.0
 
 set -e
 
-REPO="confire-ai/mono"
+GET_URL="https://get.confire.dev"
+RELEASES_URL="https://releases.confire.dev"
 BINARY="confire"
 INSTALL_DIR="${CONFIRE_INSTALL_DIR:-}"
 
@@ -53,12 +54,11 @@ PLATFORM="${OS_NAME}_${ARCH_NAME}"
 
 # ── resolve version ───────────────────────────────────────────────────────────
 if [ -z "$VERSION" ]; then
-  # Fetch the latest release tag from GitHub API (no auth needed for public repos).
-  LATEST_URL="https://api.github.com/repos/${REPO}/releases/latest"
+  LATEST_URL="${GET_URL}/latest.json"
   if command -v curl >/dev/null 2>&1; then
-    VERSION="$(curl -fsSL "$LATEST_URL" | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
+    VERSION="$(curl -fsSL "$LATEST_URL" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
   elif command -v wget >/dev/null 2>&1; then
-    VERSION="$(wget -qO- "$LATEST_URL" | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
+    VERSION="$(wget -qO- "$LATEST_URL" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
   else
     echo "curl or wget is required." >&2
     exit 1
@@ -83,7 +83,7 @@ if [ -z "$INSTALL_DIR" ]; then
 fi
 
 # ── download ──────────────────────────────────────────────────────────────────
-BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
+BASE_URL="${RELEASES_URL}/${VERSION}"
 BINARY_NAME="${BINARY}_${PLATFORM}"
 BINARY_URL="${BASE_URL}/${BINARY_NAME}"
 CHECKSUM_URL="${BASE_URL}/confire_checksums.txt"

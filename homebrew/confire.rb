@@ -18,24 +18,24 @@ class Confire < Formula
 
   on_macos do
     on_intel do
-      url "https://github.com/confire-ai/mono/releases/download/v#{version}/confire_darwin_amd64"
+      url "https://releases.confire.dev/v#{version}/confire_darwin_amd64"
       sha256 "PLACEHOLDER_SHA256_DARWIN_AMD64"
     end
 
     on_arm do
-      url "https://github.com/confire-ai/mono/releases/download/v#{version}/confire_darwin_arm64"
+      url "https://releases.confire.dev/v#{version}/confire_darwin_arm64"
       sha256 "PLACEHOLDER_SHA256_DARWIN_ARM64"
     end
   end
 
   on_linux do
     on_intel do
-      url "https://github.com/confire-ai/mono/releases/download/v#{version}/confire_linux_amd64"
+      url "https://releases.confire.dev/v#{version}/confire_linux_amd64"
       sha256 "PLACEHOLDER_SHA256_LINUX_AMD64"
     end
 
     on_arm do
-      url "https://github.com/confire-ai/mono/releases/download/v#{version}/confire_linux_arm64"
+      url "https://releases.confire.dev/v#{version}/confire_linux_arm64"
       sha256 "PLACEHOLDER_SHA256_LINUX_ARM64"
     end
   end

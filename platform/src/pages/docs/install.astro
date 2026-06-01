@@ -49,7 +49,7 @@ try {
         The script detects your platform, downloads the right binary, verifies the checksum, and installs to <code class="font-mono text-xs">/usr/local/bin</code>.
       </p>
       <div class="bg-confire-surface border border-confire-border rounded-lg p-4 font-mono text-sm text-confire-text overflow-x-auto">
-        curl -fsSL https://raw.githubusercontent.com/confire-ai/mono/main/install.sh | sh
+        curl -fsSL https://get.confire.dev | sh
       </div>
       <p class="text-xs text-confire-muted mt-2">
         To pin a specific version: <code class="font-mono">... | sh -s -- --version {version}</code>
@@ -72,15 +72,8 @@ try {
     <section class="mb-12">
       <h2 class="text-lg font-semibold text-confire-text mb-4">Direct download</h2>
       <p class="text-confire-muted text-sm mb-4">
-        Download the pre-built binary for your platform from the
-        <a
-          href={`https://github.com/confire-ai/mono/releases/tag/${version}`}
-          class="text-confire-accent underline underline-offset-2"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {version} release
-        </a>.
+        Download the pre-built binary for your platform. Binaries are served from
+        <a href="https://releases.confire.dev" class="text-confire-accent underline underline-offset-2" target="_blank" rel="noopener noreferrer">releases.confire.dev</a>.
       </p>
       <div class="overflow-x-auto rounded-lg border border-confire-border">
         <table class="w-full text-sm">
@@ -101,7 +94,7 @@ try {
                 <td class="px-4 py-2.5 font-sans text-confire-muted">{label}</td>
                 <td class="px-4 py-2.5">
                   <a
-                    href={`https://github.com/confire-ai/mono/releases/download/${version}/${filename}`}
+                    href={`https://releases.confire.dev/${version}/${filename}`}
                     class="text-confire-accent hover:underline"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -117,7 +110,7 @@ try {
       <p class="text-xs text-confire-muted mt-2">
         SHA-256 checksums:
         <a
-          href={`https://github.com/confire-ai/mono/releases/download/${version}/confire_checksums.txt`}
+          href={`https://releases.confire.dev/${version}/confire_checksums.txt`}
           class="text-confire-accent underline underline-offset-2 font-mono"
           target="_blank"
           rel="noopener noreferrer"

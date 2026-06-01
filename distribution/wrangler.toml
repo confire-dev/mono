@@ -1,0 +1,18 @@
+name = "confire-distribution"
+main = "src/index.ts"
+compatibility_date = "2025-05-01"
+
+# Public CLI distribution — get.confire.dev (installer) + releases.confire.dev (binaries).
+# Create bucket once: wrangler r2 bucket create confire-releases
+# DNS: CNAME get.confire.dev + releases.confire.dev → this worker (zone confire.dev).
+[[r2_buckets]]
+binding = "RELEASES"
+bucket_name = "confire-releases"
+
+[[routes]]
+pattern = "get.confire.dev/*"
+zone_name = "confire.dev"
+
+[[routes]]
+pattern = "releases.confire.dev/*"
+zone_name = "confire.dev"

@@ -7,7 +7,8 @@
     "type-check": "turbo run type-check",
     "test": "turbo run test",
     "worker:dev": "turbo run dev --filter=worker",
-    "worker:deploy": "turbo run deploy --filter=worker"
+    "worker:deploy": "turbo run deploy --filter=worker",
+    "distribution:deploy": "turbo run deploy --filter=@confire/distribution"
   },
   "devDependencies": {
     "turbo": "^2.9.16",

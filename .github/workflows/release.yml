@@ -129,3 +129,41 @@ jobs:
           git diff --staged --quiet || git commit -m "chore: bump confire to ${VERSION}"
           git push
 
+  publish-r2:
+    name: Publish to R2 (get.confire.dev / releases.confire.dev)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum confire_* > confire_checksums.txt
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install wrangler
+        run: pnpm install --filter @confire/distribution --frozen-lockfile
+
+      - name: Upload to R2
+        working-directory: distribution
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          chmod +x ../scripts/publish-release-r2.sh
+          ../scripts/publish-release-r2.sh "${{ github.ref_name }}" ../dist
+

@@ -2,3 +2,4 @@ packages:
   - 'worker'
   - 'platform'
   - 'benchmark'
+  - 'distribution'
