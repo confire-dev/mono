@@ -24,11 +24,15 @@ wrangler rate-limit create rl-pro
 
 ### 2. Set secrets
 
+Run from `worker/` (or pass `-c worker/wrangler.toml` from repo root):
+
 ```bash
 wrangler secret put SUPABASE_URL
 wrangler secret put SUPABASE_ANON_KEY
 wrangler secret put SUPABASE_SERVICE_KEY
+wrangler secret put STRIPE_SECRET_KEY
 wrangler secret put STRIPE_WEBHOOK_SECRET
+wrangler secret put STRIPE_TOPUP_PRICE_ID
 wrangler secret put SUPABASE_WEBHOOK_SECRET
 wrangler secret put AMPLITUDE_KEY
 ```
@@ -57,8 +61,9 @@ This creates all tables, stored procedures, RLS policies, and seeds the `plans` 
 ### 6. Deploy the Worker
 
 ```bash
-cd worker
-wrangler deploy
+cd worker && wrangler deploy
+# or from repo root:
+pnpm worker:deploy
 ```
 
 ### 7. Verify
@@ -77,12 +82,14 @@ curl https://api.confire.dev/health
 ## Routine deploy (update)
 
 ```bash
-cd worker
-wrangler deploy
+pnpm worker:deploy
+# equivalent: cd worker && wrangler deploy
 ```
 
 Plans are in KV — they survive Worker redeploys unchanged.
 If you updated plan config in the DB, the webhook handles KV sync automatically.
+Distribution worker: `pnpm distribution:deploy` (only when `distribution/` changes).
+Platform: auto-deploys on push to `main` via Cloudflare Pages.
 
 ---
 
@@ -107,7 +114,9 @@ wrangler rollback <deployment-id>
 | `SUPABASE_URL` | Supabase Dashboard → Project Settings → API → Project URL |
 | `SUPABASE_ANON_KEY` | Supabase Dashboard → Project Settings → API → anon/public |
 | `SUPABASE_SERVICE_KEY` | Supabase Dashboard → Project Settings → API → service_role |
+| `STRIPE_SECRET_KEY` | Stripe Dashboard → Developers → API keys → Secret key |
 | `STRIPE_WEBHOOK_SECRET` | Stripe Dashboard → Webhooks → endpoint → Signing secret |
+| `STRIPE_TOPUP_PRICE_ID` | Stripe Dashboard → Products → top-up pack → Price ID (one-time $5 / 5,000 credits) |
 | `SUPABASE_WEBHOOK_SECRET` | Generate: `openssl rand -base64 32` — use same value in Supabase webhook header |
 | `AMPLITUDE_KEY` | Amplitude → Settings → Projects → API Key |
 
@@ -134,6 +143,8 @@ wrangler secret put OPTIMIZER_API_ENABLED
 
 ## CLI binary release
 
+### Local builds
+
 ```bash
 cd cli
 
@@ -151,6 +162,25 @@ The release binary uses `garble` for obfuscation. Install it first:
 ```bash
 go install mvdan.cc/garble@latest
 ```
+
+### Tagged release (CI)
+
+Push a semver tag to trigger `.github/workflows/release.yml`:
+
+```bash
+git tag v0.3.0
+git push origin v0.3.0
+```
+
+After the build matrix finishes, `release` and `publish-r2` run in parallel:
+
+| Job | What it does |
+|-----|----------------|
+| `build` | Cross-compile `confire_{darwin,linux}_{amd64,arm64}` |
+| `release` | Create GitHub Release + upload binaries and checksums |
+| `publish-r2` | Upload binaries, `latest.json`, and `install.sh` to R2 |
+
+If `HOMEBREW_TAP_TOKEN` is set, the `release` job also bumps `homebrew/confire.rb` and pushes to the `confire-ai/homebrew-confire` tap repo.
 
 ---
 
@@ -171,13 +201,36 @@ Public install URLs for a **private source repo**. Binaries and `install.sh` liv
 cd distribution
 pnpm exec wrangler r2 bucket create confire-releases
 
-# 2. Deploy the distribution worker (routes: get + releases subdomains)
+# 2. Deploy the distribution worker
 pnpm deploy
-# Requires CLOUDFLARE_API_TOKEN + account in wrangler login / CI secrets
+# or from repo root: pnpm distribution:deploy
+# Requires wrangler login locally, or CLOUDFLARE_API_TOKEN in CI
 
-# 3. DNS (Cloudflare zone confire.dev) — proxied orange-cloud records:
-#    get.confire.dev      → Worker route (wrangler.toml)
-#    releases.confire.dev → Worker route (wrangler.toml)
+# 3. DNS + routes (zone confire.dev must be on Cloudflare, proxied)
+#    Worker routes are declared in distribution/wrangler.toml:
+#      get.confire.dev/*
+#      releases.confire.dev/*
+#    Ensure each hostname resolves through Cloudflare (orange cloud).
+#    Wrangler attaches routes on deploy — no manual CNAME to a worker URL needed.
+```
+
+### Bootstrap first release
+
+`get.confire.dev` returns 404 for `install.sh` and `latest.json` until R2 has objects. Either:
+
+1. Push a `v*` tag (CI `publish-r2` job uploads everything), or
+2. Run a manual publish after building binaries locally:
+
+```bash
+chmod +x scripts/publish-release-r2.sh
+./scripts/publish-release-r2.sh v0.3.0 ./dist
+```
+
+Verify:
+
+```bash
+curl -fsSL https://get.confire.dev/latest.json
+curl -fsSL https://releases.confire.dev/v0.3.0/confire_checksums.txt
 ```
 
 ### GitHub Actions secrets (release workflow)
@@ -186,13 +239,15 @@ pnpm deploy
 |--------|---------|
 | `CLOUDFLARE_API_TOKEN` | R2 upload on tag push (`scripts/publish-release-r2.sh`) |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
+| `HOMEBREW_TAP_TOKEN` | *(optional)* PAT with write access to `confire-ai/homebrew-confire` |
 
 Token needs **Account → R2 → Edit** (and Workers deploy if using the same token in CI).
 
 ### Manual publish (hotfix)
 
+Use when you need to re-upload R2 artifacts without cutting a new GitHub release:
+
 ```bash
-# After building dist/ binaries locally or from CI artifacts:
 chmod +x scripts/publish-release-r2.sh
 ./scripts/publish-release-r2.sh v0.3.0 ./dist
 ```
