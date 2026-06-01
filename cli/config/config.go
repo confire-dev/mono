@@ -49,6 +49,9 @@ type Config struct {
 	// Default: "balanced".
 	Mode string `json:"mode,omitempty"`
 
+	// WelcomePending: show a one-time SessionStart note in Claude Code after setup.
+	WelcomePending bool `json:"welcome_pending,omitempty"`
+
 	// FirewallEnabled controls whether the tool/context firewall is active.
 	// nil means true (default on). Use pointer so we can distinguish unset from false.
 	FirewallEnabled *bool `json:"firewall_enabled,omitempty"`

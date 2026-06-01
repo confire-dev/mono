@@ -51,7 +51,7 @@ func (t *LocalTransport) handleToolPost(event intercept.InterceptEvent) (interce
 		return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, nil
 	}
 
-	toolName := strings.ToLower(event.Tool.Name)
+	toolName := normalizeLocalToolName(event.Tool.Name)
 
 	// Write/Edit/Glob have structured output shapes Claude Code requires preserved
 	// (structuredPatch, originalFile, etc.) — never touch them.
@@ -117,7 +117,7 @@ func (t *LocalTransport) handleToolPre(event intercept.InterceptEvent) (intercep
 	}
 
 	// Read: inject line limit before the file is even read
-	if event.Tool.Name == "Read" {
+	if normalizeLocalToolName(event.Tool.Name) == "read" {
 		input, ok := event.Tool.Input.(map[string]interface{})
 		if !ok {
 			return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, nil
@@ -167,3 +167,12 @@ func bashStdout(output any) (string, map[string]any) {
 }
 
 func (t *LocalTransport) Mode() OptimizerMode { return OptimizerModeLocal }
+
+func normalizeLocalToolName(name string) string {
+	switch strings.ToLower(name) {
+	case "shell":
+		return "bash"
+	default:
+		return strings.ToLower(name)
+	}
+}

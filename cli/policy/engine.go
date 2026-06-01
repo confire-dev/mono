@@ -135,7 +135,7 @@ func matchesPostTool(rule Rule, event intercept.InterceptEvent) bool {
 }
 
 func matchesToolName(m RuleMatch, tool *intercept.Tool) bool {
-	name := strings.ToLower(tool.Name)
+	name := normalizeToolName(tool.Name)
 
 	if m.ToolName != "" && strings.ToLower(m.ToolName) != name {
 		return false
@@ -167,9 +167,19 @@ func matchesToolName(m RuleMatch, tool *intercept.Tool) bool {
 	return true
 }
 
-// bashCommand extracts the command string from a Bash tool input.
+// normalizeToolName maps host-specific aliases onto canonical names used in rules.
+func normalizeToolName(name string) string {
+	switch strings.ToLower(name) {
+	case "shell":
+		return "bash"
+	default:
+		return strings.ToLower(name)
+	}
+}
+
+// bashCommand extracts the command string from a Bash/Shell tool input.
 func bashCommand(tool *intercept.Tool) string {
-	if tool == nil || strings.ToLower(tool.Name) != "bash" {
+	if tool == nil || normalizeToolName(tool.Name) != "bash" {
 		return ""
 	}
 	switch v := tool.Input.(type) {

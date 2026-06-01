@@ -76,6 +76,7 @@ type InterceptResult struct {
 	ToolOutput any        `json:"toolOutput,omitempty"`
 	ToolInput  any        `json:"toolInput,omitempty"`
 	Context    string     `json:"context,omitempty"`
+	SystemMessage string  `json:"systemMessage,omitempty"` // shown to the user in Claude Code (hooks have no TTY)
 	Reason     string     `json:"reason,omitempty"` // block/review human-readable explanation
 	Stats      *Stats     `json:"stats,omitempty"`
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/confire-dev/confire/hosts"
 	"github.com/confire-dev/confire/intercept"
@@ -50,6 +51,16 @@ func runClaudeCodeHook(raw map[string]any) error {
 
 	event := hosts.DecodeHookInput(input)
 	result := sendToDaemon(event)
+
+	// SessionStart: systemMessage is shown in Claude Code (hooks have no TTY since v2.1.139).
+	if input.HookEventName == "SessionStart" {
+		if result.SystemMessage != "" || result.Context != "" {
+			return json.NewEncoder(os.Stdout).Encode(
+				hosts.EncodeSessionStartResult(result, input.HookEventName),
+			)
+		}
+		return nil
+	}
 
 	// PreToolUse block/review: write JSON to stdout and exit 2 to block the tool.
 	if input.HookEventName == "PreToolUse" {
@@ -110,11 +121,39 @@ func runCursorHook(raw map[string]any) error {
 
 	event := hosts.DecodeCursorHookInput(input)
 	result := sendToDaemon(event)
+
+	switch strings.ToLower(input.HookEventName) {
+	case "sessionstart":
+		msg := result.SystemMessage
+		if msg == "" {
+			msg = result.Context
+		}
+		if msg == "" {
+			return nil
+		}
+		return json.NewEncoder(os.Stdout).Encode(hosts.CursorHookOutput{
+			AdditionalContext: msg,
+		})
+
+	case "pretooluse":
+		out, shouldWrite, shouldBlock := hosts.EncodeCursorPreToolResult(result)
+		if !shouldWrite {
+			return nil
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(out); err != nil {
+			return err
+		}
+		if shouldBlock {
+			os.Exit(2)
+		}
+		return nil
+	}
+
 	if result.Kind == intercept.ResultPassthrough {
 		return nil
 	}
 
-	out, shouldWrite := hosts.EncodeCursorResult(result)
+	out, shouldWrite := hosts.EncodeCursorResult(result, input.ToolName)
 	if !shouldWrite {
 		return nil
 	}

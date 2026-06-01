@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/confire-dev/confire/auth"
+	"github.com/confire-dev/confire/config"
 	"github.com/confire-dev/confire/hosts"
 	"github.com/spf13/cobra"
 )
@@ -168,6 +169,10 @@ func runSetup() error {
 		} else {
 			fmt.Printf("  %s✓%s  Optimizer started\n", green, reset)
 		}
+
+		cfg := config.Load()
+		cfg.WelcomePending = true
+		_ = config.Save(cfg)
 	}
 
 	fmt.Printf("\n  %sNext steps:%s\n", bold, reset)

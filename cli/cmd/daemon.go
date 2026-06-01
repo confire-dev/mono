@@ -397,15 +397,18 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 	case intercept.PhaseSessionStart:
 		state.onSessionStart(event)
 		go state.postSessionStart(event)
-		// Only inject context into Claude when something requires Claude's awareness.
-		// A healthy balanced session injects nothing — saving context is the product.
-		if notice := sessionStartNotification(state); notice != "" {
+		ctxMsg, systemMsg := sessionStartNotification(state)
+		if ctxMsg != "" {
 			json.NewEncoder(conn).Encode(intercept.InterceptResult{
-				Kind:    intercept.ResultAddContext,
-				Context: notice,
+				Kind:          intercept.ResultAddContext,
+				Context:       ctxMsg,
+				SystemMessage: systemMsg,
 			})
 		} else {
-			json.NewEncoder(conn).Encode(intercept.InterceptResult{Kind: intercept.ResultPassthrough})
+			json.NewEncoder(conn).Encode(intercept.InterceptResult{
+				Kind:          intercept.ResultPassthrough,
+				SystemMessage: systemMsg,
+			})
 		}
 		return
 
@@ -531,24 +534,47 @@ func (ds *daemonState) sanitizeOutput(event intercept.InterceptEvent) intercept.
 	return event
 }
 
-// sessionStartNotification returns a string to inject into Claude's context,
-// or "" if everything is healthy and no injection is needed.
-// A healthy balanced session injects nothing — saving context is the product.
-func sessionStartNotification(state *daemonState) string {
+// sessionStartNotification returns context (for Claude) and systemMessage (shown in Claude Code).
+// A healthy balanced session injects nothing into Claude — saving context is the product.
+func sessionStartNotification(state *daemonState) (contextMsg, systemMsg string) {
 	mode := state.cfg.EffectiveMode()
+	statusLine := sessionStatusLine(state, mode)
+
 	switch {
 	case state.apiKey == "":
-		return "⚠️ Confire: not logged in — cloud optimization disabled. Run `confire login`."
+		msg := "⚠️ Confire: not logged in — cloud optimization disabled. Run `confire login`. Run `confire help` for commands."
+		return msg, msg
 	case mode == "strict":
-		return "[Confire] Strict mode active. Dangerous tool calls will be blocked, not just reviewed."
+		msg := "[Confire] Strict mode active. Dangerous tool calls will be blocked, not just reviewed. Run `confire help` for commands."
+		return msg, msg
 	case mode == "bypass":
-		return "[Confire] Bypass mode active. Firewall and optimization are disabled."
+		msg := "[Confire] Bypass mode active. Firewall and optimization are disabled. Run `confire help` for commands."
+		return msg, msg
 	default:
-		// Healthy: balanced or observe mode with account. Log to stderr only.
-		fmt.Fprintf(os.Stderr, "[confire] v%s active — %s mode, %d rules loaded\n",
-			buildVersion, mode, len(state.guardrail.Rules()))
-		return ""
+		if msg, ok := consumeWelcomePending(state); ok {
+			return msg, msg
+		}
+		return "", statusLine
 	}
+}
+
+func sessionStatusLine(state *daemonState, mode string) string {
+	if state.guardrail != nil {
+		return fmt.Sprintf("[confire] v%s active — %s mode, %d rules loaded",
+			buildVersion, mode, len(state.guardrail.Rules()))
+	}
+	return fmt.Sprintf("[confire] v%s active — %s mode", buildVersion, mode)
+}
+
+func consumeWelcomePending(state *daemonState) (string, bool) {
+	cfg := config.Load()
+	if !cfg.WelcomePending {
+		return "", false
+	}
+	cfg.WelcomePending = false
+	_ = config.Save(cfg)
+	state.cfg.WelcomePending = false
+	return "🔥 Confire context firewall is active. Run `confire help` for commands or `confire status` to check your setup.", true
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

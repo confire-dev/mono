@@ -364,7 +364,8 @@ type HookInput struct {
 // Claude Code reads this and applies hookSpecificOutput.updatedToolOutput
 // before passing the result to the model.
 type HookOutput struct {
-	HookSpecificOutput HookSpecificOutput `json:"hookSpecificOutput"`
+	SystemMessage      string             `json:"systemMessage,omitempty"`
+	HookSpecificOutput HookSpecificOutput `json:"hookSpecificOutput,omitempty"`
 }
 
 type HookSpecificOutput struct {
@@ -425,6 +426,20 @@ func EncodePreToolResult(result intercept.InterceptResult) []byte {
 	default:
 		return nil
 	}
+}
+
+// EncodeSessionStartResult returns JSON for SessionStart (systemMessage + optional context).
+func EncodeSessionStartResult(result intercept.InterceptResult, eventName string) HookOutput {
+	out := HookOutput{
+		SystemMessage: result.SystemMessage,
+		HookSpecificOutput: HookSpecificOutput{
+			HookEventName: eventName,
+		},
+	}
+	if result.Context != "" {
+		out.HookSpecificOutput.AdditionalContext = result.Context
+	}
+	return out
 }
 
 // EncodeResult translates an InterceptResult into the HookOutput Claude Code expects.

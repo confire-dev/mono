@@ -73,6 +73,7 @@ func TestEvaluatePreTool_BuiltinRules(t *testing.T) {
 
 		// Bypass mode — everything passthrough
 		{"bypass mode", "Bash", bash("git push --force"), ModeBypass, ""},
+		{"cursor shell alias", "Shell", bash("git push --force"), ModeBalanced, ActionReview},
 	}
 
 	for _, tc := range cases {
