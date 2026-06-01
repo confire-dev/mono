@@ -157,15 +157,17 @@ func BuiltinRules() []Rule {
 			Source:  "builtin",
 		},
 		// ── Secret file access ────────────────────────────────────────────
-		// balanced and strict only (MinMode = "")
+		// Matches real secret files. Explicitly excludes .env.example / .env.sample
+		// which are intentionally committed and inspected by developers.
 		{
 			ID: "secret-file-read", Name: "Review reading secret files", Enabled: true,
 			Phase: PhasePreToolUse, Action: ActionReview, Severity: SeverityMedium,
 			Match: RuleMatch{
-				ToolNames:    []string{"Bash", "Read"},
-				CommandRegex: `(^|[\s/])\.env(\.(local|prod|production|staging|test))?$|[\s/](id_rsa|id_ed25519|\.aws/credentials|\.kube/config|\.npmrc|\.pypirc)(\s|$|")`,
+				ToolNames: []string{"Bash", "Read"},
+				// Match .env / .env.local / .env.production etc. but NOT .env.example or .env.sample.
+				CommandRegex: `(^|[\s/])\.env(\.(local|prod|production|staging|test))?(\s|$|")|[\s/](id_rsa|id_ed25519|\.aws/credentials|\.kube/config|\.npmrc|\.pypirc)(\s|$|")`,
 			},
-			Message: "This accesses a file that may contain secrets or credentials.",
+			Message: "This accesses a file that likely contains real secrets or credentials.",
 			Source:  "builtin",
 		},
 		// ── MCP mutation tools ────────────────────────────────────────────

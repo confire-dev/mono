@@ -60,6 +60,13 @@ func TestEvaluatePreTool_BuiltinRules(t *testing.T) {
 		{"mcp list", "mcp__linear__list_issues", nil, ModeBalanced, ""},
 		{"mcp search", "mcp__figma__search_design_system", nil, ModeBalanced, ""},
 
+		// .env file access — real secrets reviewed, safe variants allowed
+		{"env file review", "Bash", bash("cat .env"), ModeBalanced, ActionReview},
+		{"env.local review", "Bash", bash("cat .env.local"), ModeBalanced, ActionReview},
+		{"env.production review", "Bash", bash("cat .env.production"), ModeBalanced, ActionReview},
+		{"env.example allowed", "Bash", bash("cat .env.example"), ModeBalanced, ""},
+		{"env.sample allowed", "Bash", bash("cat .env.sample"), ModeBalanced, ""},
+
 		// Observe mode downgrades block→warn, review→warn
 		{"observe mode downgrades review", "Bash", bash("git push --force"), ModeObserve, ActionWarn},
 		{"observe mode downgrades block", "Bash", bash("gh repo delete myorg/x"), ModeObserve, ActionWarn},
