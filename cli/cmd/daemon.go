@@ -435,13 +435,18 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 	}
 
 	// PostToolUse and other tool phases — run sanitization then optimizer.
-	// Step 1: sanitize the raw output before optimization.
+	var sanitizeReport intercept.SanitizeReport
 	if state.cfg.IsFirewallEnabled() && event.Phase == intercept.PhaseToolPost {
-		event = state.sanitizeOutput(event)
+		event, sanitizeReport = state.sanitizeOutput(event)
 	}
 
-	// Tool calls → optimize + track stats + notify.
-	result, _ := t.Send(event)
+	// Tool calls → optimize + track stats + notify (when enabled for this host).
+	var result intercept.InterceptResult
+	if shouldOptimizeEvent(event, state.cfg) {
+		result, _ = t.Send(event)
+	} else {
+		result = intercept.InterceptResult{Kind: intercept.ResultPassthrough}
+	}
 	state.onToolResult(event, result)
 
 	// Format the 🔥 notification
@@ -455,10 +460,28 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 		fmt.Fprintln(os.Stderr, stderrLine)
 	}
 
-	// Big save → add one line to Claude's context (visible in conversation).
-	// Entitlement nudges (ResultAddContext) already carry result.Context from
-	// the worker and are forwarded as-is — no mutation needed here.
-	if contextLine != "" && result.Kind == intercept.ResultReplaceOutput {
+	// Standardized post-tool steer for hosts that cannot replace native output.
+	caps := state.cfg.CapabilitiesFor(event.Host)
+	if caps.PostToolSteer {
+		steerCtx := intercept.FormatPostToolSteer(intercept.PostToolSteerInput{
+			Host:                event.Host,
+			ToolName:            toolName,
+			NativeUnreplaceable: !caps.NativeOutputReplaceable && event.Tool != nil && !event.Tool.IsMCP,
+			OutputReplaced:      result.Kind == intercept.ResultReplaceOutput,
+			Report:              sanitizeReport,
+			Stats:               result.Stats,
+			ExtraContext:        contextLine,
+		})
+		if steerCtx != "" {
+			result.Context = intercept.JoinContext(steerCtx, result.Context)
+			if result.Kind == intercept.ResultPassthrough {
+				result.Kind = intercept.ResultAddContext
+			}
+		} else if contextLine != "" && result.Kind == intercept.ResultReplaceOutput {
+			result.Context = intercept.JoinContext(result.Context, contextLine)
+		}
+	} else if contextLine != "" && result.Kind == intercept.ResultReplaceOutput {
+		// Claude Code: big-save line only when output was replaced.
 		result.Context = contextLine
 	}
 
@@ -485,24 +508,27 @@ func (ds *daemonState) onFirewallResult(event intercept.InterceptEvent, result i
 
 // sanitizeOutput runs secret redaction and prompt-injection sanitization
 // on the raw tool output before it goes to the optimizer.
-// Returns the (potentially modified) event.
-func (ds *daemonState) sanitizeOutput(event intercept.InterceptEvent) intercept.InterceptEvent {
+// Returns the (potentially modified) event and a report for post-tool steer.
+func (ds *daemonState) sanitizeOutput(event intercept.InterceptEvent) (intercept.InterceptEvent, intercept.SanitizeReport) {
+	report := intercept.SanitizeReport{}
 	if event.Tool == nil || event.Tool.Output == nil {
-		return event
+		return event, report
 	}
 	text, ok := sanitize.OutputToString(event.Tool.Output)
 	if !ok || len(text) < 100 {
-		return event
+		return event, report
 	}
 
 	modified := false
 	sess := ds.sessions[event.Session.ID]
 
 	// Secret redaction.
-	redacted, count, _ := sanitize.Redact(text)
+	redacted, count, types := sanitize.Redact(text)
 	if count > 0 {
 		text = redacted
 		modified = true
+		report.SecretsRedacted = count
+		report.SecretTypes = types
 		if sess != nil {
 			ds.mu.Lock()
 			sess.secretsRedacted += count
@@ -517,6 +543,7 @@ func (ds *daemonState) sanitizeOutput(event intercept.InterceptEvent) intercept.
 	if found {
 		text = sanitized
 		modified = true
+		report.InjectionFound = true
 		if sess != nil {
 			ds.mu.Lock()
 			sess.sanitizedCalls++
@@ -531,7 +558,18 @@ func (ds *daemonState) sanitizeOutput(event intercept.InterceptEvent) intercept.
 		toolCopy.Output = text
 		event.Tool = &toolCopy
 	}
-	return event
+	return event, report
+}
+
+func shouldOptimizeEvent(event intercept.InterceptEvent, cfg config.Config) bool {
+	if event.Phase != intercept.PhaseToolPost || event.Tool == nil {
+		return false
+	}
+	caps := cfg.CapabilitiesFor(event.Host)
+	if event.Tool.IsMCP {
+		return caps.OptimizeMCP
+	}
+	return caps.OptimizeNative
 }
 
 // sessionStartNotification returns context (for Claude) and systemMessage (shown in Claude Code).

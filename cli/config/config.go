@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/confire-dev/confire/hosts"
 )
 
 // NotificationConfig controls how Confire reports savings to the developer.
@@ -55,6 +57,34 @@ type Config struct {
 	// FirewallEnabled controls whether the tool/context firewall is active.
 	// nil means true (default on). Use pointer so we can distinguish unset from false.
 	FirewallEnabled *bool `json:"firewall_enabled,omitempty"`
+
+	// Hosts overrides per-agent capabilities (merged onto hosts.DefaultCapabilities).
+	// Example: {"cursor": {"optimize_native": false, "optimize_mcp": true}}
+	Hosts map[string]HostSettings `json:"hosts,omitempty"`
+}
+
+// HostSettings overrides capability defaults for one host ID (cursor, claude-code, …).
+type HostSettings struct {
+	OptimizeNative *bool `json:"optimize_native,omitempty"`
+	OptimizeMCP    *bool `json:"optimize_mcp,omitempty"`
+	PostToolSteer  *bool `json:"post_tool_steer,omitempty"`
+}
+
+// CapabilitiesFor returns effective capabilities for a host, merging config overrides.
+func (c Config) CapabilitiesFor(hostID string) hosts.Capabilities {
+	caps := hosts.DefaultCapabilities(hostID)
+	if o, ok := c.Hosts[hostID]; ok {
+		if o.OptimizeNative != nil {
+			caps.OptimizeNative = *o.OptimizeNative
+		}
+		if o.OptimizeMCP != nil {
+			caps.OptimizeMCP = *o.OptimizeMCP
+		}
+		if o.PostToolSteer != nil {
+			caps.PostToolSteer = *o.PostToolSteer
+		}
+	}
+	return caps
 }
 
 // IsFirewallEnabled returns true unless the firewall has been explicitly disabled

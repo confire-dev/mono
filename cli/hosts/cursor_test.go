@@ -60,18 +60,18 @@ func TestEncodeCursorPreToolResult_Block(t *testing.T) {
 	}
 }
 
-func TestEncodeCursorResult_NativeReplaceFallsBackToContext(t *testing.T) {
+func TestEncodeCursorResult_NativeSteerContext(t *testing.T) {
+	steer := `[Confire post_tool steer]
+tool=Shell
+mode=native_unreplaceable
+findings:
+  secrets_redacted=1`
 	out, ok := EncodeCursorResult(intercept.InterceptResult{
-		Kind:       intercept.ResultReplaceOutput,
-		ToolOutput: "trimmed",
-		Stats: &intercept.Stats{
-			BeforeBytes: 1000,
-			AfterBytes:  100,
-			Optimizer:   "local/bash",
-		},
+		Kind:    intercept.ResultAddContext,
+		Context: steer,
 	}, "Shell")
-	if !ok || out.UpdatedMCPToolOutput != nil || out.AdditionalContext == "" {
-		t.Fatalf("expected additional_context fallback, got %+v ok=%v", out, ok)
+	if !ok || out.UpdatedMCPToolOutput != nil || out.AdditionalContext != steer {
+		t.Fatalf("expected steer context, got %+v ok=%v", out, ok)
 	}
 }
 

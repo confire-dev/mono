@@ -8,6 +8,7 @@ import (
 
 	"github.com/confire-dev/confire/auth"
 	"github.com/confire-dev/confire/config"
+	"github.com/confire-dev/confire/hosts"
 	"github.com/spf13/cobra"
 )
 
@@ -24,11 +25,15 @@ Keys:
   notifications.big_save_tokens  <N>       (tokens, default 50000)
   analytics.enabled              true | false
   worker_url                     <URL>
+  hosts.<id>.optimize_native     true | false   (per host, e.g. cursor)
+  hosts.<id>.optimize_mcp        true | false
+  hosts.<id>.post_tool_steer     true | false
 
 Examples:
   confire config                                 # show all
   confire config get notifications.style
   confire config set notifications.enabled=false
+  confire config set hosts.cursor.optimize_native=false
   confire config set notifications.big_save_tokens=20000`,
 	RunE: runConfig,
 }
@@ -123,6 +128,9 @@ func getField(cfg config.Config, key string) (string, error) {
 		}
 		return cfg.WorkerURL, nil
 	default:
+		if val, ok := getHostField(cfg, key); ok {
+			return val, nil
+		}
 		return "", fmt.Errorf("unknown key %q — run `confire config` to see all keys", key)
 	}
 }
@@ -170,8 +178,76 @@ func setField(cfg *config.Config, key, val string) error {
 		cfg.WorkerURL = val
 
 	default:
+		if err := setHostField(cfg, key, val); err == nil {
+			return nil
+		}
 		return fmt.Errorf("unknown key %q — run `confire config` to see all keys", key)
 	}
+	return nil
+}
+
+func getHostField(cfg config.Config, key string) (string, bool) {
+	if !strings.HasPrefix(key, "hosts.") {
+		return "", false
+	}
+	parts := strings.Split(key, ".")
+	if len(parts) != 3 {
+		return "", false
+	}
+	hostID, field := parts[1], parts[2]
+	o, ok := cfg.Hosts[hostID]
+	if !ok {
+		return "(default)", true
+	}
+	switch field {
+	case "optimize_native":
+		if o.OptimizeNative == nil {
+			return boolStr(hosts.DefaultCapabilities(hostID).OptimizeNative), true
+		}
+		return boolStr(*o.OptimizeNative), true
+	case "optimize_mcp":
+		if o.OptimizeMCP == nil {
+			return boolStr(hosts.DefaultCapabilities(hostID).OptimizeMCP), true
+		}
+		return boolStr(*o.OptimizeMCP), true
+	case "post_tool_steer":
+		if o.PostToolSteer == nil {
+			return boolStr(hosts.DefaultCapabilities(hostID).PostToolSteer), true
+		}
+		return boolStr(*o.PostToolSteer), true
+	default:
+		return "", false
+	}
+}
+
+func setHostField(cfg *config.Config, key, val string) error {
+	if !strings.HasPrefix(key, "hosts.") {
+		return fmt.Errorf("unknown key")
+	}
+	parts := strings.Split(key, ".")
+	if len(parts) != 3 {
+		return fmt.Errorf("unknown key")
+	}
+	hostID, field := parts[1], parts[2]
+	b, err := parseBool(val)
+	if err != nil {
+		return err
+	}
+	if cfg.Hosts == nil {
+		cfg.Hosts = map[string]config.HostSettings{}
+	}
+	o := cfg.Hosts[hostID]
+	switch field {
+	case "optimize_native":
+		o.OptimizeNative = &b
+	case "optimize_mcp":
+		o.OptimizeMCP = &b
+	case "post_tool_steer":
+		o.PostToolSteer = &b
+	default:
+		return fmt.Errorf("unknown key")
+	}
+	cfg.Hosts[hostID] = o
 	return nil
 }
 

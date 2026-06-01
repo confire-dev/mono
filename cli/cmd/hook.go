@@ -149,7 +149,7 @@ func runCursorHook(raw map[string]any) error {
 		return nil
 	}
 
-	if result.Kind == intercept.ResultPassthrough {
+	if result.Kind == intercept.ResultPassthrough && result.Context == "" {
 		return nil
 	}
 

@@ -203,48 +203,20 @@ func EncodeCursorPreToolResult(result intercept.InterceptResult) (CursorPreToolO
 
 // EncodeCursorResult converts an InterceptResult into the Cursor hook output format.
 func EncodeCursorResult(result intercept.InterceptResult, toolName string) (CursorHookOutput, bool) {
-	switch result.Kind {
-	case intercept.ResultReplaceOutput:
-		out := CursorHookOutput{}
-		if cursorIsMCPTool(toolName) {
-			out.UpdatedMCPToolOutput = result.ToolOutput
-		} else if ctx := cursorOptimizationContext(result); ctx != "" {
-			out.AdditionalContext = ctx
-		} else {
-			return CursorHookOutput{}, false
-		}
-		if result.Context != "" {
-			out.AdditionalContext = joinContext(out.AdditionalContext, result.Context)
-		}
-		return out, true
-	case intercept.ResultAddContext:
-		if result.Context == "" {
-			return CursorHookOutput{}, false
-		}
-		return CursorHookOutput{AdditionalContext: result.Context}, true
-	default:
-		return CursorHookOutput{}, false
-	}
-}
+	out := CursorHookOutput{}
+	hasOutput := false
 
-func cursorOptimizationContext(result intercept.InterceptResult) string {
-	if result.Stats == nil || result.Stats.BeforeBytes == 0 {
-		return ""
+	if result.Kind == intercept.ResultReplaceOutput && cursorIsMCPTool(toolName) {
+		out.UpdatedMCPToolOutput = result.ToolOutput
+		hasOutput = true
 	}
-	pct := float64(result.Stats.BeforeBytes-result.Stats.AfterBytes) /
-		float64(result.Stats.BeforeBytes) * 100
-	return fmt.Sprintf("[Confire] Output was %dB, compressed to %dB (%.0f%% smaller). Full output preserved in your environment.",
-		result.Stats.BeforeBytes, result.Stats.AfterBytes, pct)
-}
 
-func joinContext(a, b string) string {
-	if a == "" {
-		return b
+	if result.Context != "" {
+		out.AdditionalContext = result.Context
+		hasOutput = true
 	}
-	if b == "" {
-		return a
-	}
-	return a + "\n" + b
+
+	return out, hasOutput
 }
 
 func mapCursorPhase(event string) intercept.Phase {

@@ -147,20 +147,20 @@ func DecodeVSCodeHookInput(input VSCodeHookInput) intercept.InterceptEvent {
 func EncodeVSCodeResult(result intercept.InterceptResult, eventName string) (VSCodeHookOutput, bool) {
 	out := VSCodeHookOutput{Continue: true}
 
-	var ctx string
-	switch result.Kind {
-	case intercept.ResultReplaceOutput:
-		// Can't replace output in VS Code — inject savings as context instead.
-		if result.Stats != nil && result.Stats.BeforeBytes > 0 {
-			pct := float64(result.Stats.BeforeBytes-result.Stats.AfterBytes) /
-				float64(result.Stats.BeforeBytes) * 100
-			ctx = fmt.Sprintf("[Confire] Output was %dB → would compress to %dB (%.0f%% smaller with cloud optimizer)",
-				result.Stats.BeforeBytes, result.Stats.AfterBytes, pct)
+	ctx := result.Context
+	if ctx == "" {
+		switch result.Kind {
+		case intercept.ResultReplaceOutput, intercept.ResultAddContext:
+			// Legacy fallback when daemon did not attach steer context.
+			if result.Stats != nil && result.Stats.BeforeBytes > 0 {
+				pct := float64(result.Stats.BeforeBytes-result.Stats.AfterBytes) /
+					float64(result.Stats.BeforeBytes) * 100
+				ctx = fmt.Sprintf("[Confire] Output was %dB → would compress to %dB (%.0f%% smaller with cloud optimizer)",
+					result.Stats.BeforeBytes, result.Stats.AfterBytes, pct)
+			}
+		default:
+			return VSCodeHookOutput{Continue: true}, false
 		}
-	case intercept.ResultAddContext:
-		ctx = result.Context
-	default:
-		return VSCodeHookOutput{Continue: true}, false
 	}
 
 	if ctx == "" {
