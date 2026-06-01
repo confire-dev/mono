@@ -576,7 +576,6 @@ func shouldOptimizeEvent(event intercept.InterceptEvent, cfg config.Config) bool
 // A healthy balanced session injects nothing into Claude — saving context is the product.
 func sessionStartNotification(state *daemonState) (contextMsg, systemMsg string) {
 	mode := state.cfg.EffectiveMode()
-	statusLine := sessionStatusLine(state, mode)
 
 	switch {
 	case state.apiKey == "":
@@ -592,7 +591,11 @@ func sessionStartNotification(state *daemonState) (contextMsg, systemMsg string)
 		if msg, ok := consumeWelcomePending(state); ok {
 			return msg, msg
 		}
-		return "", statusLine
+		// Healthy: silent in the agent UI (stderr only for developers).
+		if line := sessionStatusLine(state, mode); line != "" {
+			fmt.Fprintf(os.Stderr, "%s\n", line)
+		}
+		return "", ""
 	}
 }
 
