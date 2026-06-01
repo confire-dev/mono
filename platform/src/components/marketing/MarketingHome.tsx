@@ -23,6 +23,19 @@ import {
   TwoCards,
   VerticalTabsCode,
 } from '@/components/confire'
+import {
+  CalendarIcon,
+  ChartLineUpIcon,
+  CloudIcon,
+  HexagonIcon,
+  LightningIcon,
+  LockIcon,
+  PackageIcon,
+  TerminalWindowIcon,
+} from '@phosphor-icons/react'
+
+const iconSm = 'size-3.5 shrink-0'
+const iconMd = 'size-8 shrink-0'
 
 const sampleCode = `const result = await confire.optimize({
   tool: 'Bash',
@@ -45,7 +58,7 @@ export function MarketingHome() {
       <Section className="pt-16 pb-10">
         <Container>
           <div className="mx-auto max-w-3xl text-center">
-            <Badge color="green" icon="⚡" className="mb-6">
+            <Badge color="green" icon={<LightningIcon className={iconSm} weight="fill" />} className="mb-6">
               Universal AI agent optimizer
             </Badge>
             <H1 className="mb-6">
@@ -81,19 +94,19 @@ export function MarketingHome() {
             cards={[
               <FeatureCard
                 key="local"
-                icon={<span className="text-2xl">⌘</span>}
+                icon={<TerminalWindowIcon className={iconMd} weight="duotone" />}
                 title="Local-first"
                 description="Optimize on-device with zero latency. Cloud when you need the heavy hitters."
               />,
               <FeatureCard
                 key="cloud"
-                icon={<span className="text-2xl">☁</span>}
+                icon={<CloudIcon className={iconMd} weight="duotone" />}
                 title="Cloud optimizers"
                 description="Figma, GitHub, Slack, and 13+ remote optimizers on Dev and Pro plans."
               />,
               <FeatureCard
                 key="privacy"
-                icon={<span className="text-2xl">🔒</span>}
+                icon={<LockIcon className={iconMd} weight="duotone" />}
                 title="Privacy by default"
                 description="Stats stay local. Telemetry is opt-in. Your code never trains our models."
               />,
@@ -164,8 +177,8 @@ export function MarketingHome() {
           <SectionLabel number="03">Pricing</SectionLabel>
           <PricingSection
             tabs={[
-              { label: 'Monthly', icon: '◎' },
-              { label: 'Annual', icon: '⬡' },
+              { label: 'Monthly', icon: <CalendarIcon className={iconSm} weight="bold" /> },
+              { label: 'Annual', icon: <HexagonIcon className={iconSm} weight="bold" /> },
             ]}
             plans={[
               {
@@ -214,10 +227,10 @@ export function MarketingHome() {
               </Button>
             }
             marqueeItems={[
-              { icon: '⚡', text: 'Works with Claude Code & Cursor' },
-              { icon: '◈', text: 'Local stats, cloud dashboard' },
-              { icon: '◎', text: '500 free optimizations / month' },
-              { icon: '⬡', text: 'Top-up packs when you need more' },
+              { icon: <LightningIcon className={iconSm} weight="fill" />, text: 'Works with Claude Code & Cursor' },
+              { icon: <ChartLineUpIcon className={iconSm} weight="bold" />, text: 'Local stats, cloud dashboard' },
+              { icon: <CalendarIcon className={iconSm} weight="bold" />, text: '500 free optimizations / month' },
+              { icon: <PackageIcon className={iconSm} weight="bold" />, text: 'Top-up packs when you need more' },
             ]}
           />
         </Container>

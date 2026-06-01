@@ -1,11 +1,15 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 
+/** Visible corner mark size — keep offset at half so squares sit on the border. */
+const CORNER_PX = 7
+const CORNER_OFFSET = CORNER_PX / 2
+
 function CornerSquare({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <span
-      className={cn('pointer-events-none absolute z-10 block size-1.5 bg-confire-square', className)}
-      style={style}
+      className={cn('pointer-events-none absolute z-10 block bg-confire-square', className)}
+      style={{ width: CORNER_PX, height: CORNER_PX, ...style }}
       aria-hidden
     />
   )
@@ -21,21 +25,21 @@ export interface WithCornersProps {
 /** Corner-square frame used on cards and section groups. */
 export function WithCorners({ children, className, cols = 1, rows = 1 }: WithCornersProps) {
   const marks: React.ReactNode[] = [
-    <CornerSquare key="tl" className="-top-[3px] -left-[3px]" />,
-    <CornerSquare key="tr" className="-top-[3px] -right-[3px]" />,
-    <CornerSquare key="bl" className="-bottom-[3px] -left-[3px]" />,
-    <CornerSquare key="br" className="-bottom-[3px] -right-[3px]" />,
+    <CornerSquare key="tl" style={{ top: -CORNER_OFFSET, left: -CORNER_OFFSET }} />,
+    <CornerSquare key="tr" style={{ top: -CORNER_OFFSET, right: -CORNER_OFFSET }} />,
+    <CornerSquare key="bl" style={{ bottom: -CORNER_OFFSET, left: -CORNER_OFFSET }} />,
+    <CornerSquare key="br" style={{ bottom: -CORNER_OFFSET, right: -CORNER_OFFSET }} />,
   ]
 
   for (let c = 1; c < cols; c++) {
-    const left = `calc(${(c / cols) * 100}% - 3px)`
-    marks.push(<CornerSquare key={`tc${c}`} style={{ top: -3, left }} />)
-    marks.push(<CornerSquare key={`bc${c}`} style={{ bottom: -3, left }} />)
+    const left = `calc(${(c / cols) * 100}% - ${CORNER_OFFSET}px)`
+    marks.push(<CornerSquare key={`tc${c}`} style={{ top: -CORNER_OFFSET, left }} />)
+    marks.push(<CornerSquare key={`bc${c}`} style={{ bottom: -CORNER_OFFSET, left }} />)
   }
   for (let r = 1; r < rows; r++) {
-    const top = `calc(${(r / rows) * 100}% - 3px)`
-    marks.push(<CornerSquare key={`lr${r}`} style={{ top, left: -3 }} />)
-    marks.push(<CornerSquare key={`rr${r}`} style={{ top, right: -3 }} />)
+    const top = `calc(${(r / rows) * 100}% - ${CORNER_OFFSET}px)`
+    marks.push(<CornerSquare key={`lr${r}`} style={{ top, left: -CORNER_OFFSET }} />)
+    marks.push(<CornerSquare key={`rr${r}`} style={{ top, right: -CORNER_OFFSET }} />)
   }
 
   return (
