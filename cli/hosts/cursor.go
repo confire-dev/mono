@@ -19,7 +19,7 @@ func (h *CursorHost) ID() string    { return "cursor" }
 func (h *CursorHost) Label() string { return "Cursor" }
 func (h *CursorHost) Strategies() []Strategy { return []Strategy{StrategyHooks, StrategyMCPProxy} }
 func (h *CursorHost) Preferred() Strategy    { return StrategyHooks }
-func (h *CursorHost) ComingSoon() bool       { return false }
+func (h *CursorHost) ComingSoon() bool       { return true }
 
 func (h *CursorHost) Detect() bool {
 	home, _ := os.UserHomeDir()

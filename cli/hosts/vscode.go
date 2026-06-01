@@ -19,7 +19,7 @@ func (h *VSCodeHost) ID() string    { return "vscode" }
 func (h *VSCodeHost) Label() string { return "VS Code (Copilot)" }
 func (h *VSCodeHost) Strategies() []Strategy { return []Strategy{StrategyHooks} }
 func (h *VSCodeHost) Preferred() Strategy    { return StrategyHooks }
-func (h *VSCodeHost) ComingSoon() bool       { return false }
+func (h *VSCodeHost) ComingSoon() bool       { return true }
 
 func (h *VSCodeHost) Detect() bool {
 	home, _ := os.UserHomeDir()
