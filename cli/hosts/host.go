@@ -73,6 +73,7 @@ func Registry() []Host {
 	return []Host{
 		&ClaudeCodeHost{},
 		&CursorHost{},
+		&VSCodeHost{},
 		&ClineHost{},
 		&WindsurfHost{},
 		&CodexHost{},

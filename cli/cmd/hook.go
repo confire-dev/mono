@@ -13,8 +13,8 @@ import (
 
 var hookCmd = &cobra.Command{
 	Use:    "hook",
-	Short:  "Process a Claude Code hook event (called by Claude Code, not by users)",
-	Hidden: true, // not shown in help — internal command called by Claude Code
+	Short:  "Process a hook event (called by Claude Code or Cursor, not by users)",
+	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runHook()
 	},
@@ -25,38 +25,108 @@ func init() {
 }
 
 func runHook() error {
+	// Decode into a raw map first so we can detect which host sent this.
+	var raw map[string]any
+	if err := json.NewDecoder(os.Stdin).Decode(&raw); err != nil {
+		return nil // parse error → pass through, never block
+	}
+
+	switch {
+	case hosts.IsCursorHook(raw):
+		return runCursorHook(raw)
+	case hosts.IsVSCodeHook(raw):
+		return runVSCodeHook(raw)
+	default:
+		return runClaudeCodeHook(raw)
+	}
+}
+
+func runClaudeCodeHook(raw map[string]any) error {
+	// Re-decode into the Claude Code–specific struct.
 	var input hosts.HookInput
-	if err := json.NewDecoder(os.Stdin).Decode(&input); err != nil {
-		// Parse error → pass through unchanged. Never block the developer.
+	if err := remarshal(raw, &input); err != nil {
 		return nil
 	}
 
 	event := hosts.DecodeHookInput(input)
-
-	// Try daemon first (warm HTTP/2 + cloud optimizer).
-	// If it's not running, pass through — optimization requires an account and daemon.
-	t := transport.NewDaemonClient(daemonSocketPath(), transport.NewPassthrough())
-
-	result, err := t.Send(event)
-	if err != nil || result.Kind == intercept.ResultPassthrough {
-		return nil // exit 0 = pass through
+	result := sendToDaemon(event)
+	if result.Kind == intercept.ResultPassthrough {
+		return nil
 	}
 
 	out, shouldWrite := hosts.EncodeResult(result, input.HookEventName)
 	if !shouldWrite {
 		return nil
 	}
+	logSavings(input.ToolName, result)
+	return json.NewEncoder(os.Stdout).Encode(out)
+}
 
-	// Log savings to stderr only — never stdout (stdout is the hook result).
-	if result.Stats != nil && result.Stats.BeforeBytes > 0 {
-		reduction := float64(result.Stats.BeforeBytes-result.Stats.AfterBytes) /
-			float64(result.Stats.BeforeBytes) * 100
-		fmt.Fprintf(os.Stderr, "[confire] %s: %d → %d bytes (%.0f%%) [%s]\n",
-			input.ToolName,
-			result.Stats.BeforeBytes, result.Stats.AfterBytes,
-			reduction, result.Stats.Optimizer,
-		)
+func runVSCodeHook(raw map[string]any) error {
+	var input hosts.VSCodeHookInput
+	if err := remarshal(raw, &input); err != nil {
+		return nil
 	}
 
+	event := hosts.DecodeVSCodeHookInput(input)
+	result := sendToDaemon(event)
+	if result.Kind == intercept.ResultPassthrough {
+		return nil
+	}
+
+	out, shouldWrite := hosts.EncodeVSCodeResult(result, input.HookEventName)
+	if !shouldWrite {
+		return nil
+	}
+	logSavings(input.ToolName, result)
 	return json.NewEncoder(os.Stdout).Encode(out)
+}
+
+func runCursorHook(raw map[string]any) error {
+	var input hosts.CursorHookInput
+	if err := remarshal(raw, &input); err != nil {
+		return nil
+	}
+
+	event := hosts.DecodeCursorHookInput(input)
+	result := sendToDaemon(event)
+	if result.Kind == intercept.ResultPassthrough {
+		return nil
+	}
+
+	out, shouldWrite := hosts.EncodeCursorResult(result)
+	if !shouldWrite {
+		return nil
+	}
+	logSavings(input.ToolName, result)
+	return json.NewEncoder(os.Stdout).Encode(out)
+}
+
+func sendToDaemon(event intercept.InterceptEvent) intercept.InterceptResult {
+	t := transport.NewDaemonClient(daemonSocketPath(), transport.NewPassthrough())
+	result, err := t.Send(event)
+	if err != nil {
+		return intercept.InterceptResult{Kind: intercept.ResultPassthrough}
+	}
+	return result
+}
+
+func logSavings(toolName string, result intercept.InterceptResult) {
+	if result.Stats == nil || result.Stats.BeforeBytes == 0 {
+		return
+	}
+	pct := float64(result.Stats.BeforeBytes-result.Stats.AfterBytes) /
+		float64(result.Stats.BeforeBytes) * 100
+	fmt.Fprintf(os.Stderr, "[confire] %s: %d → %d bytes (%.0f%%) [%s]\n",
+		toolName, result.Stats.BeforeBytes, result.Stats.AfterBytes,
+		pct, result.Stats.Optimizer)
+}
+
+// remarshal round-trips a decoded map back through JSON into a typed struct.
+func remarshal(raw map[string]any, dst any) error {
+	b, err := json.Marshal(raw)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b, dst)
 }
