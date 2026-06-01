@@ -8,7 +8,7 @@
 ## Funnel (target)
 
 ```
-Signup → confire login/setup → first hooked session → confire stats → (Developer upgrade)
+Signup → confire login/setup → first hooked session → confire stats → (Dev upgrade)
 100%      70%                   50%                    40%              5–10%
 ```
 
@@ -84,9 +84,9 @@ Run `confire stats` to see what Confire saved this session.
 
 Optional email +1h with same CTA if no stats run yet.
 
-### Step 5: Developer upgrade (optional)
+### Step 5: Dev upgrade (optional)
 
-Trigger at 80% quota OR when stats show high MCP noise with "available on Developer" message.
+Trigger at 80% remote quota OR when user needs custom guardrails, history, or continuous optimizer updates.
 
 ---
 
@@ -110,7 +110,7 @@ Celebrate completion: "You're saving context. Here's what to try next: strict mo
 |---------|------------------|
 | Dashboard (pre-setup) | "No data yet. Run `confire setup` to connect your agent." |
 | Stats (zero calls) | "No optimizations yet. Use your agent — Confire runs automatically." |
-| Custom rules (free) | "Built-in rules active. Custom rules available on Developer." |
+| Custom rules (free) | "Built-in guardrails active. Custom dashboard rules on Dev." |
 
 ---
 
@@ -157,7 +157,7 @@ Celebrate completion: "You're saving context. Here's what to try next: strict mo
 | Setup → activation (14d) | 40% |
 | Time to activation | <24h median |
 | Day 7 retention | 30% |
-| Free → Developer (30d) | 5% |
+| Free → Dev (30d) | 5% |
 
 **Instrument:** Supabase events: `signup`, `api_key_created`, `first_optimization`, `stats_viewed`, `upgrade_clicked`.
 

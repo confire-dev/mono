@@ -1,136 +1,152 @@
 # Pricing Page Copy: Confire
 
 **URL:** confire.dev/pricing  
-**Meta title:** `Confire Pricing — Free, Dev, and Pro Plans`  
-**Meta description:** `Start free with 500 optimized calls/month. Upgrade to Dev or Pro as your AI agent usage grows. No surprise bills, no per-seat nonsense.`
+**Meta title:** `Confire Pricing — Free & Dev Plans`  
+**Meta description:** `Start free with Claude Code, Cursor, and VS Code support. Upgrade to Dev when Confire is part of your daily agent workflow.`
 
 ---
 
 ## Hero
 
-**H1:** Simple pricing. Built for how developers actually work.
+**Headline:** Start free. Upgrade when Confire becomes part of your daily agent workflow.
 
-**Subhead:**  
-Confire pricing is based on optimized calls — one per tool output your agent processes. Most developers never leave the free tier. When you're ready to scale, it's a simple upgrade.
+**Subline:**  
+Confire reviews risky tool calls before they run and sanitizes noisy tool output before it enters context.
+
+**Alternate hero (homepage):**  
+Keep AI coding agents cleaner and safer.
 
 ---
 
-## Pricing Table
+## Pricing cards
 
 ### Free
 **$0/month**
 
-- 500 optimized calls/month
-- Cloud optimizer (Cloudflare Worker)
-- Local fallback optimizer
-- Claude Code, Cursor, Cline support
-- Usage stats via `confire stats`
+For trying Confire with your AI coding agent.
 
-**CTA:** `Get started free`  
+- Claude Code full hook firewall
+- Cursor + VS Code MCP gateway mode
+- Local CLI
+- Built-in risky action review
+- Built-in MCP mutation review
+- Basic secret redaction
+- Basic prompt-injection sanitization
+- Universal fallback optimizer
+- Basic local optimizers
+- 500 remote optimizations/month
+- Basic context savings stats
+- Local-only mode
+
+**Card one-liner:**  
+Try Confire’s local firewall for Claude Code, Cursor, and VS Code. Clean noisy tool output and review risky agent actions with built-in rules.
+
+**CTA:** `Start free`  
 **Sub-CTA:** No credit card required.
+
+**Short bullets (card UI):**
+- ✓ Claude Code full firewall
+- ✓ Cursor + VS Code MCP gateway
+- ✓ Local CLI
+- ✓ Built-in risky action review
+- ✓ Secret + prompt-injection sanitization
+- ✓ Universal fallback optimizer
+- ✓ Basic local optimizers
+- ✓ 500 remote optimizations/mo
+- ✓ Basic savings stats
 
 ---
 
 ### Dev
-**$[price]/month**
+**$10/month** · **$90/year** (save vs monthly)
 
-Everything in Free, plus:
-- [X,000] optimized calls/month
-- Priority cloud optimizer (lower latency)
-- Extended usage analytics
-- Email support
+For daily AI coding with Confire always on.
 
-**CTA:** `Start Dev plan`  
+- Everything in Free
+- 5,000 remote optimizations/month
+- Custom dashboard guardrail rules
+- Remote policy sync to local CLI
+- Growing source-specific optimizer library
+- Continuous optimizer + firewall updates
+- Larger input payload limits
+- Optimization history
+- Firewall history
+- Tool-use guidance
+- Detailed token/context/cost savings stats
+- Advanced Cursor/VS Code MCP gateway rules
+- Early access to new clients/adapters
+
+**Card one-liner:**  
+Use Confire daily with higher limits, custom firewall rules, updated source-specific optimizers, and local policy sync across supported clients.
+
+**CTA:** `Start Dev`  
 **Sub-CTA:** Cancel anytime.
+
+**Short bullets (card UI):**
+- ✓ Everything in Free
+- ✓ 5,000 remote optimizations/mo
+- ✓ Custom dashboard guardrails
+- ✓ Remote policy sync
+- ✓ Growing optimizer library
+- ✓ Continuous firewall updates
+- ✓ Larger payloads
+- ✓ Optimization + firewall history
+- ✓ Tool-use guidance
+- ✓ Early access to new adapters
 
 ---
 
-### Pro
-**$[price]/month**
+### Team
+**Coming soon**
 
-Everything in Dev, plus:
-- Unlimited optimized calls
-- Per-tool-type configuration
-- Team usage pooling (unlimited seats)
-- Team dashboard
-- SLA-backed uptime
-- Priority support
+Shared policies, audit logs, team dashboard, and admin-enforced rules.
 
-**CTA:** `Get Pro`  
-**Sub-CTA:** [Link to contact] — want a custom quote?
+**CTA:** `Notify me` or `Contact us`
+
+---
+
+## Support note (below cards)
+
+Claude Code supports full hook-based firewall mode. Cursor and VS Code support MCP gateway mode for tools routed through Confire.
+
+Remote optimizations receive sanitized/redacted content only.
 
 ---
 
 ## FAQ Section
 
-**Q: What counts as one "optimized call"?**  
-Each tool output that Confire processes counts as one call. If your agent runs a Bash command, that's one call. If it fetches a URL, that's another. If it calls the GitHub API, that's another. Tool calls that result in empty output or errors may not count against your limit.
+**Q: What counts as one remote optimization?**  
+Each tool output that Confire processes through the cloud optimizer counts as one. Local evaluation and local-only mode do not use your remote quota the same way — see docs for details.
+
+**Q: What's the difference between Claude Code and Cursor/VS Code support?**  
+Claude Code uses full PreToolUse and PostToolUse hooks. Cursor and VS Code use MCP gateway mode, which protects and optimizes tools you route through Confire. Both are included on Free.
 
 **Q: What happens when I hit my free tier limit?**  
-Confire pauses optimization for the rest of the month. Your agent keeps working — it just receives unoptimized (full-size) tool outputs until your limit resets. You can upgrade at any time to resume optimization immediately.
+Remote optimization pauses until reset or upgrade. Your agent keeps working; built-in local firewall evaluation continues. Upgrade to Dev for 5,000 remote optimizations/month.
 
-**Q: Does the local optimizer count against my limit?**  
-Yes. All optimized calls — whether processed by the cloud or local optimizer — count toward your monthly limit. The local optimizer is a fallback for availability, not a way to bypass limits.
+**Q: Is there a free trial of Dev?**  
+Free is a full try-out — not a time-limited trial. Upgrade to Dev when you want higher limits, custom guardrails, and continuously updated optimizers.
 
-**Q: Is there a free trial of Dev or Pro?**  
-The Free plan is effectively a permanent free trial. You get real optimization on 500 calls/month with no time limit. Upgrade when the cap matters to you.
+**Q: Can I buy more optimizations without upgrading?**  
+Top-up packs ($5 = 5,000 requests) are available on Dev. They never expire.
 
-**Q: Can I change plans anytime?**  
-Yes. Upgrade, downgrade, or cancel from your account settings or by emailing us. No runaround.
+**Q: What are custom guardrail rules?**  
+Built-in rules ship on every plan. Dev adds rules you define in the dashboard, synced to your local CLI for offline evaluation.
 
-**Q: Do you offer annual billing?**  
-[Yes — 2 months free / Not yet — coming soon.]
-
-**Q: Is there a student or open source discount?**  
-Email us. We'll work something out.
-
-**Q: How do I know how many calls I'm using?**  
-Run `confire stats` in your terminal at any time. You'll see your current month's call count, estimated tokens saved, and reset date.
-
-**Q: What is a "team seat" on Pro?**  
-Pro plans don't have per-seat limits. Your team shares a pooled call limit. Everyone logs in with their own account but contributes to and draws from the same pool. Usage by team member is visible in the team dashboard.
+**Q: Do you store my tool output?**  
+Remote optimizations receive content for processing; we do not use it to train models. See Privacy Policy for retention details.
 
 ---
 
-## Usage Estimator (Inline Tool)
+## Plan comparison footnote
 
-**Heading:** Not sure which plan you need?
-
-Estimate your monthly call volume:
-
-```
-Average Claude Code or Cursor sessions per week: [  ]
-Average tool calls per session: [  ]
-
-→ Estimated monthly calls: ~[X]
-
-Recommendation: [Free / Dev / Pro]
-```
-
-**Typical profiles:**
-
-| Developer type | Typical sessions/week | Est. calls/month | Plan |
-|----------------|----------------------|------------------|------|
-| Casual (side projects, occasional) | 3–5 | 150–400 | Free |
-| Active (daily dev, full-time coding) | 10–20 | 800–2,000 | Dev |
-| Heavy (agents in CI, team workflows) | 30+ | 3,000+ | Pro |
-
----
-
-## Guarantee / Risk Reversal
-
-**Heading:** If Confire doesn't save you tokens, you owe us nothing.
-
-**Body:**  
-The Free plan has no time limit and no credit card requirement. If your first session doesn't show measurable token savings in `confire stats`, uninstall is one command: `confire uninstall`. We'd genuinely rather you leave than stay with a tool that doesn't work for you.
+Claude Code supports full hook-based firewall mode. Cursor and VS Code support MCP gateway mode for tools routed through Confire. Remote optimizations receive sanitized/redacted content only.
 
 ---
 
 ## Bottom CTA
 
-**Heading:** Start with free. Upgrade when it matters.
+**Headline:** Keep AI coding agents cleaner and safer.
 
-**CTA button:** `Create free account`
-
-**Subtext:**  
-500 calls/month · No card required · Works in 2 minutes
+**CTA:** `Start free — no card required`  
+**Sub:** Works with Claude Code, Cursor, and VS Code.

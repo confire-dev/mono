@@ -11,7 +11,7 @@
 
 **Three big bets (12 months):**
 1. **Own Claude Code + Cursor + VS Code SEO** — become the default answer for "reduce agent context" and "AI coding agent firewall"
-2. **Product-led proof** — every user sees `confire stats` savings; free security removes signup friction
+2. **Product-led proof** — every user tries full firewall + optimizers on supported clients via Free; Dev when daily workflow
 3. **Community-led WOM** — GitHub Discussions + stats screenshots as referral engine
 
 **90-day priorities:**
@@ -21,7 +21,7 @@
 
 **12-month outcome target:**
 - 2,000+ free accounts
-- 150+ Developer subscribers (~$1,500 MRR)
+- 150+ Dev subscribers (~$1,500 MRR)
 - Top-3 organic presence for 3 core keywords
 
 ---
@@ -32,7 +32,7 @@
 |---------|------------|
 | **Category** | AI agent context firewall |
 | **ICP** | Daily Claude Code / Cursor / VS Code users |
-| **Business model** | Freemium → Developer $10/mo → Team (future) |
+| **Business model** | Freemium → Dev $10/mo or $90/yr → Team (coming soon) |
 | **Voice** | Direct, numeric, skeptical-engineer-friendly |
 | **Non-negotiables** | Security on free; no context spam; honest limits |
 
@@ -44,7 +44,7 @@
 
 | Section | Score | Notes |
 |---------|:-----:|-------|
-| Brand & positioning | 3 | Strong draft copy; security underplayed |
+| Brand & positioning | 3 | Plan copy updated; client-mode honesty required everywhere |
 | Website | 3 | Platform exists; pages need refresh |
 | Content / SEO | 2 | Strategy written; few live posts |
 | Paid acquisition | 0 | Not started |
@@ -138,15 +138,15 @@ See [onboarding.md](./onboarding.md) for full flow design.
 
 | Plan | Price | Upgrade trigger |
 |------|-------|-----------------|
-| Free | $0 | 500 req exhausted; wants MCP optimizers |
-| Developer | $10/mo | Daily use; GitHub/Figma pain |
-| Team | $20/seat (soon) | Long sessions; multi-engineer |
+| Free | $0 | Trying Confire; hits 500 remote/mo |
+| Dev | $10/mo or $90/yr | Daily workflow; custom rules + updated library |
+| Team | Coming soon | Shared policies, audit, dashboard |
 
 **Monetization moves:**
 - In-product upgrade at 80% quota (CLI stderr — already exists)
-- Pricing page comparison: free security vs paid custom rules
-- Top-ups $5/5K req for heavy Developer users
-- Team waitlist with founding pricing ($15/seat grandfather)
+- Pricing headline: upgrade when Confire is daily workflow, not “unlock firewall”
+- Top-ups $5/5K req on Dev
+- Team waitlist — contact / notify me
 
 **Psychology:** Anchor Developer against Claude API spend saved — see marketing-psychology.md.
 
@@ -168,7 +168,7 @@ See [onboarding.md](./onboarding.md) for full flow design.
 | Quarter | Milestone |
 |---------|-----------|
 | Q2 2026 | GA launch; 500 activated users |
-| Q3 2026 | 100 Developer subs; Team waitlist 500+ |
+| Q3 2026 | 100 Dev subs; Team waitlist 500+ |
 | Q4 2026 | Team beta; programmatic SEO pages |
 | Q1 2027 | Team GA; case studies; optional seed raise |
 
@@ -217,7 +217,7 @@ Full 139: see [marketing-ideas.md](./marketing-ideas.md).
 | Activation | Setup completion %, time-to-first-stats |
 | Retention | WAU with hook enabled |
 | Referral | Invites / badge clicks |
-| Revenue | Free→Developer conversion; MRR |
+| Revenue | Free→Dev conversion; MRR |
 
 **RACI (solo founder default):**
 

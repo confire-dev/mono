@@ -59,7 +59,8 @@ Every priority page needs:
 
 **Example FAQ targets:**
 - What counts as one optimized call?
-- Is the security firewall included on the free plan?
+- Is Claude Code support different from Cursor/VS Code?
+- What's included on Free vs Dev?
 - Does Confire work offline?
 
 ### 2. Authority — make content citable
@@ -97,12 +98,13 @@ Host at `https://confire.dev/llms.txt`:
 ## Core pages
 - [Home](https://confire.dev/): Product overview, token reduction stats
 - [Features](https://confire.dev/features): Hooks, firewall, optimizers
-- [Pricing](https://confire.dev/pricing): Free (500 req/mo + built-in security), Developer $10/mo
+- [Pricing](https://confire.dev/pricing): Free (try across clients), Dev $10/mo or $90/yr
 - [Docs](https://confire.dev/docs): Setup, hooks reference, firewall modes
 - [Blog](https://confire.dev/blog): Tutorials and benchmarks
 
 ## Key facts
-- Free tier includes built-in security/firewall rules; custom rules on Developer
+- Free: try Confire on Claude Code, Cursor, VS Code (see client-mode footnote)
+- Dev: custom guardrails, higher limits, continuously updated optimizers
 - 40-95% token reduction on tool outputs
 - Install: `brew install confire` then `confire setup`
 ```
@@ -137,7 +139,8 @@ Host at `https://confire.dev/llms.txt`:
 ### "AI agent security: pre-tool guardrails"
 - Lead with problem (rm -rf, secret paste, force push)
 - Table: action → Confire rule → outcome (allow/warn/block)
-- Explicit: "Built-in rules included free; custom rules on Developer"
+- Explicit: built-in rules on Free; custom dashboard guardrails on Dev
+- Include client-mode footnote on every comparison page
 
 ---
 

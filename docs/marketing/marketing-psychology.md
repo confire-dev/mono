@@ -13,7 +13,7 @@
 | Consideration | "Confire might solve this better than DIY" |
 | Signup | Create free account (no card) |
 | Activation | Run `confire setup` and use agent |
-| Upgrade | Developer when MCP pain or quota hit |
+| Upgrade | Dev when Confire is daily workflow (quota, custom rules, history) |
 
 ---
 
@@ -32,9 +32,9 @@
 **Insight:** First number seen sets reference point.
 
 **Application:**
-- Anchor against **Claude API spend**, not Confire price: "Save $40–200/mo in tokens → Confire Developer $10/mo"
-- Show **Team** column (waitlist) to make Developer feel accessible
-- Order: Free → Developer → Team (ascending)
+- Anchor against **Claude API spend**, not Confire price: "Save $40–200/mo in tokens → Confire Dev $10/mo"
+- Show **Team** (coming soon) to make Dev feel accessible
+- Order: Free → Dev → Team (ascending)
 
 ### Social proof (homepage)
 
@@ -51,9 +51,9 @@
 **Insight:** Give first → obligation to try / upgrade later.
 
 **Application:**
-- **Free includes security firewall** — generous, unexpected vs "security = enterprise paywall" mental model
-- 500 optimizations/mo is real value, not 7-day trial
-- `confire stats` shows savings before asking for money
+- **Free is a real try-out** — full Claude Code firewall + Cursor/VS Code gateway + built-in rules + basic optimizers
+- 500 remote optimizations/mo is usable, not a 7-day trial
+- `confire stats` shows savings before asking for Dev
 
 ### Endowment effect (post-setup)
 
@@ -61,7 +61,7 @@
 
 **Application:**
 - After setup, user "owns" their optimized workflow — `confire off` feels like loss
-- Custom rules on Developer increase switching cost (ethical)
+- Custom guardrails on Dev + policy sync increase switching cost (ethical)
 
 ### Activation energy (onboarding)
 
@@ -85,7 +85,7 @@
 **Insight:** Too many options paralyze.
 
 **Application:**
-- v1: Two real choices (Free, Developer) + Team waitlist
+- v1: Free + Dev + Team (coming soon) — only two purchasable tiers
 - Don't expose Enterprise on self-serve pricing
 
 ### Authority (content)
@@ -148,15 +148,15 @@
 
 | Element | Psychology |
 |---------|------------|
-| Free firewall row | Reciprocity |
-| Developer MCP table | Contrast effect — show what Free lacks |
+| Free includes real firewall + gateway | Reciprocity — try before daily commit |
+| Dev custom rules + continuous updates | Contrast — daily workflow, not crippled free |
 | FAQ on limits | Loss aversion at quota |
 
 ### CLI upgrade prompt
 
 ```
 ⚠️ 412/500 optimizations used this month.
-    GitHub MCP: 87% reduction available on Developer.
+    Source-specific optimizers + custom rules on Dev.
     Upgrade: confire.dev/pricing
 ```
 

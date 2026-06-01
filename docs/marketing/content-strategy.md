@@ -14,7 +14,7 @@ See also: existing pillar draft in `docs/copy/content-strategy.md` — this doc 
 |-------|-------|
 | Product | CLI + cloud optimizer + local firewall for AI coding agents |
 | ICP | Daily Claude Code / Cursor / VS Code users feeling cost or safety pain |
-| Plans | Free (500 req + built-in security), Developer $10/mo |
+| Plans | Free (try across clients), Dev $10/mo or $90/yr |
 | Tagline | Less noise in context = cheaper, faster, sharper AI agents |
 | Site | confire.dev |
 
@@ -41,13 +41,13 @@ Subtopics:
 - VS Code Copilot hooks parity
 
 ### Pillar 3: AI Agent Security & Guardrails
-**Why:** Differentiator — security included free; competitors often ignore.
+**Why:** Full try-out on Free; Dev for custom rules and updated library — not “security vs optimizers” split.
 
 Subtopics:
 - Pre-tool firewall patterns (block/warn/review)
 - Dangerous Bash patterns agents run
 - Secret redaction (best-effort)
-- Custom rules on Developer tier
+- Custom guardrail rules on Dev tier
 
 ### Pillar 4: Bash & MCP Output Compression
 **Why:** Technical, low-competition long-tail.
@@ -163,8 +163,7 @@ PILLAR 5: Business case
 
 **Sales/support signals (when live):**
 - Where setup fails (agent detection, daemon not running)
-- Surprise at free security vs paid custom rules
-- Which optimizer unlock drives Developer upgrades
+- Client modes: Claude Code hooks vs Cursor/VS Code MCP gateway
 
 ---
 

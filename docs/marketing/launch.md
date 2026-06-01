@@ -1,8 +1,8 @@
 # Launch Strategy — Confire v1 GA
 
 **Skill:** launch  
-**Launch target:** General availability — Free + Developer tiers  
-**v1 scope:** Claude Code, Cursor, VS Code hooks; built-in firewall free; MCP optimizers on Developer
+**Launch target:** General availability — Free + Dev tiers  
+**v1 scope:** Claude Code (full hooks), Cursor + VS Code (MCP gateway); honest client-mode footnote on all surfaces
 
 ---
 
@@ -13,12 +13,11 @@
 | CLI (Homebrew + direct install) | ✅ |
 | Cloud optimizer + local fallback | ✅ |
 | Built-in firewall (free) | ✅ |
-| Developer tier ($10/mo) | ✅ |
-| MCP optimizers (13 tools) | ✅ Developer only |
-| Custom rules | ✅ Developer only |
-| Team tier | 🚧 Waitlist only |
+| Dev tier ($10/mo or $90/yr) | ✅ |
+| Custom guardrails + policy sync | ✅ Dev only |
+| Team tier | 🚧 Coming soon card only |
 
-**Launch type:** Full GA (Phase 5) for Free + Developer — not a limited beta.
+**Launch type:** Full GA for Free + Dev — not a limited beta.
 
 ---
 
@@ -100,7 +99,7 @@
 **Tagline (≤60 chars):** Context firewall for Claude Code, Cursor & VS Code
 
 **Description lead:**
-> Confire hooks into your AI coding agent to block risky tool calls and compress noisy output before it eats your context window. 40–95% token reduction. Built-in security rules free.
+> Confire reviews risky tool calls and sanitizes noisy output before it hits your context window. Claude Code: full hooks. Cursor & VS Code: MCP gateway. Start free on all supported clients.
 
 **Gallery:**
 1. Hero — stats screenshot
@@ -117,10 +116,9 @@
 
 | Audience | Lead message | Proof |
 |----------|--------------|-------|
-| Individual dev | "Stop paying for Bash output in your context" | 97% test output reduction |
-| Security-minded dev | "Pre-tool guardrails included free" | Rule list, strict mode |
-| Power user | "13 MCP optimizers on Developer" | GitHub/Figma/Jira table |
-| Team lead | "Team tier coming — join waitlist" | Roadmap teaser |
+| Individual dev | "Try the firewall across your editor" | Free card copy |
+| Daily driver | "Custom rules + 5,000 remote/mo" | Dev card copy |
+| Team lead | "Team — coming soon" | Waitlist |
 
 ---
 

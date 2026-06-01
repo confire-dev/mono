@@ -5,20 +5,22 @@
 ## Above the Fold / Hero
 
 **H1:**
-Less noise in context.  
-Cheaper, faster, sharper AI agents.
+Keep AI coding agents cleaner and safer.
 
 **Subheadline (20–30 words):**
-Confire sits between your AI agent and the model context. It compresses tool call outputs — Bash logs, GitHub responses, web fetches — before they eat your tokens.
+Confire reviews risky tool calls before they run and sanitizes noisy tool output before it enters context.
 
 **Hero CTA (primary):**
-`Get started free →`
+`Start free →`
 
 **Secondary CTA:**
 `See how it works`
 
 **Social proof line (below CTAs):**
-Works with Claude Code, Cursor, and Cline. Free up to 500 calls/month.
+Works with Claude Code, Cursor, and VS Code.
+
+**Client-mode footnote (below social proof):**
+Claude Code supports full hook-based firewall mode. Cursor and VS Code support MCP gateway mode for tools routed through Confire.
 
 **Hero stat callout (visual block below CTA):**
 ```
@@ -115,53 +117,62 @@ Confire uses a cloud optimizer (Cloudflare Worker) with a local fallback. Latenc
 **Integration badges/logos:**
 - Claude Code (Anthropic)
 - Cursor
-- Cline
+- VS Code
 - Cloudflare (infrastructure)
 
 **Small-print copy:**  
-Confire uses the standard hook protocol for each agent. No custom forks, no private APIs.
+Claude Code uses full PreToolUse/PostToolUse hooks. Cursor and VS Code use MCP gateway mode for tools routed through Confire.
 
 ---
 
 ## Pricing Preview (Homepage Teaser)
 
-**Section heading:** Start free. Upgrade when you need to.
+**Section heading:** Start free. Upgrade when Confire becomes part of your daily agent workflow.
 
 **Plan cards:**
 
-**Free**
-500 optimized calls/month  
-Cloud + local optimizer  
-Claude Code, Cursor, Cline support  
-`Get started free →`
+**Free — $0/mo**  
+For trying Confire with your AI coding agent.
 
-**Dev**  
-[X] calls/month  
-Priority cloud optimizer  
-Usage analytics  
-Email support  
-`Start Dev plan →`
+Try Confire’s local firewall for Claude Code, Cursor, and VS Code. Clean noisy tool output and review risky agent actions with built-in rules.
 
-**Pro**  
-Unlimited calls  
-SLA-backed uptime  
-Team usage dashboard  
-Priority support  
-`Talk to us →`
+- Claude Code full firewall
+- Cursor + VS Code MCP gateway
+- 500 remote optimizations/month
+- Basic savings stats
 
-**Subtext below pricing:**  
-500 free calls goes a long way when every call saves 40–95% of token output. Most developers start free and never need more.
+`Start free →`
+
+**Dev — $10/mo · $90/yr**  
+For daily AI coding with Confire always on.
+
+Use Confire daily with higher limits, custom firewall rules, updated source-specific optimizers, and local policy sync.
+
+- Everything in Free
+- 5,000 remote optimizations/month
+- Custom dashboard guardrails
+- Optimization + firewall history
+
+`Start Dev →`
+
+**Team — Coming soon**  
+Shared policies, audit logs, team dashboard.
+
+`Notify me →`
+
+**Footnote below pricing:**  
+Claude Code supports full hook-based firewall mode. Cursor and VS Code support MCP gateway mode for tools routed through Confire. Remote optimizations receive sanitized/redacted content only.
 
 ---
 
 ## Final CTA Section
 
-**Heading:** Stop paying for context you don't need.
+**Heading:** Keep AI coding agents cleaner and safer.
 
 **Body:**  
-Every Bash log your agent dumps into context, every bloated GitHub response, every 200KB web fetch — you're paying to process all of it. Confire removes the noise before the model ever sees it.
+Risky tool calls get reviewed before they run. Noisy outputs get sanitized before they hit your context window. Start free on Claude Code, Cursor, or VS Code.
 
-**CTA:** `Get started free — no card required`
+**CTA:** `Start free — no card required`
 
 **Under CTA:**  
 Takes 30 seconds to install. Works immediately.

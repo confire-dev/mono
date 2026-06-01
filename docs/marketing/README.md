@@ -2,7 +2,7 @@
 
 Generated from [coreyhaines31/marketingskills](https://github.com/coreyhaines31/marketingskills) global skills (`~/.agents/skills/`). Each file follows that skill's output format, applied to Confire using [product-context.md](./product-context.md).
 
-**Commit note:** SessionStart silence fix committed separately (`fix(cli): stop SessionStart status banner on healthy sessions`).
+**Stage:** Pre-GA — public tiers: Free + Dev ($10/mo or $90/yr). Team coming soon.
 
 ---
 

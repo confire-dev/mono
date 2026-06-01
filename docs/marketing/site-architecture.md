@@ -140,9 +140,9 @@ Use BreadcrumbList schema.
 | From | To | Anchor text |
 |------|-----|-------------|
 | Blog hooks post | `/features/security` | built-in tool firewall |
-| Blog cost post | `/pricing` | free tier includes 500 optimizations |
-| Features optimization | `/pricing` | MCP optimizers on Developer |
-| Features security | `/pricing` | custom rules on Developer |
+| Blog cost post | `/pricing` | Free try-out; Dev for daily use |
+| Features optimization | `/pricing` | Dev: custom rules + updated library |
+| Features security | `/pricing` | Free try-out vs Dev daily workflow |
 | Every blog post | `/signup` | Get started free |
 
 ### Orphan prevention
