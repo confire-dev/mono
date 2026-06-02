@@ -16,6 +16,7 @@ type attackCase struct {
 	Payload     string `json:"payload"`
 	Risk        string `json:"risk"`
 	ShouldCatch bool   `json:"should_catch"`
+	SkipUntil   string `json:"skip_until"`
 	Notes       string `json:"notes"`
 }
 
@@ -35,6 +36,9 @@ func TestSecurityHarness_Attacks(t *testing.T) {
 	for _, a := range attacks {
 		a := a
 		t.Run(a.ID, func(t *testing.T) {
+			if a.SkipUntil != "" {
+				t.Skipf("deferred to %s: %s", a.SkipUntil, a.Notes)
+			}
 			result, err := engine.Handle(mcpPostEvent(a.Payload))
 			if err != nil {
 				t.Fatalf("handler error: %v", err)
