@@ -304,6 +304,13 @@ func (ds *daemonState) postEvent(payload telemetryPayload) bool {
 		return false
 	}
 	resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized {
+		// Key was revoked — stop sending events until user re-logs in.
+		ds.mu.Lock()
+		ds.apiKey = ""
+		ds.mu.Unlock()
+		fmt.Fprintln(os.Stderr, "[confire] API key revoked — run `confire login` to reconnect")
+	}
 	return resp.StatusCode == http.StatusOK
 }
 

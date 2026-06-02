@@ -212,13 +212,17 @@ export async function recordOptimization(
   const isLocal = params.optimizer.startsWith('local/')
 
   // 1. Increment the active usage_period
-  await sbFetch(cfg, 'POST', '/rest/v1/rpc/increment_usage_period', {
+  const usageRes = await sbFetch(cfg, 'POST', '/rest/v1/rpc/increment_usage_period', {
     p_user_id:          params.userId,
     p_plan_id:          params.planId,
     p_cloud_opts:       isLocal ? 0 : 1,
     p_cloud_tokens:     isLocal ? 0 : rawTokens,
     p_saved_tokens:     savedTokens,
   })
+  if (!usageRes.ok) {
+    const msg = await usageRes.text().catch(() => usageRes.statusText)
+    throw new Error(`increment_usage_period failed (${usageRes.status}): ${msg}`)
+  }
 
   // 1b. Over plan limit — deduct from purchased top-up pool
   if (!isLocal && params.usePurchasedCredit) {
@@ -226,7 +230,7 @@ export async function recordOptimization(
   }
 
   // 2. Write per-call detail (powers the dashboard)
-  await sbFetch(cfg, 'POST', '/rest/v1/tool_call_summaries', {
+  const summaryRes = await sbFetch(cfg, 'POST', '/rest/v1/tool_call_summaries', {
     user_id:         params.userId,
     cli_session_id:  params.sessionId || null,
     tool_type:       params.toolType,
@@ -237,6 +241,10 @@ export async function recordOptimization(
     was_cached:      params.wasCached,
     credits_used:    isLocal ? 0 : 1,
   })
+  if (!summaryRes.ok) {
+    const msg = await summaryRes.text().catch(() => summaryRes.statusText)
+    throw new Error(`tool_call_summaries insert failed (${summaryRes.status}): ${msg}`)
+  }
 }
 
 // ── Top-up credits ────────────────────────────────────────────────────────────
@@ -257,16 +265,32 @@ export async function grantPurchasedCredits(
 
 // ── Profile & user management ──────────────────────────────────────────────
 
+// getProfileById fetches an existing profile by Supabase user ID. Returns null if not found.
+export async function getProfileById(cfg: SupabaseConfig, userId: string): Promise<Profile | null> {
+  const res = await sbFetch(cfg, 'GET', `/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&limit=1`)
+  if (!res.ok) return null
+  const rows = await res.json() as Profile[]
+  return rows[0] ?? null
+}
+
 // upsertProfile creates or updates a profile from a Supabase auth user.
-// Called after successful OAuth → API key generation.
+// Call this only on first login / key generation — not on every request.
+// Only email (and name when provided) are merged on conflict — plan and
+// subscription_status are authoritative from Stripe webhooks and must not
+// be overwritten here (they have DB defaults for new rows).
+// Only email (and name when provided) are merged on conflict — plan and
+// subscription_status are authoritative from Stripe webhooks and must not
+// be overwritten here (they have DB defaults for new rows).
 export async function upsertProfile(
   cfg: SupabaseConfig,
   supabaseUserId: string,
   email: string,
   name?: string
 ): Promise<Profile> {
+  const body: Record<string, unknown> = { id: supabaseUserId, email }
+  if (name != null) body.name = name
   const res = await sbFetch(cfg, 'POST', '/rest/v1/profiles',
-    { id: supabaseUserId, email, name: name ?? null, plan: 'free', subscription_status: 'none' },
+    body,
     { 'Prefer': 'resolution=merge-duplicates,return=representation' })
   const rows = await res.json() as Profile[]
   // Credit balance is seeded by the DB trigger on profiles INSERT.
@@ -274,18 +298,62 @@ export async function upsertProfile(
   return rows[0]!
 }
 
+// revokeApiKey sets revoked_at on a key owned by userId. Scoped to the owner so
+// users can only revoke their own keys.
+export async function revokeApiKey(cfg: SupabaseConfig, userId: string, keyId: string): Promise<void> {
+  await sbFetch(cfg, 'PATCH',
+    `/rest/v1/api_keys?id=eq.${encodeURIComponent(keyId)}&user_id=eq.${encodeURIComponent(userId)}&revoked_at=is.null`,
+    { revoked_at: new Date().toISOString() })
+}
+
 // generateApiKey creates a new API key for a user, stores its hash, returns raw key.
 export async function generateApiKey(
   cfg: SupabaseConfig,
   userId: string,
-  deviceId?: string
+  deviceId?: string,
+  deviceName?: string,
 ): Promise<string> {
   const rawKey = `cf_live_${secureRandom(32)}`
   const hash   = await sha256(rawKey)
-  await sbFetch(cfg, 'POST', '/rest/v1/api_keys',
-    { user_id: userId, key_hash: hash, key_prefix: rawKey.slice(0, 12), device_id: deviceId ?? null })
-  await writeAudit(cfg, userId, 'api_key_generated', { prefix: rawKey.slice(0, 12), device_id: deviceId })
+
+  // Try with key_suffix first; fall back without it if the column doesn't exist yet.
+  let res = await sbFetch(cfg, 'POST', '/rest/v1/api_keys',
+    {
+      user_id:    userId,
+      key_hash:   hash,
+      key_prefix: rawKey.slice(0, 12),
+      key_suffix: rawKey.slice(-4),
+      device_id:  deviceName ?? deviceId ?? null,
+    })
+
+  if (!res.ok) {
+    const body = await res.text()
+    // column "key_suffix" of relation "api_keys" does not exist
+    if (body.includes('key_suffix')) {
+      res = await sbFetch(cfg, 'POST', '/rest/v1/api_keys',
+        {
+          user_id:    userId,
+          key_hash:   hash,
+          key_prefix: rawKey.slice(0, 12),
+          device_id:  deviceName ?? deviceId ?? null,
+        })
+    }
+    if (!res.ok) {
+      const msg = res.ok ? '' : await res.text().catch(() => res.statusText)
+      throw new Error(`api_keys insert failed (${res.status}): ${msg}`)
+    }
+  }
+
+  await writeAudit(cfg, userId, 'api_key_generated', { prefix: rawKey.slice(0, 12), device_name: deviceName, device_id: deviceId })
   return rawKey
+}
+
+// revokeCurrentKey revokes the key identified by its hash — used by the CLI on logout.
+export async function revokeCurrentKey(cfg: SupabaseConfig, rawKey: string): Promise<void> {
+  const hash = await sha256(rawKey)
+  await sbFetch(cfg, 'PATCH',
+    `/rest/v1/api_keys?key_hash=eq.${encodeURIComponent(hash)}&revoked_at=is.null`,
+    { revoked_at: new Date().toISOString() })
 }
 
 // ── Sessions ───────────────────────────────────────────────────────────────
@@ -303,8 +371,9 @@ export async function upsertCliSession(
       device_id:   params.deviceId ?? null,
       cli_version: params.cliVersion ?? null,
       integration: params.integration ?? 'claude_code',
+      ended_at:    null,  // clear ended_at so a restarted session shows Active again
     },
-    { 'Prefer': 'resolution=ignore-duplicates' })
+    { 'Prefer': 'resolution=merge-duplicates' })
 }
 
 export async function closeCliSession(

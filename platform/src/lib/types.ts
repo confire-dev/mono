@@ -60,6 +60,7 @@ export interface CliSession {
 export interface ApiKey {
   id: string
   key_prefix: string
+  key_suffix?: string
   device_id?: string
   last_used_at?: string
   created_at: string

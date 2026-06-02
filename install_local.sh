@@ -9,8 +9,8 @@
 #   ./install_local.sh --dir ~/.local/bin
 #
 # Prerequisites (run in separate terminals):
-#   pnpm worker:dev          → API worker  http://127.0.0.1:8787
-#   cd platform && pnpm dev  → platform    http://127.0.0.1:4321
+#   pnpm worker:dev          → API worker  http://localhost:8787
+#   cd platform && pnpm dev  → platform    http://localhost:4321
 #   cd distribution && pnpm dev  → only for --from-distribution --http (port 8789)
 #
 # The installed `confire-local` binary talks to local worker + platform via env vars
@@ -20,9 +20,9 @@ set -e
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
-WORKER_URL="${CONFIRE_WORKER_URL:-http://127.0.0.1:8787}"
-PLATFORM_URL="${CONFIRE_PLATFORM_URL:-http://127.0.0.1:4321}"
-DIST_URL="${CONFIRE_DIST_URL:-http://127.0.0.1:8789}"
+WORKER_URL="${CONFIRE_WORKER_URL:-http://localhost:8787}"
+PLATFORM_URL="${CONFIRE_PLATFORM_URL:-http://localhost:4321}"
+DIST_URL="${CONFIRE_DIST_URL:-http://localhost:8789}"
 INSTALL_DIR="${CONFIRE_INSTALL_DIR:-}"
 WRAPPER_NAME="${CONFIRE_LOCAL_BIN:-confire-local}"
 VERSION=""
@@ -52,9 +52,9 @@ Options:
   --seed                   With -D: run scripts/seed-local-distribution.sh first
   --version, -v <tag>      Version tag for distribution mode (default: dev-local)
   --dir, -d <path>         Install wrapper directory (default: ~/.local/bin)
-  --worker-url <url>       Worker API base (default: http://127.0.0.1:8787)
-  --platform-url <url>     Platform base (default: http://127.0.0.1:4321)
-  --dist-url <url>         Distribution worker base (default: http://127.0.0.1:8789)
+  --worker-url <url>       Worker API base (default: http://localhost:8787)
+  --platform-url <url>     Platform base (default: http://localhost:4321)
+  --dist-url <url>         Distribution worker base (default: http://localhost:8789)
 
 Environment:
   CONFIRE_WORKER_URL, CONFIRE_PLATFORM_URL, CONFIRE_DIST_URL, CONFIRE_INSTALL_DIR
@@ -96,8 +96,9 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 if [ "$MODE" = "build" ]; then
   printf "Building dev binary from cli/...\n"
-  (cd "$ROOT/cli" && make dev)
-  cp "$ROOT/cli/confire" "$REAL_BINARY"
+  # Build directly to destination — avoids macOS provenance xattr that security
+  # tools set on cp'd files, which causes immediate SIGKILL on some systems.
+  (cd "$ROOT/cli" && make dev-install DEST="$REAL_BINARY")
 else
   if [ "$SEED" = "1" ]; then
     "$ROOT/scripts/seed-local-distribution.sh" "${VERSION:-dev-local}"
@@ -221,7 +222,10 @@ if ! command -v "$WRAPPER_NAME" >/dev/null 2>&1; then
   printf "\nAdd to PATH:\n"
   printf "  export PATH=\"\$PATH:%s\"\n" "$INSTALL_DIR"
 fi
-printf "\nNext:\n"
-printf "  %s setup\n" "$WRAPPER_NAME"
-printf "  %s login\n" "$WRAPPER_NAME"
 printf "\n"
+
+# Run setup interactively (shows scope + agent selector).
+"$WRAPPER" setup || true
+
+# Always start the daemon, even if setup was cancelled.
+"$WRAPPER" start

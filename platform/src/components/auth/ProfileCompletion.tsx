@@ -24,7 +24,6 @@ export function ProfileCompletion({ email, userId, nextUrl = '/dashboard' }: Pro
       .from('profiles')
       .update({ name: name.trim() })
       .eq('id', userId)
-      .is('name', null)
     if (updateError) { setError(updateError.message); setLoading(false) }
     else window.location.href = nextUrl
   }

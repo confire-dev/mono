@@ -157,6 +157,7 @@ CREATE TABLE api_keys (
   user_id      uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   key_hash     text UNIQUE NOT NULL,
   key_prefix   text NOT NULL,                           -- first 12 chars, for display
+  key_suffix   text,                                    -- last 4 chars, for display
   device_id    text,                                    -- from client's keychain
   last_used_at timestamptz,
   revoked_at   timestamptz,                             -- non-null = revoked

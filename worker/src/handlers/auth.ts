@@ -1,5 +1,5 @@
 import type { Env } from '../types.js'
-import { upsertProfile, generateApiKey, validateApiKey, getUsageThisPeriod, getCreditBalance } from '../lib/supabase.js'
+import { upsertProfile, getProfileById, generateApiKey, validateApiKey, revokeApiKey, revokeCurrentKey, getUsageThisPeriod, getCreditBalance } from '../lib/supabase.js'
 import { getPlan } from '../lib/plans.js'
 import { trackEvent } from '../lib/analytics.js'
 
@@ -29,9 +29,11 @@ export async function handleGenerateKey(request: Request, env: Env): Promise<Res
     return Response.json({ error: 'invalid or expired Supabase token' }, { status: 401 })
   }
 
-  const cfg    = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
-  const user   = await upsertProfile(cfg, verified.sub, verified.email)
-  const apiKey = await generateApiKey(cfg, user.id)
+  const cfg        = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
+  const user       = await upsertProfile(cfg, verified.sub, verified.email)
+  const deviceId   = request.headers.get('X-Confire-Device') ?? undefined
+  const deviceName = request.headers.get('X-Confire-Device-Name') ?? undefined
+  const apiKey     = await generateApiKey(cfg, user.id, deviceId, deviceName)
   const plan   = await getPlan(user.plan, env)
   const usage  = await getUsageThisPeriod(cfg, user.id, plan.id)
 
@@ -51,33 +53,75 @@ export async function handleGenerateKey(request: Request, env: Env): Promise<Res
   })
 }
 
-export async function handleMe(request: Request, env: Env): Promise<Response> {
+// POST /api/keys/revoke-self — revokes the key in the Authorization header (CLI logout).
+export async function handleRevokeSelf(request: Request, env: Env): Promise<Response> {
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
-    return Response.json({ email: 'dev@local', plan: 'free', used: 0, limit: 500 })
+    return Response.json({ ok: true }) // dev mode — no-op
+  }
+  const auth = request.headers.get('Authorization')
+  if (!auth?.startsWith('Bearer ')) return Response.json({ error: 'unauthorized' }, { status: 401 })
+  const cfg = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
+  await revokeCurrentKey(cfg, auth.slice(7).trim())
+  return Response.json({ ok: true })
+}
+
+export async function handleRevokeKey(request: Request, env: Env): Promise<Response> {
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY || !env.SUPABASE_SERVICE_KEY) {
+    return Response.json({ error: 'auth not configured' }, { status: 503 })
   }
 
   const auth = request.headers.get('Authorization')
   if (!auth?.startsWith('Bearer ')) return Response.json({ error: 'unauthorized' }, { status: 401 })
 
-  const cfg  = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
-  const user = await validateApiKey(cfg, auth.slice(7).trim())
+  const cfg      = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
+  const token    = auth.slice(7).trim()
+  const verified = await verifySupabaseJWT(token, env.SUPABASE_URL, env.SUPABASE_ANON_KEY)
+  if (!verified) return Response.json({ error: 'invalid session' }, { status: 401 })
+
+  const { keyId } = await request.json() as { keyId?: string }
+  if (!keyId) return Response.json({ error: 'keyId required' }, { status: 400 })
+
+  await revokeApiKey(cfg, verified.sub, keyId)
+  return Response.json({ ok: true })
+}
+
+export async function handleMe(request: Request, env: Env): Promise<Response> {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return Response.json({ email: 'dev@local', plan: 'free', subscription_status: 'none', used: 0, limit: 500 })
+  }
+
+  const auth = request.headers.get('Authorization')
+  if (!auth?.startsWith('Bearer ')) return Response.json({ error: 'unauthorized' }, { status: 401 })
+
+  const cfg   = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
+  const token = auth.slice(7).trim()
+
+  // Accept either a confire API key or a Supabase JWT (sent by the dashboard).
+  let user = await validateApiKey(cfg, token)
+  if (!user && env.SUPABASE_ANON_KEY) {
+    const verified = await verifySupabaseJWT(token, env.SUPABASE_URL, env.SUPABASE_ANON_KEY)
+    if (verified) {
+      user = await getProfileById(cfg, verified.sub)
+    }
+  }
   if (!user) return Response.json({ error: 'invalid key' }, { status: 401 })
 
-  const plan  = await getPlan(user.plan, env)
-  const usage = await getUsageThisPeriod(cfg, user.id, plan.id)
+  const plan    = await getPlan(user.plan, env)
+  const usage   = await getUsageThisPeriod(cfg, user.id, plan.id)
   const credits = await getCreditBalance(cfg, user.id)
   const purchasedCredits = credits?.purchased_credits ?? 0
   const planLimit = plan.limits.cloudOptimizationsMonthly
 
   return Response.json({
-    email:            user.email,
-    plan:             plan.name,
-    planId:           plan.id,
-    used:             usage.cloudOptimizationsUsed,
-    limit:            planLimit,
+    email:               user.email,
+    plan:                plan.id,
+    planId:              plan.id,
+    subscription_status: user.subscription_status,
+    used:                usage.cloudOptimizationsUsed,
+    limit:               planLimit,
     purchasedCredits,
-    effectiveLimit:   planLimit + purchasedCredits,
-    limits:           plan.limits,
-    features:         plan.features,
+    effectiveLimit:      planLimit + purchasedCredits,
+    limits:              plan.limits,
+    features:            plan.features,
   })
 }

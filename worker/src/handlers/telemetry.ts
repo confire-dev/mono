@@ -95,13 +95,13 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
       break
 
     case 'session_end': {
-      const endData = event as TelemetryEvent & SessionEndPayload
+      const endData = event as unknown as Record<string, number>
       if (cfg && event.session_id) {
         await closeCliSession(cfg, event.session_id, {
-          totalCalls:     (endData as unknown as Record<string,number>)['total_tool_calls'] ?? 0,
-          optimizedCalls: (endData as unknown as Record<string,number>)['optimized_calls'] ?? 0,
-          rawBytes:       (endData as unknown as Record<string,number>)['raw_bytes'] ?? 0,
-          optimizedBytes: (endData as unknown as Record<string,number>)['optimized_bytes'] ?? 0,
+          totalCalls:     endData['total_tool_calls']     ?? 0,
+          optimizedCalls: endData['optimized_calls']      ?? 0,
+          rawBytes:       endData['raw_bytes_total']      ?? 0,
+          optimizedBytes: endData['optimized_bytes_total'] ?? 0,
         })
       }
       maybeTrack(env, event, user.email, user.plan, 'cli_session_ended')

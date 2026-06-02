@@ -21,6 +21,21 @@ export function AuthForm({ className, planIntent = 'free', next = '' }: Props) {
 
   const isFree = planIntent === 'free'
 
+  // Detect CLI authorization flow from the `next` param
+  const cliParams = useMemo(() => {
+    if (!next) return null
+    try {
+      const nextUrl = new URL(next, 'http://x')
+      if (!nextUrl.pathname.startsWith('/cli/login')) return null
+      return {
+        deviceName: nextUrl.searchParams.get('device_name') ?? '',
+        cliVersion: nextUrl.searchParams.get('cli_version') ?? '',
+      }
+    } catch { return null }
+  }, [next])
+
+  const isCli = !!cliParams
+
   const callbackUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/auth/callback?plan=${encodeURIComponent(planIntent)}${next ? `&next=${encodeURIComponent(next)}` : ''}`
     : `/auth/callback?plan=${encodeURIComponent(planIntent)}${next ? `&next=${encodeURIComponent(next)}` : ''}`
@@ -61,15 +76,19 @@ export function AuthForm({ className, planIntent = 'free', next = '' }: Props) {
 
   const title = step === 'email-sent'
     ? 'Check your email'
-    : isFree
-      ? 'Start free with Confire'
-      : 'Continue to checkout'
+    : isCli
+      ? 'Sign in to authorize CLI'
+      : isFree
+        ? 'Start free with Confire'
+        : 'Continue to checkout'
 
   const subtitle = step === 'email-sent'
     ? `We sent a code to ${email}`
-    : isFree
-      ? 'Install Confire for Claude Code and optimize your first tool output.'
-      : "Log in first, then we'll send you to secure checkout."
+    : isCli
+      ? 'Sign in to connect your terminal to your Confire account.'
+      : isFree
+        ? 'Install Confire for Claude Code and optimize your first tool output.'
+        : "Log in first, then we'll send you to secure checkout."
 
   return (
     <AppShell>
@@ -81,6 +100,26 @@ export function AuthForm({ className, planIntent = 'free', next = '' }: Props) {
           <Text variant="heading2" as="h1">{title}</Text>
           <Text variant="secondary" size="sm">{subtitle}</Text>
         </div>
+
+        {isCli && step !== 'email-sent' && (
+          <div className="flex items-center gap-3 rounded-lg border border-kumo-hairline bg-kumo-tint px-4 py-3">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-kumo-base">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-9Z" stroke="currentColor" strokeWidth="1.2"/>
+                <path d="M5 6l2.5 2L5 10M8.5 10h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-kumo-default">Confire CLI wants access</p>
+              <p className="truncate text-xs text-kumo-subtle">
+                {cliParams?.deviceName
+                  ? `From ${cliParams.deviceName}`
+                  : 'From your terminal'}
+                {cliParams?.cliVersion ? ` · ${cliParams.cliVersion}` : ''}
+              </p>
+            </div>
+          </div>
+        )}
 
         {step === 'email-sent' && (
           <form onSubmit={verifyOtp} className="flex flex-col gap-4">

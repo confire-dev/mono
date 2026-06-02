@@ -5,7 +5,7 @@ import { AppShell } from '@/components/app/AppShell'
 
 interface Props {
   user: { email: string; id: string }
-  device: { id: string; cliVersion?: string }
+  device: { id: string; name?: string; cliVersion?: string }
   callbackURL: string
 }
 
@@ -26,7 +26,7 @@ export function CliAuthorizeCard({ user, device, callbackURL }: Props) {
       const res = await fetch('/api/cli/authorize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId: device.id, callbackURL }),
+        body: JSON.stringify({ deviceId: device.id, deviceName: device.name, callbackURL }),
       })
       if (!res.ok) {
         const { error: e } = await res.json() as { error: string }
@@ -81,10 +81,10 @@ export function CliAuthorizeCard({ user, device, callbackURL }: Props) {
               <Text size="sm" as="span" bold>{device.cliVersion}</Text>
             </div>
           )}
-          {device.id && (
+          {(device.name || device.id) && (
             <div className="flex justify-between text-sm">
-              <Text variant="secondary" size="sm" as="span">Device ID</Text>
-              <Text variant="mono-secondary" as="span">{device.id.slice(0, 8)}…</Text>
+              <Text variant="secondary" size="sm" as="span">Device</Text>
+              <Text size="sm" as="span" bold>{device.name || device.id.slice(0, 8) + '…'}</Text>
             </div>
           )}
         </LayerCard>

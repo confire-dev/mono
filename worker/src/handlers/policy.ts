@@ -16,7 +16,7 @@ export async function handleGetPolicy(request: Request, env: Env): Promise<Respo
   const auth = await authenticate(request, env)
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
-  const overrides = await getGroupOverrides(env, auth.user.user_id)
+  const overrides = await getGroupOverrides(env, auth.user.id)
   return Response.json({ group_overrides: overrides })
 }
 
@@ -46,7 +46,7 @@ export async function handlePatchPolicyGroups(request: Request, env: Env): Promi
     return Response.json({ error: 'group_overrides must be an object' }, { status: 400 })
   }
 
-  await upsertGroupOverrides(env, auth.user.user_id, body.group_overrides)
+  await upsertGroupOverrides(env, auth.user.id, body.group_overrides)
   return Response.json({ group_overrides: body.group_overrides })
 }
 

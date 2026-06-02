@@ -45,6 +45,10 @@ all: dev test
 dev:
 	go build -trimpath -ldflags "$(BASE_FLAGS)" -o $(BINARY) .
 
+## dev-install: build dev binary directly to DEST (avoids macOS provenance xattr on copied files)
+dev-install:
+	go build -trimpath -ldflags "$(BASE_FLAGS)" -o $(DEST) .
+
 ## release: hardened binary for the current platform (garble + stripped)
 release:
 	CGO_ENABLED=1 $(GARBLE) $(GARBLE_FLAGS) build \

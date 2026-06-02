@@ -171,9 +171,10 @@ else
   echo ""
   echo "confire installed: $INSTALLED_VERSION"
   echo ""
-  echo "Get started:"
-  echo "  confire setup     install hooks into your AI agent"
-  echo "  confire login     connect your account"
-  echo "  confire status    show current state"
-  echo ""
+
+  # Run setup interactively (shows scope + agent selector).
+  confire setup || true
+
+  # Always start the daemon, even if setup was cancelled.
+  confire start
 fi

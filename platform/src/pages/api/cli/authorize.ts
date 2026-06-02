@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return Response.json({ error: 'no active session' }, { status: 401 })
   }
 
-  const { deviceId, callbackURL } = await request.json() as { deviceId?: string; callbackURL?: string }
+  const { deviceId, deviceName, callbackURL } = await request.json() as { deviceId?: string; deviceName?: string; callbackURL?: string }
 
   // Only allow callbacks to localhost (CLI callback server)
   if (!callbackURL?.match(/^http:\/\/(127\.0\.0\.1|localhost):\d+/)) {
@@ -27,7 +27,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const workerURL = import.meta.env.PUBLIC_WORKER_URL ?? 'http://localhost:8787'
   const res = await fetch(`${workerURL}/api/keys/generate`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${session.access_token}` },
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      ...(deviceId   ? { 'X-Confire-Device':      deviceId   } : {}),
+      ...(deviceName ? { 'X-Confire-Device-Name':  deviceName } : {}),
+    },
   })
 
   if (!res.ok) {

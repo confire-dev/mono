@@ -2,7 +2,7 @@ import type { Env } from './types.js'
 import { handleOptimize }        from './handlers/optimize.js'
 import { handleOptimizerApi }    from './handlers/optimize-api.js'
 import { handleSessionStart }    from './handlers/session.js'
-import { handleGenerateKey, handleMe } from './handlers/auth.js'
+import { handleGenerateKey, handleMe, handleRevokeKey, handleRevokeSelf } from './handlers/auth.js'
 import { handleCreateCheckout }       from './handlers/checkout.js'
 import { handleCreateTopup }          from './handlers/topup.js'
 import { handleTelemetry }            from './handlers/telemetry.js'
@@ -17,6 +17,12 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Confire-Sig, X-Confire-Timestamp, X-Confire-Device',
 }
 
+function withCors(res: Response): Response {
+  const h = new Headers(res.headers)
+  for (const [k, v] of Object.entries(CORS_HEADERS)) h.set(k, v)
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h })
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url    = new URL(request.url)
@@ -25,6 +31,13 @@ export default {
     if (method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS })
     }
+
+    const res = await route(request, url, method, env)
+    return withCors(res)
+  },
+}
+
+async function route(request: Request, url: URL, method: string, env: Env): Promise<Response> {
 
     // ── Optimizer (core product) ─────────────────────────────────────────
     if (method === 'POST' && url.pathname === '/optimize') {
@@ -55,6 +68,12 @@ export default {
     }
     if (method === 'GET' && url.pathname === '/api/me') {
       return handleMe(request, env)
+    }
+    if (method === 'POST' && url.pathname === '/api/keys/revoke') {
+      return handleRevokeKey(request, env)
+    }
+    if (method === 'POST' && url.pathname === '/api/keys/revoke-self') {
+      return handleRevokeSelf(request, env)
     }
 
     // ── Policy / firewall group overrides ────────────────────────────────
@@ -103,5 +122,4 @@ export default {
     }
 
     return new Response('Not Found', { status: 404 })
-  },
 }

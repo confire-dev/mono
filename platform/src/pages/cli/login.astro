@@ -6,16 +6,17 @@ import { createSupabaseServer } from '@/lib/supabase'
 const supabase = createSupabaseServer(Astro.request, Astro.cookies)
 const { data: { user } } = await supabase.auth.getUser()
 
-const callbackURL = Astro.url.searchParams.get('callback')    ?? ''
-const deviceId    = Astro.url.searchParams.get('device_id')   ?? ''
-const cliVersion  = Astro.url.searchParams.get('cli_version') ?? ''
+const callbackURL  = Astro.url.searchParams.get('callback')    ?? ''
+const deviceId     = Astro.url.searchParams.get('device_id')   ?? ''
+const deviceName   = Astro.url.searchParams.get('device_name') ?? ''
+const cliVersion   = Astro.url.searchParams.get('cli_version') ?? ''
 
 if (!callbackURL.match(/^http:\/\/(127\.0\.0\.1|localhost):\d+/)) {
   return Astro.redirect('/login')
 }
 
 if (!user) {
-  const next = `/cli/login?callback=${encodeURIComponent(callbackURL)}&device_id=${encodeURIComponent(deviceId)}&cli_version=${encodeURIComponent(cliVersion)}`
+  const next = `/cli/login?callback=${encodeURIComponent(callbackURL)}&device_id=${encodeURIComponent(deviceId)}&device_name=${encodeURIComponent(deviceName)}&cli_version=${encodeURIComponent(cliVersion)}`
   return Astro.redirect(`/login?next=${encodeURIComponent(next)}`)
 }
 ---
@@ -24,7 +25,7 @@ if (!user) {
   <CliAuthorizeCard
     client:only="react"
     user={{ email: user.email ?? '', id: user.id }}
-    device={{ id: deviceId, cliVersion }}
+    device={{ id: deviceId, name: deviceName, cliVersion }}
     callbackURL={callbackURL}
   />
 </AppLayout>

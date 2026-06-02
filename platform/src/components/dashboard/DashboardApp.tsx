@@ -1,10 +1,21 @@
 "use client"
 
 import { useState } from 'react'
-import { Button, Text } from '@cloudflare/kumo'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import * as echarts from 'echarts/core'
+import { LineChart, BarChart as EBarChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, BrushComponent, ToolboxComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+import { Button, Text, TimeseriesChart } from '@cloudflare/kumo'
 import { useAuth } from '@/hooks/use-auth'
 import { useDashboard } from '@/hooks/use-dashboard'
 import { formatTokenCount } from '@/lib/types'
+
+echarts.use([LineChart, EBarChart, GridComponent, TooltipComponent, BrushComponent, ToolboxComponent, CanvasRenderer])
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
+})
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -113,47 +124,112 @@ function PlanBadge({ plan }: { plan: string }) {
   )
 }
 
+// ── usage chart ──────────────────────────────────────────────────────────────
+
+function UsageChart({ calls }: { calls: { raw_bytes: number; optimized_bytes: number; created_at: string }[] }) {
+  // Bucket by UTC day → tokens saved
+  const byDay = new Map<string, number>()
+  for (const c of calls) {
+    const day = c.created_at.slice(0, 10) // "YYYY-MM-DD"
+    byDay.set(day, (byDay.get(day) ?? 0) + Math.max(0, Math.round((c.raw_bytes - c.optimized_bytes) / 4)))
+  }
+  const data: [number, number][] = Array.from(byDay.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([day, tokens]) => [new Date(day).getTime(), tokens])
+
+  if (data.length === 0) return null
+
+  return (
+    <Card style={{ gridColumn: '1 / -1' }}>
+      <CardHeader title="Tokens Saved — Daily" />
+      <div style={{ padding: '12px 8px 4px' }}>
+        <TimeseriesChart
+          echarts={echarts}
+          type="line"
+          data={[{ name: 'Tokens saved', data, color: 'var(--confire-accent, #f4811f)' }]}
+          tooltipValueFormat={v => `${Math.round(v).toLocaleString()} tokens`}
+          height={180}
+        />
+      </div>
+    </Card>
+  )
+}
+
+// ── devices section ──────────────────────────────────────────────────────────
+
+
+function DevicesCard({
+  apiKeys,
+  revokeKey,
+}: {
+  apiKeys: { id: string; key_prefix: string; key_suffix?: string; device_id?: string; last_used_at?: string; created_at: string }[]
+  revokeKey: { mutate: (id: string) => void; isPending: boolean; variables?: string }
+}) {
+  const visible = apiKeys
+
+  return (
+    <Card>
+      <CardHeader title="Devices" />
+      {visible.length === 0 ? (
+        <EmptyRow label="No devices connected — install the CLI to get started" />
+      ) : (
+        visible.map((k, i) => {
+          const name     = k.device_id || k.key_prefix
+          const keyHint  = k.key_suffix ? `••••${k.key_suffix}` : k.key_prefix.slice(0, 8) + '••••'
+          const lastSeen = k.last_used_at ?? k.created_at
+          return (
+            <div key={k.id} style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 20px',
+              borderBottom: i < visible.length - 1 ? '1px solid var(--confire-border)' : undefined,
+            }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--confire-text)' }}>{name}</div>
+                <div style={{ fontSize: 11, color: 'var(--confire-text-muted)', marginTop: 2, fontFamily: 'monospace' }}>
+                  {keyHint} · last active {timeAgo(lastSeen)}
+                </div>
+              </div>
+              <button
+                disabled={revokeKey.isPending && revokeKey.variables === k.id}
+                onClick={() => revokeKey.mutate(k.id)}
+                style={{
+                  fontSize: 12,
+                  color: '#f87171',
+                  background: 'transparent',
+                  border: '1px solid #f8717144',
+                  borderRadius: 4,
+                  padding: '3px 10px',
+                  cursor: 'pointer',
+                  opacity: revokeKey.isPending && revokeKey.variables === k.id ? 0.5 : 1,
+                }}
+              >
+                {revokeKey.isPending && revokeKey.variables === k.id ? '…' : 'Revoke'}
+              </button>
+            </div>
+          )
+        })
+      )}
+    </Card>
+  )
+}
+
 // ── firewall section ──────────────────────────────────────────────────────────
 
 function FirewallSection({
   groups,
   canToggle,
-  apiKey,
+  toggle,
 }: {
   groups: { id: string; label: string; enabled: boolean }[]
   canToggle: boolean
-  apiKey: string
+  toggle: (id: string, enabled: boolean) => void
 }) {
-  const [overrides, setOverrides] = useState<Record<string, boolean>>({})
-  const [saving, setSaving] = useState<Record<string, boolean>>({})
-
-  const workerBase = (import.meta as any).env?.PUBLIC_WORKER_URL ?? ''
-
-  async function toggle(id: string, current: boolean) {
-    if (!canToggle) return
-    const next = !current
-    setOverrides(o => ({ ...o, [id]: next }))
-    setSaving(s => ({ ...s, [id]: true }))
-    try {
-      const res = await fetch(`${workerBase}/v1/policy/groups`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [id]: next }),
-      })
-      if (!res.ok) throw new Error('save failed')
-    } catch {
-      setOverrides(o => ({ ...o, [id]: current }))
-    } finally {
-      setSaving(s => ({ ...s, [id]: false }))
-    }
-  }
-
   return (
     <Card>
       <CardHeader title="MCP Firewall" />
       {groups.map((g, i) => {
-        const enabled = id => overrides[id] !== undefined ? overrides[id] : g.enabled
-        const on = enabled(g.id)
         return (
           <div key={g.id} style={{
             display: 'flex',
@@ -167,16 +243,15 @@ function FirewallSection({
               <div style={{ fontSize: 11, color: 'var(--confire-text-muted)', marginTop: 2 }}>{g.id}</div>
             </div>
             <button
-              disabled={!canToggle || saving[g.id]}
-              onClick={() => toggle(g.id, on)}
+              disabled={!canToggle}
+              onClick={() => toggle(g.id, !g.enabled)}
               style={{
                 width: 36,
                 height: 20,
                 borderRadius: 10,
                 border: 'none',
-                background: on ? 'var(--confire-accent)' : 'var(--confire-border)',
+                background: g.enabled ? 'var(--confire-accent)' : 'var(--confire-border)',
                 cursor: canToggle ? 'pointer' : 'not-allowed',
-                opacity: saving[g.id] ? 0.6 : 1,
                 position: 'relative',
                 transition: 'background 0.15s',
                 flexShrink: 0,
@@ -185,7 +260,7 @@ function FirewallSection({
               <span style={{
                 position: 'absolute',
                 top: 2,
-                left: on ? 18 : 2,
+                left: g.enabled ? 18 : 2,
                 width: 16,
                 height: 16,
                 borderRadius: '50%',
@@ -208,15 +283,17 @@ function FirewallSection({
 
 // ── main component ────────────────────────────────────────────────────────────
 
-export function DashboardApp() {
+function Dashboard() {
   const { user, session, loading: authLoading, signOut } = useAuth()
   const apiKey = session?.access_token ?? null
+  const workerBase = (import.meta as any).env?.PUBLIC_WORKER_URL ?? ''
 
   const {
-    me, sessions, recentCalls, apiKeys, firewall,
+    me, recentCalls, allCallBytes, apiKeys, firewall,
     loading, error,
-    totalSavedTokens, totalCallsAllTime, activeSessions,
-  } = useDashboard(apiKey)
+    totalSavedTokens, totalCallsAllTime,
+    revokeKey, toggleFirewallGroup,
+  } = useDashboard(apiKey, workerBase)
 
   if (authLoading || loading) {
     return (
@@ -254,7 +331,7 @@ export function DashboardApp() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           {me && <PlanBadge plan={me.plan} />}
           <span style={{ fontSize: 13, color: 'var(--confire-text-muted, #8b949e)' }}>{user.email}</span>
-          <Button variant="default" size="sm" onClick={signOut}>Sign out</Button>
+          <Button variant="outline" size="sm" onClick={signOut}>Sign out</Button>
         </div>
       </div>
 
@@ -275,21 +352,16 @@ export function DashboardApp() {
         )}
 
         {/* stat grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
           <StatCard
             label="Tokens saved (all-time)"
             value={formatTokenCount(totalSavedTokens)}
-            sub="across all sessions"
+            sub="across all tool calls"
           />
           <StatCard
             label="Total tool calls"
             value={totalCallsAllTime.toLocaleString()}
             sub="processed by Confire"
-          />
-          <StatCard
-            label="Active sessions"
-            value={String(activeSessions)}
-            sub={`${sessions.length} total loaded`}
           />
           <StatCard
             label="Usage this period"
@@ -298,7 +370,10 @@ export function DashboardApp() {
           />
         </div>
 
-        {/* usage + firewall row */}
+        {/* usage chart */}
+        <UsageChart calls={allCallBytes} />
+
+        {/* usage bar + firewall row */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
 
           {/* usage bar */}
@@ -340,7 +415,11 @@ export function DashboardApp() {
             </div>
           </Card>
 
-          <FirewallSection groups={firewall} canToggle={canToggle} apiKey={apiKey ?? ''} />
+          <FirewallSection
+            groups={firewall}
+            canToggle={canToggle}
+            toggle={(id, enabled) => toggleFirewallGroup.mutate({ id, enabled })}
+          />
 
         </div>
 
@@ -386,81 +465,9 @@ export function DashboardApp() {
             )}
           </Card>
 
-          {/* CLI sessions */}
-          <Card>
-            <CardHeader title="CLI Sessions" />
-            {sessions.length === 0 ? (
-              <EmptyRow label="No sessions yet — install the CLI to get started" />
-            ) : (
-              sessions.map((s, i) => (
-                <div key={s.id} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 20px',
-                  borderBottom: i < sessions.length - 1 ? '1px solid var(--confire-border)' : undefined,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{
-                      width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                      background: s.is_active ? 'var(--confire-green, #2dd9a0)' : 'var(--confire-border)',
-                    }} />
-                    <div>
-                      <div style={{ fontSize: 13, color: 'var(--confire-text)', fontWeight: 500 }}>
-                        {s.integration}{s.cli_version ? ` v${s.cli_version}` : ''}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--confire-text-muted)' }}>
-                        {s.total_tool_calls} calls · {fmtBytes(s.saved_bytes)} saved
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 12 }}>
-                    <div style={{ fontSize: 11, color: s.is_active ? 'var(--confire-green, #2dd9a0)' : 'var(--confire-text-muted)' }}>
-                      {s.is_active ? 'Active' : 'Ended'}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--confire-text-muted)' }}>{timeAgo(s.started_at)}</div>
-                  </div>
-                </div>
-              ))
-            )}
-          </Card>
+          {/* Devices */}
+          <DevicesCard apiKeys={apiKeys} revokeKey={revokeKey} />
         </div>
-
-        {/* API keys */}
-        <Card>
-          <CardHeader
-            title="API Keys"
-            action={
-              <a href="/dashboard/keys" style={{ fontSize: 12, color: accent }}>Manage →</a>
-            }
-          />
-          {apiKeys.length === 0 ? (
-            <EmptyRow label="No API keys — create one to connect the CLI" />
-          ) : (
-            apiKeys.map((k, i) => (
-              <div key={k.id} style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 20px',
-                borderBottom: i < apiKeys.length - 1 ? '1px solid var(--confire-border)' : undefined,
-              }}>
-                <div>
-                  <code style={{ fontSize: 13, color: 'var(--confire-text)', fontFamily: 'monospace' }}>
-                    {k.key_prefix}••••••••
-                  </code>
-                  {k.device_id && (
-                    <div style={{ fontSize: 11, color: 'var(--confire-text-muted)', marginTop: 2 }}>{k.device_id}</div>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--confire-text-muted)', textAlign: 'right' }}>
-                  {k.last_used_at ? `Used ${timeAgo(k.last_used_at)}` : 'Never used'}
-                  <div style={{ fontSize: 11 }}>Created {timeAgo(k.created_at)}</div>
-                </div>
-              </div>
-            ))
-          )}
-        </Card>
 
         {/* quick links */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
@@ -489,5 +496,13 @@ export function DashboardApp() {
 
       </div>
     </div>
+  )
+}
+
+export function DashboardApp() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Dashboard />
+    </QueryClientProvider>
   )
 }

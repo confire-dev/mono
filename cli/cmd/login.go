@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"runtime"
 	"time"
@@ -31,6 +32,18 @@ var logoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Remove stored credentials from the OS keychain",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Revoke the key on the server first so the dashboard reflects immediately.
+		if key, _ := auth.LoadKey(); key != "" {
+			client := &http.Client{Timeout: 4 * time.Second}
+			req, err := http.NewRequest(http.MethodPost, workerURLEnv()+"/api/keys/revoke-self", nil)
+			if err == nil {
+				req.Header.Set("Authorization", "Bearer "+key)
+				resp, err := client.Do(req)
+				if err == nil {
+					resp.Body.Close()
+				}
+			}
+		}
 		if err := auth.DeleteKey(); err != nil {
 			return fmt.Errorf("keychain: %w", err)
 		}
@@ -56,21 +69,31 @@ func init() {
 // ── Login ─────────────────────────────────────────────────────────────────
 
 func runLogin() error {
-	// Already logged in — show current account rather than re-running the flow.
+	// Already logged in — verify the key is still valid before trusting the keychain.
 	if key, _ := auth.LoadKey(); key != "" {
-		email, _ := auth.LoadEmail()
-		if email != "" {
-			fmt.Printf("Already logged in as %s.\n", email)
-		} else {
-			fmt.Println("Already logged in.")
+		if keyIsValid(key) {
+			email, _ := auth.LoadEmail()
+			if email != "" {
+				fmt.Printf("Already logged in as %s.\n", email)
+			} else {
+				fmt.Println("Already logged in.")
+			}
+			fmt.Println("Run `confire whoami` to check your account, or `confire logout` to switch.")
+			return nil
 		}
-		fmt.Println("Run `confire whoami` to check your account, or `confire logout` to switch.")
-		return nil
+		// Key revoked or expired — clear it and fall through to re-login.
+		fmt.Println("Your API key has been revoked. Re-authenticating...")
+		_ = auth.DeleteKey()
 	}
 
 	deviceID, err := auth.DeviceID()
 	if err != nil {
 		deviceID = "unknown"
+	}
+
+	hostname, _ := os.Hostname()
+	if hostname == "" {
+		hostname = "unknown"
 	}
 
 	// 1. Find a free port for the local callback server
@@ -84,6 +107,7 @@ func runLogin() error {
 	params := url.Values{
 		"callback":    {callbackURL},
 		"device_id":   {deviceID},
+		"device_name": {hostname},
 		"cli_version": {buildVersion},
 	}
 	loginURL := platformURL() + "/cli/login?" + params.Encode()
@@ -225,6 +249,23 @@ func runWhoami() error {
 		fmt.Printf("  ⚠️  Need more? Run `confire topup` or upgrade at confire.dev/upgrade\n")
 	}
 	return nil
+}
+
+// keyIsValid does a quick server check — returns false on 401 (revoked/expired).
+// Network errors are treated as valid so offline use still works.
+func keyIsValid(key string) bool {
+	client := &http.Client{Timeout: 4 * time.Second}
+	req, err := http.NewRequest(http.MethodGet, workerURLEnv()+"/api/me", nil)
+	if err != nil {
+		return true
+	}
+	req.Header.Set("Authorization", "Bearer "+key)
+	resp, err := client.Do(req)
+	if err != nil {
+		return true // offline — assume valid
+	}
+	resp.Body.Close()
+	return resp.StatusCode != http.StatusUnauthorized
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
