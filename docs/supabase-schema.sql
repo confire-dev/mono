@@ -763,7 +763,7 @@ INSERT INTO plans (id, status, config) VALUES
   "billingMode": "subscription",
   "interval": "year",
   "stripe": { "productId": null, "priceId": null, "checkoutMode": "subscription" },
-  "pricing": { "amountCents": 9500, "currency": "usd", "displayPrice": "$95/yr" },
+  "pricing": { "amountCents": 9000, "currency": "usd", "displayPrice": "$90/yr" },
   "limits": {
     "cloudOptimizationsMonthly": 5000,
     "cloudTokensMonthly": 50000000,

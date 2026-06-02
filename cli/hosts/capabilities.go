@@ -18,7 +18,7 @@ var defaultCapabilities = map[string]Capabilities{
 		NativeOutputReplaceable: true,
 		OptimizeNative:          true,
 		OptimizeMCP:             true,
-		PostToolSteer:           false,
+		PostToolSteer:           true,
 	},
 	"cursor": {
 		NativeOutputReplaceable: false,
