@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -85,9 +86,21 @@ func matchesPreTool(rule Rule, event intercept.InterceptEvent) bool {
 	tool := event.Tool
 	m := rule.Match
 
+	// MCP-only gate.
+	if m.MCPOnly && !tool.IsMCP {
+		return false
+	}
+
 	// Tool name / prefix checks.
 	if !matchesToolName(m, tool) {
 		return false
+	}
+
+	// InputParamScan: rule only matches if input has credential-like param names.
+	if m.InputParamScan {
+		if !hasCredentialParams(tool.Input) {
+			return false
+		}
 	}
 
 	// Command-level checks (Bash-specific).
@@ -125,12 +138,27 @@ func matchesPreTool(rule Rule, event intercept.InterceptEvent) bool {
 
 func matchesPostTool(rule Rule, event intercept.InterceptEvent) bool {
 	m := rule.Match
+
+	// MCP-only gate.
+	if m.MCPOnly && !event.Tool.IsMCP {
+		return false
+	}
+
 	// Output secret/injection scan rules don't filter by tool name —
 	// they apply to all tool outputs. Return true here; the actual
 	// scanning runs in the sanitize pipeline.
 	if m.OutputSecretScan || m.OutputInjectionScan {
 		return true
 	}
+
+	// OutputMinBytes: only fire when output is at least N bytes.
+	if m.OutputMinBytes > 0 {
+		size := outputBytes(event)
+		if size < m.OutputMinBytes {
+			return false
+		}
+	}
+
 	return matchesToolName(m, event.Tool)
 }
 
@@ -220,6 +248,54 @@ func highestPriority(results []MatchResult) *MatchResult {
 		}
 	}
 	return &best
+}
+
+// hasCredentialParams returns true if any top-level input key looks like a credential.
+func hasCredentialParams(input any) bool {
+	if input == nil {
+		return false
+	}
+	var m map[string]any
+	switch v := input.(type) {
+	case map[string]any:
+		m = v
+	default:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return false
+		}
+		if err := json.Unmarshal(b, &m); err != nil {
+			return false
+		}
+	}
+	credWords := []string{"token", "secret", "password", "passwd", "api_key", "apikey",
+		"private_key", "auth", "credential", "access_key", "bearer"}
+	for k := range m {
+		k = strings.ToLower(k)
+		for _, w := range credWords {
+			if strings.Contains(k, w) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// outputBytes estimates the byte size of a tool's output field.
+func outputBytes(event intercept.InterceptEvent) int {
+	if event.Tool == nil || event.Tool.Output == nil {
+		return 0
+	}
+	switch v := event.Tool.Output.(type) {
+	case string:
+		return len(v)
+	default:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return 0
+		}
+		return len(b)
+	}
 }
 
 // effectiveAction downgrades block/review to warn in observe mode.

@@ -54,6 +54,14 @@ func (s *DB) Close() {
 	}
 }
 
+// RawDB returns the underlying *sql.DB for callers that need direct access (e.g. MCP stats migration).
+func (s *DB) RawDB() *sql.DB {
+	if s == nil {
+		return nil
+	}
+	return s.db
+}
+
 // NewEventID returns a UUID v4 suitable for idempotent sync with the Worker.
 func NewEventID() string {
 	b := make([]byte, 16)

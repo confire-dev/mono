@@ -9,9 +9,13 @@ import (
 
 // CachedPolicy is the on-disk format for custom rules fetched from the cloud.
 type CachedPolicy struct {
-	FetchedAt time.Time `json:"fetched_at"`
-	Version   string    `json:"version,omitempty"`
-	Rules     []Rule    `json:"rules"`
+	FetchedAt      time.Time       `json:"fetched_at"`
+	Version        string          `json:"version,omitempty"`
+	Rules          []Rule          `json:"rules"`
+	// GroupOverrides maps group IDs to enabled state.
+	// false = user toggled that group off in the dashboard.
+	// Sent by the worker alongside custom rules; applied after merge.
+	GroupOverrides map[string]bool `json:"group_overrides,omitempty"`
 }
 
 // CachePath returns the path to the local custom-rule cache.
@@ -20,25 +24,43 @@ func CachePath() string {
 	return filepath.Join(home, ".confire", "policies", "cache.json")
 }
 
-// LoadRules returns the merged rule set: bundled rules + cached custom rules.
-// Bundled rules always load. Custom rules overlay on top (same ID = override).
-// Never returns an error — missing or corrupt cache silently uses built-ins only.
+// LoadRules returns the merged rule set: bundled rules + cached custom rules,
+// with group overrides applied. Never returns an error — missing or corrupt
+// cache silently uses built-ins only.
 func LoadRules() []Rule {
 	builtin := BuiltinRules()
-	custom := loadCachedCustomRules()
-	return mergeRules(builtin, custom)
+	cp := loadCache()
+	var custom []Rule
+	var overrides map[string]bool
+	if cp != nil {
+		custom = cp.Rules
+		overrides = cp.GroupOverrides
+	}
+	rules := mergeRules(builtin, custom)
+	return applyGroupOverrides(rules, overrides)
 }
 
-// SaveCache persists a fetched custom-rule set to disk.
-func SaveCache(rules []Rule, version string) error {
+// LoadGroupOverrides returns the current group override map from cache.
+// Returns nil if no cache or no overrides set.
+func LoadGroupOverrides() map[string]bool {
+	cp := loadCache()
+	if cp == nil {
+		return nil
+	}
+	return cp.GroupOverrides
+}
+
+// SaveCache persists a fetched custom-rule set and group overrides to disk.
+func SaveCache(rules []Rule, version string, overrides map[string]bool) error {
 	path := CachePath()
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
 	cp := CachedPolicy{
-		FetchedAt: time.Now().UTC(),
-		Version:   version,
-		Rules:     rules,
+		FetchedAt:      time.Now().UTC(),
+		Version:        version,
+		Rules:          rules,
+		GroupOverrides: overrides,
 	}
 	data, err := json.MarshalIndent(cp, "", "  ")
 	if err != nil {
@@ -103,6 +125,25 @@ func loadCache() *CachedPolicy {
 		return nil
 	}
 	return &cp
+}
+
+// applyGroupOverrides disables all rules whose Group appears in overrides with value false.
+// Rules with no group, or whose group is not in the map, are unaffected.
+func applyGroupOverrides(rules []Rule, overrides map[string]bool) []Rule {
+	if len(overrides) == 0 {
+		return rules
+	}
+	out := make([]Rule, len(rules))
+	copy(out, rules)
+	for i, r := range out {
+		if r.Group == "" {
+			continue
+		}
+		if enabled, ok := overrides[r.Group]; ok && !enabled {
+			out[i].Enabled = false
+		}
+	}
+	return out
 }
 
 // mergeRules merges custom rules on top of built-in rules.

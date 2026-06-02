@@ -63,6 +63,10 @@ type Rule struct {
 
 	// Source identifies where this rule came from: "builtin" | "custom".
 	Source string `json:"source,omitempty"`
+
+	// Group is a logical category used for dashboard toggles (e.g. "mcp.secrets").
+	// GroupOverrides in CachedPolicy can disable all rules in a group at once.
+	Group string `json:"group,omitempty"`
 }
 
 // RuleMatch describes what conditions trigger a rule.
@@ -96,6 +100,13 @@ type RuleMatch struct {
 
 	// OutputInjectionScan runs prompt-injection detection on tool output.
 	OutputInjectionScan bool `json:"output_injection_scan,omitempty"`
+
+	// MCPOnly restricts this rule to MCP tool calls only (tool.IsMCP == true).
+	MCPOnly bool `json:"mcp_only,omitempty"`
+
+	// InputParamScan enables risk-scoring of MCP tool input parameter names.
+	// Used by the mcp.risk_classifier group.
+	InputParamScan bool `json:"input_param_scan,omitempty"`
 }
 
 // MatchResult is returned when a rule fires.

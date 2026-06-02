@@ -9,10 +9,11 @@ import { handleTelemetry }            from './handlers/telemetry.js'
 import { handleStripeWebhook }   from './handlers/stripe.js'
 import { syncPlansToKV }         from './lib/plans.js'
 import { handleSupabaseWebhook } from './handlers/db-webhook.js'
+import { handleGetPolicy, handlePatchPolicyGroups } from './handlers/policy.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, GET, PATCH, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Confire-Sig, X-Confire-Timestamp, X-Confire-Device',
 }
 
@@ -54,6 +55,14 @@ export default {
     }
     if (method === 'GET' && url.pathname === '/api/me') {
       return handleMe(request, env)
+    }
+
+    // ── Policy / firewall group overrides ────────────────────────────────
+    if (method === 'GET' && url.pathname === '/v1/policy') {
+      return handleGetPolicy(request, env)
+    }
+    if (method === 'PATCH' && url.pathname === '/v1/policy/groups') {
+      return handlePatchPolicyGroups(request, env)
     }
 
     // ── Billing / checkout ────────────────────────────────────────────────
