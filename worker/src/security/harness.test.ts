@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { classify } from './classifier.js'
 
-const FIXTURES = join(fileURLToPath(new URL('.', import.meta.url)), '../../../..', 'testdata/security')
+const FIXTURES = join(fileURLToPath(new URL('.', import.meta.url)), '../../..', 'testdata/security')
 
 interface AttackCase {
   id: string
