@@ -1,0 +1,20 @@
+[
+  {
+    "id": "BN-GN-001",
+    "tool": "generic",
+    "content": "The quarterly roadmap review is scheduled for next Thursday. Please come prepared with your team's OKR progress.",
+    "notes": "Normal meeting note - must not flag"
+  },
+  {
+    "id": "BN-GN-002",
+    "tool": "generic",
+    "content": "Updated the README with installation instructions and added a troubleshooting section for common errors.",
+    "notes": "Documentation update - must not flag"
+  },
+  {
+    "id": "BN-GN-003",
+    "tool": "generic",
+    "content": "Database migration completed successfully. 2.3M rows updated. Duration: 4m 12s. No errors.",
+    "notes": "Migration log - must not flag"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "PH-001",
+    "category": "phishing",
+    "description": "MFA expiry phishing",
+    "payload": "URGENT: Your multi-factor authentication has expired. Click here immediately to re-authenticate: https://verify-mfa.company-portal.net/auth",
+    "risk": "HIGH",
+    "should_catch": true,
+    "notes": "Classic MFA phishing"
+  },
+  {
+    "id": "PH-002",
+    "category": "phishing",
+    "description": "Account suspension phishing",
+    "payload": "Your account will be suspended in 24 hours. Verify your credentials immediately at: http://account-verify.internal-it.net",
+    "risk": "HIGH",
+    "should_catch": true,
+    "notes": "Urgency + credential harvesting"
+  },
+  {
+    "id": "PH-003",
+    "category": "phishing",
+    "description": "IT department impersonation",
+    "payload": "From: IT Security Team\nYour password has expired. Reset immediately to maintain access: [Reset Password](http://evil.com/reset)",
+    "risk": "HIGH",
+    "should_catch": true,
+    "notes": "IT impersonation pattern"
+  },
+  {
+    "id": "PH-004",
+    "category": "phishing",
+    "description": "Executive wire transfer",
+    "payload": "This is urgent. I need you to process a wire transfer of $50,000 immediately. Do not discuss with anyone. Reply with confirmation.",
+    "risk": "HIGH",
+    "should_catch": true,
+    "notes": "CEO fraud / BEC pattern"
+  }
+]
