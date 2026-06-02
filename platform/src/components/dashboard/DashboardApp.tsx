@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
@@ -136,13 +136,31 @@ function Toggle({ on, disabled, onClick }: { on: boolean; disabled?: boolean; on
 
 // ── nav ───────────────────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
-  { label: 'Overview',    href: '/dashboard',          icon: House },
-  { label: 'Activity',    href: '/dashboard/activity', icon: Pulse },
-  { label: 'Firewall',    href: '/dashboard/firewall', icon: Shield },
-  { label: 'Devices',     href: '/dashboard/devices',  icon: DeviceMobile },
-  { label: 'Analytics',   href: '/dashboard/analytics',icon: ChartBar },
-  { label: 'CLI & Setup', href: '/cli',                icon: Terminal },
+const NAV_SECTIONS = [
+  {
+    label: null,
+    items: [{ label: 'Overview', href: '/dashboard', icon: House }],
+  },
+  {
+    label: 'Observe',
+    items: [
+      { label: 'Activity',  href: '/dashboard/activity', icon: Pulse },
+      { label: 'Analytics', href: '/dashboard/analytics', icon: ChartBar },
+    ],
+  },
+  {
+    label: 'Configure',
+    items: [
+      { label: 'Firewall', href: '/dashboard/firewall', icon: Shield },
+      { label: 'Devices',  href: '/dashboard/devices',  icon: DeviceMobile },
+    ],
+  },
+  {
+    label: 'Resources',
+    items: [
+      { label: 'CLI & Setup', href: '/cli', icon: Terminal },
+    ],
+  },
 ]
 
 const NAV_BOTTOM = [
@@ -151,96 +169,168 @@ const NAV_BOTTOM = [
   { label: 'Settings',      href: '/settings', icon: GearSix },
 ]
 
+function navigate(href: string) {
+  history.pushState({}, '', href)
+  window.dispatchEvent(new PopStateEvent('popstate'))
+}
+
 function NavItem({ label, href, icon: Icon, active }: { label: string; href: string; icon: React.ElementType; active: boolean }) {
+  const isExternal = href.startsWith('/docs') || href.startsWith('http')
   return (
     <a
       href={href}
+      onClick={isExternal ? undefined : e => { e.preventDefault(); navigate(href) }}
       style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '8px 12px', borderRadius: 6, textDecoration: 'none',
-        fontSize: 13, fontWeight: active ? 600 : 400,
-        color: active ? '#f4811f' : 'var(--confire-text-dim)',
-        background: active ? 'rgba(244,129,31,0.1)' : 'transparent',
-        transition: 'background 0.12s, color 0.12s',
+        display: 'flex', alignItems: 'center', gap: 9,
+        padding: '6px 10px', borderRadius: 5, textDecoration: 'none',
+        fontSize: 13, fontWeight: active ? 500 : 400,
+        color: active ? 'var(--confire-text)' : 'var(--confire-text-dim)',
+        background: active ? 'rgba(255,255,255,0.07)' : 'transparent',
+        transition: 'background 0.1s, color 0.1s',
       }}
-      onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--confire-border)'; e.currentTarget.style.color = 'var(--confire-text)' } }}
+      onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = 'var(--confire-text)' } }}
       onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--confire-text-dim)' } }}
     >
-      <Icon size={16} weight={active ? 'fill' : 'regular'} />
+      <Icon size={15} weight={active ? 'fill' : 'regular'} color={active ? '#f4811f' : undefined} />
       {label}
     </a>
   )
 }
 
-function Sidebar({ currentPath, email, plan, onSignOut, mobile, onClose }: {
+function NavSection({ label, children }: { label: string | null; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 4 }}>
+      {label && (
+        <div style={{
+          fontSize: 10, fontWeight: 600, color: 'var(--confire-text-muted)',
+          textTransform: 'uppercase', letterSpacing: '0.08em',
+          padding: '10px 10px 4px',
+        }}>
+          {label}
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
+
+function Sidebar({ currentPath, email, plan, totalSavedTokens, totalCalls, onSignOut, mobile, onClose }: {
   currentPath: string
   email: string
   plan?: string
+  totalSavedTokens: number
+  totalCalls: number
   onSignOut: () => void
   mobile?: boolean
   onClose?: () => void
 }) {
+  const username = email.split('@')[0] || 'User'
+
   return (
     <div style={{
-      width: 220, flexShrink: 0, height: '100svh', position: mobile ? 'fixed' : 'sticky',
+      width: 240, flexShrink: 0, height: '100svh', position: mobile ? 'fixed' : 'sticky',
       top: 0, left: 0, zIndex: mobile ? 50 : undefined,
-      background: 'var(--confire-bg-card)',
+      background: 'var(--confire-bg-footer)',
       borderRight: '1px solid var(--confire-border)',
       display: 'flex', flexDirection: 'column',
       overflowY: 'auto',
     }}>
-      {/* logo */}
+      {/* header: logo LEFT, user info RIGHT */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 16px', height: 56,
+        padding: '0 14px', height: 60,
         borderBottom: '1px solid var(--confire-border)',
-        flexShrink: 0,
+        flexShrink: 0, gap: 10,
       }}>
-        <a href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <Lightning size={20} weight="fill" color="#f4811f" />
-          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--confire-text)' }}>Confire</span>
+        {/* logo */}
+        <a href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 7, textDecoration: 'none', flexShrink: 0 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 7, background: '#f4811f',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Lightning size={15} weight="fill" color="#fff" />
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--confire-text)', letterSpacing: '-0.01em' }}>Confire</span>
         </a>
+
+        {/* user info */}
+        <div style={{ textAlign: 'right', minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--confire-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {username}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--confire-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>
+            {email}
+          </div>
+          {plan && <PlanBadge plan={plan} />}
+        </div>
+
         {mobile && onClose && (
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--confire-text-dim)', lineHeight: 1 }}>
-            <X size={18} />
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--confire-text-dim)', lineHeight: 1, flexShrink: 0 }}>
+            <X size={15} />
           </button>
         )}
       </div>
 
-      {/* account chip */}
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--confire-border)', flexShrink: 0 }}>
-        <div style={{ fontSize: 12, color: 'var(--confire-text-muted)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>
-        {plan && <PlanBadge plan={plan} />}
-      </div>
-
       {/* main nav */}
-      <nav style={{ padding: '12px 10px', flex: 1 }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--confire-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '4px 10px 8px' }}>
-          Main
-        </div>
-        {NAV_ITEMS.map(item => (
-          <NavItem key={item.href} {...item} active={currentPath === item.href || (item.href !== '/dashboard' && currentPath.startsWith(item.href))} />
+      <nav style={{ padding: '8px 10px', flex: 1 }}>
+        {NAV_SECTIONS.map((section, i) => (
+          <NavSection key={i} label={section.label}>
+            {section.items.map(item => (
+              <NavItem
+                key={item.href}
+                {...item}
+                active={currentPath === item.href || (item.href !== '/dashboard' && currentPath.startsWith(item.href))}
+              />
+            ))}
+          </NavSection>
         ))}
       </nav>
 
+      {/* live stats widget */}
+      <div style={{
+        margin: '0 10px 10px',
+        borderRadius: 8, border: '1px solid var(--confire-border)',
+        background: 'var(--confire-bg-card)',
+        padding: '12px 14px',
+        flexShrink: 0,
+      }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--confire-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+          Your savings
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span style={{ fontSize: 11, color: 'var(--confire-text-dim)' }}>Tokens saved</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#f4811f', fontVariantNumeric: 'tabular-nums' }}>
+              {formatTokenCount(totalSavedTokens)}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span style={{ fontSize: 11, color: 'var(--confire-text-dim)' }}>Tool calls</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--confire-text)', fontVariantNumeric: 'tabular-nums' }}>
+              {totalCalls.toLocaleString()}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* bottom nav */}
-      <div style={{ padding: '10px 10px 14px', borderTop: '1px solid var(--confire-border)', flexShrink: 0 }}>
+      <div style={{ padding: '8px 10px 12px', borderTop: '1px solid var(--confire-border)', flexShrink: 0 }}>
         {NAV_BOTTOM.map(item => (
           <NavItem key={item.href} {...item} active={currentPath === item.href} />
         ))}
         <button
           onClick={onSignOut}
           style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '8px 12px', borderRadius: 6, width: '100%',
+            display: 'flex', alignItems: 'center', gap: 9,
+            padding: '6px 10px', borderRadius: 5, width: '100%',
             fontSize: 13, color: 'var(--confire-text-dim)',
             background: 'none', border: 'none', cursor: 'pointer',
-            transition: 'background 0.12s, color 0.12s', textAlign: 'left',
+            transition: 'background 0.1s, color 0.1s', textAlign: 'left',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--confire-border)'; e.currentTarget.style.color = '#f87171' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.08)'; e.currentTarget.style.color = '#f87171' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--confire-text-dim)' }}
         >
-          <SignOut size={16} />
+          <SignOut size={15} />
           Sign out
         </button>
       </div>
@@ -434,6 +524,53 @@ function QuickLinks() {
   )
 }
 
+// ── scaffold page components ──────────────────────────────────────────────────
+
+function EmptyPage({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon: React.ElementType }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 10, border: '1px solid var(--confire-border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--confire-bg-card)',
+        }}>
+          <Icon size={20} color="var(--confire-text-dim)" weight="duotone" />
+        </div>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>{title}</div>
+          <div style={{ fontSize: 13, color: 'var(--confire-text-dim)', marginTop: 2 }}>{subtitle}</div>
+        </div>
+      </div>
+      <Card>
+        <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+          <Icon size={32} color="var(--confire-border-strong)" weight="duotone" style={{ marginBottom: 12 }} />
+          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--confire-text-dim)', marginBottom: 6 }}>Coming soon</div>
+          <div style={{ fontSize: 13, color: 'var(--confire-text-muted)' }}>This page is under construction.</div>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+const PAGE_META: Record<string, { title: string; subtitle: string; icon: React.ElementType }> = {
+  '/dashboard':            { title: 'Overview',    subtitle: 'Your Confire account at a glance',           icon: House },
+  '/dashboard/activity':   { title: 'Activity',    subtitle: 'All tool call events in real time',          icon: Pulse },
+  '/dashboard/analytics':  { title: 'Analytics',   subtitle: 'Token savings trends and breakdowns',        icon: ChartBar },
+  '/dashboard/firewall':   { title: 'Firewall',    subtitle: 'MCP prompt-injection and security rules',    icon: Shield },
+  '/dashboard/devices':    { title: 'Devices',     subtitle: 'Connected machines and API keys',            icon: DeviceMobile },
+  '/billing':              { title: 'Billing',     subtitle: 'Manage your subscription and credits',       icon: CreditCard },
+  '/settings':             { title: 'Settings',    subtitle: 'Account preferences and configuration',     icon: GearSix },
+  '/cli':                  { title: 'CLI & Setup', subtitle: 'Install and configure the Confire CLI',      icon: Terminal },
+}
+
+function pageTitle(path: string): string {
+  for (const [prefix, meta] of Object.entries(PAGE_META)) {
+    if (prefix !== '/dashboard' && path.startsWith(prefix)) return meta.title
+  }
+  return PAGE_META['/dashboard'].title
+}
+
 // ── main page ─────────────────────────────────────────────────────────────────
 
 function Dashboard() {
@@ -441,7 +578,15 @@ function Dashboard() {
   const apiKey    = session?.access_token ?? null
   const workerBase = (import.meta as any).env?.PUBLIC_WORKER_URL ?? ''
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/dashboard'
+  const [currentPath, setCurrentPath] = useState(() =>
+    typeof window !== 'undefined' ? window.location.pathname : '/dashboard'
+  )
+
+  useEffect(() => {
+    const handler = () => setCurrentPath(window.location.pathname)
+    window.addEventListener('popstate', handler)
+    return () => window.removeEventListener('popstate', handler)
+  }, [])
 
   const {
     me, recentCalls, allCallBytes, apiKeys, firewall,
@@ -483,6 +628,8 @@ function Dashboard() {
           currentPath={currentPath}
           email={user.email ?? ''}
           plan={me?.plan}
+          totalSavedTokens={totalSavedTokens}
+          totalCalls={totalCallsAllTime}
           onSignOut={signOut}
         />
       </div>
@@ -492,6 +639,8 @@ function Dashboard() {
           currentPath={currentPath}
           email={user.email ?? ''}
           plan={me?.plan}
+          totalSavedTokens={totalSavedTokens}
+          totalCalls={totalCallsAllTime}
           onSignOut={() => { signOut(); setSidebarOpen(false) }}
           mobile
           onClose={() => setSidebarOpen(false)}
@@ -504,9 +653,9 @@ function Dashboard() {
         {/* top bar */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 24px', height: 56, flexShrink: 0,
+          padding: '0 20px', height: 52, flexShrink: 0,
           borderBottom: '1px solid var(--confire-border)',
-          background: 'var(--confire-bg-card)',
+          background: 'var(--confire-bg-footer)',
         }}>
           {/* hamburger — mobile only */}
           <button
@@ -514,26 +663,58 @@ function Dashboard() {
             onClick={() => setSidebarOpen(true)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--confire-text-dim)', lineHeight: 1, marginRight: 8 }}
           >
-            <List size={20} />
+            <List size={18} />
           </button>
 
-          {/* breadcrumb */}
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--confire-text-muted)' }}>
-            <Lightning size={14} color="#f4811f" />
-            <span style={{ color: 'var(--confire-text-dim)' }}>Confire</span>
-            <CaretRight size={11} />
-            <span style={{ color: 'var(--confire-text)', fontWeight: 500 }}>Overview</span>
+          {/* page title */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--confire-text-muted)' }}>
+            <span style={{ fontWeight: 500 }}>{pageTitle(currentPath)}</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {me && <PlanBadge plan={me.plan} />}
-            <Button variant="outline" size="sm" onClick={signOut}>Sign out</Button>
+            {/* user avatar */}
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%',
+              background: 'rgba(244,129,31,0.15)', border: '1px solid rgba(244,129,31,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, fontWeight: 600, color: '#f4811f', cursor: 'default',
+              flexShrink: 0,
+            }}>
+              {user?.email?.[0]?.toUpperCase() ?? 'U'}
+            </div>
           </div>
         </div>
 
         {/* page body */}
         <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+            {/* scaffold pages */}
+            {currentPath.startsWith('/dashboard/activity') && (
+              <EmptyPage title="Activity" subtitle="All tool call events in real time" icon={Pulse} />
+            )}
+            {currentPath.startsWith('/dashboard/analytics') && (
+              <EmptyPage title="Analytics" subtitle="Token savings trends and breakdowns" icon={ChartBar} />
+            )}
+            {currentPath.startsWith('/dashboard/firewall') && (
+              <EmptyPage title="Firewall" subtitle="MCP prompt-injection and security rules" icon={Shield} />
+            )}
+            {currentPath.startsWith('/dashboard/devices') && (
+              <EmptyPage title="Devices" subtitle="Connected machines and API keys" icon={DeviceMobile} />
+            )}
+            {currentPath.startsWith('/billing') && (
+              <EmptyPage title="Billing" subtitle="Manage your subscription and credits" icon={CreditCard} />
+            )}
+            {currentPath.startsWith('/settings') && (
+              <EmptyPage title="Settings" subtitle="Account preferences and configuration" icon={GearSix} />
+            )}
+            {currentPath.startsWith('/cli') && (
+              <EmptyPage title="CLI & Setup" subtitle="Install and configure the Confire CLI" icon={Terminal} />
+            )}
+
+            {/* overview page */}
+            {currentPath === '/dashboard' && <>
 
             {/* page title */}
             <div>
@@ -605,6 +786,8 @@ function Dashboard() {
 
             {/* quick links */}
             <QuickLinks />
+
+            </>}
 
           </div>
         </div>

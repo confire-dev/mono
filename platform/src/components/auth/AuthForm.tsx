@@ -92,11 +92,8 @@ export function AuthForm({ className, planIntent = 'free', next = '' }: Props) {
 
   return (
     <AppShell>
-      <div className={cn('flex flex-col gap-6', className)}>
-        <div className="flex flex-col items-center gap-2 text-center">
-          <a href="/">
-            <Text variant="heading3" as="span">Confire</Text>
-          </a>
+      <div className={cn('flex flex-col gap-5', className)}>
+        <div className="flex flex-col items-center gap-1.5 text-center">
           <Text variant="heading2" as="h1">{title}</Text>
           <Text variant="secondary" size="sm">{subtitle}</Text>
         </div>

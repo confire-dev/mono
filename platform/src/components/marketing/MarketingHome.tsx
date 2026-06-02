@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
 import {
   BodySm,
   BentoGrid,
@@ -43,55 +44,211 @@ import {
 const iconSm = 'size-3.5 shrink-0'
 const iconMd = 'size-8 shrink-0'
 
-// ── Hero — full-bleed orange card, centered, exactly like CF ──────────────────
+// ── Hero ──────────────────────────────────────────────────────────────────────
+
+const OPTIMIZER_TABS = [
+  { id: 'bash',   label: 'Bash output',   Icon: TerminalWindowIcon },
+  { id: 'files',  label: 'File reads',    Icon: DatabaseIcon },
+  { id: 'github', label: 'GitHub PRs',    Icon: PackageIcon },
+  { id: 'figma',  label: 'Figma exports', Icon: HexagonIcon },
+  { id: 'mcp',    label: 'MCP tools',     Icon: CpuIcon },
+] as const
+
+type TabId = (typeof OPTIMIZER_TABS)[number]['id']
+
+const OPTIMIZER_OUTPUTS: Record<TabId, string> = {
+  bash: `confire intercepted: bash_execute
+
+  before   12,400 tokens  ████████████████████
+  after       890 tokens  █▌
+
+  93% saved  ·  $0.078 → $0.001 per call
+
+  stripped: node_modules listing    (8,200 tok)
+  stripped: repeated stack traces   (2,100 tok)
+  stripped: env dump headers        (1,210 tok)
+  kept:     actual command output`,
+
+  files: `confire intercepted: read_file
+
+  before    8,200 tokens  ████████████████
+  after       620 tokens  █▌
+
+  92% saved  ·  $0.059 → $0.004 per call
+
+  stripped: trailing whitespace & blanks
+  stripped: duplicate import blocks
+  stripped: binary section metadata
+  kept:     all meaningful code content`,
+
+  github: `confire intercepted: github_get_pull_request
+
+  before   15,000 tokens  ████████████████████
+  after     1,100 tokens  █▌
+
+  93% saved  ·  $0.108 → $0.008 per call
+
+  stripped: CI check run logs       (9,400 tok)
+  stripped: generated file diffs    (3,800 tok)
+  stripped: bot comment threads       (700 tok)
+  kept:     code changes & reviews`,
+
+  figma: `confire intercepted: figma_get_file
+
+  before   22,000 tokens  ████████████████████
+  after     1,600 tokens  █▌
+
+  93% saved  ·  $0.158 → $0.012 per call
+
+  stripped: SVG path metadata      (12,000 tok)
+  stripped: redundant style rules   (6,200 tok)
+  stripped: hidden/locked layers    (2,200 tok)
+  kept:     component tree & tokens`,
+
+  mcp: `confire intercepted: mcp_tool_response
+
+  before    6,500 tokens  ████████████████
+  after       480 tokens  █▌
+
+  93% saved  ·  $0.047 → $0.003 per call
+
+  blocked:  1 prompt injection attempt  ⚠
+  stripped: hidden Unicode (U+200B ×47)
+  redacted: 2 API keys detected
+  kept:     clean, safe tool output`,
+}
 
 function Hero() {
-  // Re-use CTASection's exact orange card treatment but with H1 sizing
-  const tiles = [
-    { style: { top: '16%', left: '7%',   rotate: '-14deg', delay: '0s'   } },
-    { style: { top: '12%', left: '19%',  rotate: '10deg',  delay: '0.8s' } },
-    { style: { top: '52%', left: '9%',   rotate: '-8deg',  delay: '0.4s' } },
-    { style: { top: '10%', right: '13%', rotate: '12deg',  delay: '1s'   } },
-    { style: { top: '18%', right: '5%',  rotate: '-6deg',  delay: '0.6s' } },
-    { style: { bottom: '16%', right: '9%', rotate: '15deg', delay: '0.2s' } },
-  ]
+  const [activeTab, setActiveTab] = useState<TabId>('bash')
+  const [displayed, setDisplayed]   = useState('')
+  const [cursorOn, setCursorOn]     = useState(true)
+
+  useEffect(() => {
+    const full = OPTIMIZER_OUTPUTS[activeTab]
+    setDisplayed('')
+    let i = 0
+    const id = setInterval(() => {
+      i++
+      setDisplayed(full.slice(0, i))
+      if (i >= full.length) clearInterval(id)
+    }, 11)
+    return () => clearInterval(id)
+  }, [activeTab])
+
+  useEffect(() => {
+    const id = setInterval(() => setCursorOn(c => !c), 520)
+    return () => clearInterval(id)
+  }, [])
 
   return (
-    <Section className="confire-dot-region px-4 pt-6 pb-0 sm:px-8">
-      {/* orange card */}
-      <div className="confire-cta-surface relative overflow-hidden rounded-2xl">
+    <Section className="confire-dot-region px-0 pt-24 pb-0">
+      {/* centered headline + CTA */}
+      <div className="px-4 text-center sm:px-8">
+        <H1 className="mb-6">
+          Everything we learned from
+          <br className="hidden sm:block" />
+          running AI agents — yours by default.
+        </H1>
+        <p className="mx-auto mb-10 max-w-[36rem] text-base leading-relaxed text-confire-muted">
+          One optimizer for every tool call your AI makes.
+          Cheaper sessions, sharper context, zero config.
+        </p>
+        <Button variant="outline" asChild>
+          <a href="/login">
+            Start building for free
+            <ArrowRightIcon className="size-4" weight="bold" />
+          </a>
+        </Button>
+      </div>
 
-        {/* floating dashed tiles */}
-        {tiles.map(({ style: { rotate, delay, ...pos } }, i) => (
-          <div
-            key={i}
-            className="absolute flex size-14 animate-confire-float items-center justify-center rounded-[10px] border border-dashed border-confire-on-accent-border-dashed text-confire-on-accent-faint"
-            style={{ ...pos, animationDelay: delay, transform: `rotate(${rotate})` } as React.CSSProperties}
+      {/* optimizer tabs */}
+      <div className="mt-14 flex flex-wrap justify-center gap-2 px-4">
+        {OPTIMIZER_TABS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={cn(
+              'flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200',
+              activeTab === id
+                ? 'border-confire-border-strong bg-confire-card text-confire-text'
+                : 'border-confire-border bg-transparent text-confire-muted hover:border-confire-border-mid hover:text-confire-text',
+            )}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-          </div>
+            <Icon className="size-3.5" weight={activeTab === id ? 'duotone' : 'regular'} />
+            {label}
+          </button>
         ))}
+      </div>
 
-        {/* glow */}
-        <div className="confire-cta-glow pointer-events-none absolute bottom-0 left-1/2 h-[320px] w-[600px] -translate-x-1/2" />
+      {/* demo terminal box */}
+      <div className="mx-auto mt-6 w-full max-w-[var(--confire-max-w)] px-4 sm:px-8">
+        <div className="relative overflow-hidden rounded-t-2xl border border-b-0 border-confire-border bg-confire-card">
 
-        {/* content */}
-        <div className="relative z-10 px-6 py-20 pb-16 text-center sm:px-10 sm:py-24 sm:pb-20">
-          <H1 className="mb-6 text-confire-white">
-            Everything we learned from
-            <br className="hidden sm:block" />
-            running AI agents — yours by default.
-          </H1>
-          <p className="mx-auto mb-10 max-w-[36rem] text-base leading-relaxed text-confire-on-accent">
-            One optimizer for every tool call your AI makes.
-            <br />
-            Cheaper sessions, sharper context, zero config.
-          </p>
-          <Button variant="white" asChild>
-            <a href="/login">Start building for free</a>
-          </Button>
+          {/* top bar */}
+          <div className="flex items-center gap-1.5 border-b border-confire-border px-5 py-3">
+            <span className="size-2.5 rounded-full bg-confire-border-strong" />
+            <span className="size-2.5 rounded-full bg-confire-border-strong" />
+            <span className="size-2.5 rounded-full bg-confire-border-strong" />
+            <span className="ml-3 font-mono text-[11px] text-confire-muted">confire · optimizer active</span>
+            <span className="ml-auto flex items-center gap-1.5 text-[11px] text-confire-accent">
+              <span className="size-1.5 animate-pulse rounded-full bg-confire-accent" />
+              live
+            </span>
+          </div>
+
+          {/* typeahead output */}
+          <div className="relative z-10 min-h-[180px] p-7 pb-3">
+            <pre className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed text-confire-text-dim">
+              {displayed}
+              <span
+                className="ml-px inline-block w-[6px] translate-y-[1px] bg-confire-accent align-text-top"
+                style={{
+                  height: '1em',
+                  opacity: cursorOn ? 1 : 0,
+                  transition: 'opacity 0.08s',
+                }}
+              />
+            </pre>
+          </div>
+
+          {/* arc glow visualization */}
+          <div className="relative h-52 overflow-hidden">
+            {/* center radial glow */}
+            <div
+              className="pointer-events-none absolute left-1/2 -translate-x-1/2 animate-pulse"
+              style={{
+                bottom: '-80px',
+                width: '600px',
+                height: '320px',
+                background:
+                  'radial-gradient(ellipse at 50% 80%, rgba(244,129,31,0.16) 0%, rgba(244,129,31,0.04) 45%, transparent 68%)',
+                animationDuration: '3s',
+              }}
+            />
+            {/* concentric arcs */}
+            {[0, 1, 2, 3, 4, 5, 6, 7].map(i => {
+              const size = 120 + i * 130
+              return (
+                <div
+                  key={i}
+                  className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full"
+                  style={{
+                    width: size,
+                    height: size,
+                    bottom: -(size * 0.56),
+                    border: `1px solid rgba(244,129,31,${Math.max(0.025, 0.22 - i * 0.026)})`,
+                  }}
+                />
+              )
+            })}
+            {/* fade-to-card at top of arc area */}
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 h-12"
+              style={{
+                background: 'linear-gradient(to bottom, var(--confire-bg-card), transparent)',
+              }}
+            />
+          </div>
         </div>
       </div>
     </Section>

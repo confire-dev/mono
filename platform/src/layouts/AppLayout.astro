@@ -10,15 +10,19 @@ const { title, description = 'Confire — AI agent context optimizer' } = Astro.
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" style="color-scheme: dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <title>{title} — Confire</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
-  <body class="min-h-svh bg-kumo-base text-kumo-default antialiased">
+  <body class="min-h-svh bg-kumo-base font-[Geist,system-ui,sans-serif] text-kumo-default antialiased">
     <main>
       <slot />
     </main>
