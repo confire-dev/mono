@@ -58,7 +58,7 @@ function Hero() {
   ]
 
   return (
-    <Section className="px-4 pt-6 pb-0 sm:px-8">
+    <Section className="confire-dot-region px-4 pt-6 pb-0 sm:px-8">
       {/* orange card */}
       <div className="confire-cta-surface relative overflow-hidden rounded-2xl">
 
@@ -110,7 +110,7 @@ const STATS = [
 
 function StatsBar() {
   return (
-    <Section className="py-0">
+    <Section className="confire-dot-region py-0">
       <Container>
         <WithCorners cols={4} rows={1}>
           <div className="grid grid-cols-2 border border-confire-border sm:grid-cols-4">
@@ -159,7 +159,7 @@ function IntegrationBar() {
 
 function WhyConfire() {
   return (
-    <Section>
+    <Section className="confire-dot-region">
       <Container>
         <SectionTitle
           title="Why choose Confire"
@@ -493,7 +493,7 @@ function Pricing() {
 
 function BottomCTA() {
   return (
-    <Section className="px-4 pb-6 sm:px-8">
+    <Section className="confire-dot-region px-4 pb-6 sm:px-8">
       <Container>
         <CTASection
           title="Build without context limits."
