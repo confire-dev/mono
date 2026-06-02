@@ -1,3 +1,11 @@
+## v0.3.4 — 2026-06-02
+
+### Fixes
+- fix: dashboard Activity icon + honest home page copy (ac3d94c)
+
+
+---
+
 ## v0.3.3 — 2026-06-02
 
 
