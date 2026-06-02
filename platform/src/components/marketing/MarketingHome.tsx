@@ -10,7 +10,6 @@ import {
   H1,
   H2,
   H3,
-  HorizontalTabs,
   PricingSection,
   QuoteCard,
   Section,
@@ -102,10 +101,10 @@ function Hero() {
 // ── Stats bar ─────────────────────────────────────────────────────────────────
 
 const STATS = [
-  { value: '93%',  label: 'average token reduction'   },
-  { value: '13+',  label: 'source-specific optimizers' },
-  { value: '∞',    label: 'local optimizations free'   },
-  { value: '<1ms', label: 'local optimizer latency'    },
+  { value: '93%',  label: 'average token reduction'  },
+  { value: '5+',   label: 'source-specific optimizers' },
+  { value: '∞',    label: 'local optimizations free'  },
+  { value: '<1ms', label: 'local optimizer latency'   },
 ]
 
 function StatsBar() {
@@ -134,19 +133,26 @@ function StatsBar() {
 
 // ── Integration bar ───────────────────────────────────────────────────────────
 
-const INTEGRATIONS = ['Claude Code', 'Cursor', 'VS Code', 'Windsurf', 'GitHub Copilot', 'Zed']
+const INTEGRATIONS = [
+  { name: 'Claude Code', live: true  },
+  { name: 'Cursor',      live: true  },
+  { name: 'VS Code',     live: false },
+  { name: 'Windsurf',    live: false },
+  { name: 'Zed',         live: false },
+]
 
 function IntegrationBar() {
   return (
     <Section className="py-12">
       <Container>
         <p className="mb-8 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-confire-muted">
-          Works with every AI coding tool
+          Works with your AI coding tool
         </p>
         <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3">
-          {INTEGRATIONS.map(name => (
-            <span key={name} className="text-sm font-semibold text-confire-border-strong transition-colors hover:text-confire-dim">
+          {INTEGRATIONS.map(({ name, live }) => (
+            <span key={name} className="flex items-center gap-1.5 text-sm font-semibold text-confire-border-strong">
               {name}
+              {!live && <span className="rounded bg-confire-border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-confire-muted">soon</span>}
             </span>
           ))}
         </div>
@@ -241,7 +247,7 @@ function Pillars() {
               key="cloud"
               icon={<CloudIcon className={iconMd} weight="duotone" />}
               title="Run with any source"
-              description="GitHub, Figma, Slack, npm — 13+ source-specific optimizers that know the exact shape of each tool's output and strip only the noise."
+              description="GitHub PRs, Figma exports, and more — cloud optimizers that know the exact shape of each tool's output and strip only the noise."
             />,
             <FeatureCard
               key="privacy"
@@ -284,8 +290,11 @@ function Capabilities() {
               content: (
                 <div>
                   <DatabaseIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
-                  <H3 className="mb-2">Session Memory Guard</H3>
-                  <BodySm>Watches context growth and warns before you hit the limit. Pro adds automatic pre-compact optimization.</BodySm>
+                  <div className="mb-2 flex items-center gap-2">
+                    <H3>Session Memory Guard</H3>
+                    <span className="rounded bg-confire-border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-confire-muted">soon</span>
+                  </div>
+                  <BodySm>Watches context growth and warns before you hit the limit. Automatic pre-compact optimization coming on Pro.</BodySm>
                 </div>
               ),
             },
@@ -312,8 +321,11 @@ function Capabilities() {
               content: (
                 <div>
                   <BracketsCurlyIcon className="mb-4 size-8 text-white/80" weight="bold" />
-                  <H3 className="mb-2 text-white">Open hook API</H3>
-                  <BodySm className="text-white/70">Write custom optimizers in TypeScript. Ship as local rules or private cloud adapters on Enterprise.</BodySm>
+                  <div className="mb-2 flex items-center gap-2">
+                    <H3 className="text-white">Open hook API</H3>
+                    <span className="rounded bg-white/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/70">soon</span>
+                  </div>
+                  <BodySm className="text-white/70">Write custom optimizers in TypeScript. Ship as local rules or private cloud adapters.</BodySm>
                 </div>
               ),
             },
@@ -326,13 +338,14 @@ function Capabilities() {
 
 // ── How to get started ────────────────────────────────────────────────────────
 
-const setupCode = `# One command. Hooks into every AI coding tool.
+const setupCode = `# One command. Hooks into Claude Code and Cursor.
 $ brew install confire/tap/confire
 $ confire setup
 
 ✓ Hooked into Claude Code  (v1.8+)
 ✓ Hooked into Cursor       (v0.44+)
-✓ Local optimizers active`
+✓ Local optimizers active
+  More integrations coming soon`
 
 const optimizeCode = `// No code changes needed — Confire intercepts automatically.
 
@@ -418,46 +431,41 @@ function SocialProof() {
 
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
-const PLANS_MONTHLY = [
+const PLANS = [
   {
     name: 'Free',
     tagline: 'for hobby projects',
     price: '$0',
     period: '/month',
-    features: ['500 cloud opts / mo', 'Universal optimizer', 'Local unlimited', 'Claude Code hook'],
-    cta: 'See Free plan',
+    features: ['500 cloud opts / mo', 'Local optimizations unlimited', 'Claude Code + Cursor hook', 'Usage dashboard'],
+    cta: 'Start for free',
   },
   {
-    name: 'Dev',
+    name: 'Developer',
     tagline: 'for power users',
     price: '$10',
     period: '/month',
-    features: ['5,000 cloud opts / mo', '13 source optimizers', 'History & analytics', 'Early adapter access'],
-    cta: 'See Dev plan',
+    features: ['5,000 cloud opts / mo', 'All source optimizers', 'Full history & analytics', 'Firewall group controls'],
+    cta: 'Get Developer',
     featured: true,
   },
   {
     name: 'Pro',
     tagline: 'for heavy sessions',
-    price: '$20',
-    period: '/month',
-    features: ['Unlimited fair-use*', 'Memory Guard', 'PreCompact optimizer', 'Data export'],
-    cta: 'See Pro plan',
+    price: 'Coming soon',
+    features: ['Higher limits', 'Session Memory Guard', 'PreCompact optimizer', 'Data export'],
+    cta: 'Join waitlist',
+    disabled: true,
   },
   {
     name: 'Enterprise',
-    tagline: 'for mission-critical',
-    price: 'Custom',
-    features: ['Self-hosted', 'Team policies', 'Custom optimizers', 'Audit logging', 'SSO / SAML'],
-    cta: 'Contact sales',
+    tagline: 'for teams',
+    price: 'Coming soon',
+    features: ['Team dashboard', 'Centralized billing', 'Custom optimizers', 'SSO / SAML', 'Audit logging'],
+    cta: 'Talk to us',
+    disabled: true,
   },
 ]
-
-const PLANS_ANNUAL = PLANS_MONTHLY.map(p => ({
-  ...p,
-  price: p.price === '$10' ? '$7.92' : p.price === '$20' ? '$16.25' : p.price,
-  period: p.period ? '/mo billed annually' : undefined,
-}))
 
 function Pricing() {
   return (
@@ -468,21 +476,10 @@ function Pricing() {
           subtitle="(Not to pad token counts.)"
         />
 
-        <HorizontalTabs
-          tabs={[
-            {
-              label: 'Monthly',
-              content: <PricingSection plans={PLANS_MONTHLY} />,
-            },
-            {
-              label: 'Annual — save 20%',
-              content: <PricingSection plans={PLANS_ANNUAL} />,
-            },
-          ]}
-        />
+        <PricingSection plans={PLANS} />
 
         <p className="mt-4 text-center text-xs text-confire-muted">
-          * Monthly token cap and per-minute rate limits apply on unlimited fair-use.
+          Annual billing and top-up packs coming soon.
         </p>
       </Container>
     </Section>
@@ -497,7 +494,7 @@ function BottomCTA() {
       <Container>
         <CTASection
           title="Build without context limits."
-          subtitle="Join thousands of developers who've eliminated token noise and shipped faster with Confire. Start building for free — no credit card required."
+          subtitle="Eliminate token noise and ship faster with Confire. Start building for free — no credit card required."
           primaryAction={
             <Button variant="white" asChild>
               <a href="/login">Start building for free</a>
@@ -509,8 +506,8 @@ function BottomCTA() {
             </Button>
           }
           marqueeItems={[
-            { icon: <LightningIcon className={iconSm} weight="fill" />,   text: 'Works with Claude Code & Cursor' },
-            { icon: <ChartLineUpIcon className={iconSm} weight="bold" />, text: '93% average token reduction' },
+            { icon: <LightningIcon className={iconSm} weight="fill" />,   text: 'Claude Code + Cursor support' },
+            { icon: <ChartLineUpIcon className={iconSm} weight="bold" />, text: 'Up to 93% token reduction' },
             { icon: <LockIcon className={iconSm} weight="bold" />,        text: 'Secrets never leave your machine' },
             { icon: <CalendarIcon className={iconSm} weight="bold" />,    text: '500 free cloud opts / month' },
             { icon: <PackageIcon className={iconSm} weight="bold" />,     text: 'Top-up packs when you need more' },

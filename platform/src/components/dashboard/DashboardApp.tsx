@@ -8,7 +8,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { Button, Text, TimeseriesChart } from '@cloudflare/kumo'
 import {
-  House, Activity, Shield, Terminal, CreditCard, BookOpen,
+  House, Pulse, Shield, Terminal, CreditCard, BookOpen,
   GearSix, SignOut, List, X, CaretRight, Lightning,
   DeviceMobile, ChartBar,
 } from '@phosphor-icons/react'
@@ -138,7 +138,7 @@ function Toggle({ on, disabled, onClick }: { on: boolean; disabled?: boolean; on
 
 const NAV_ITEMS = [
   { label: 'Overview',    href: '/dashboard',          icon: House },
-  { label: 'Activity',    href: '/dashboard/activity', icon: Activity },
+  { label: 'Activity',    href: '/dashboard/activity', icon: Pulse },
   { label: 'Firewall',    href: '/dashboard/firewall', icon: Shield },
   { label: 'Devices',     href: '/dashboard/devices',  icon: DeviceMobile },
   { label: 'Analytics',   href: '/dashboard/analytics',icon: ChartBar },
