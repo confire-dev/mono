@@ -13,7 +13,7 @@
 class Confire < Formula
   desc "Context and tool firewall for Claude Code"
   homepage "https://confire.dev"
-  version "0.1.1"
+  version "0.2.0"
   license "Proprietary"
 
   on_macos do
