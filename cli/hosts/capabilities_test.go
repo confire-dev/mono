@@ -17,7 +17,7 @@ func TestDefaultCapabilities_ClaudeCodeFullOptimize(t *testing.T) {
 	if !c.OptimizeNative || !c.OptimizeMCP {
 		t.Fatalf("claude-code should optimize native and MCP: %+v", c)
 	}
-	if c.PostToolSteer {
-		t.Fatal("claude-code should not use post-tool steer envelope")
+	if !c.PostToolSteer {
+		t.Fatal("claude-code should use post-tool steer envelope (enabled for security advisories)")
 	}
 }

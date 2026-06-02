@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "mcp.risk.shell_name",
+      "name": "MCP shell-execution tool",
+      "group": "mcp.risk_classifier",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": {
+        "mcp_only": true,
+        "tool_name_regex": "bash|shell|exec|execute|run_command|terminal|eval|spawn|cmd|powershell"
+      },
+      "message": "MCP tool name suggests shell execution — review before running."
+    },
+    {
+      "id": "mcp.risk.write_name",
+      "name": "MCP file write/delete tool",
+      "group": "mcp.risk_classifier",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": {
+        "mcp_only": true,
+        "tool_name_regex": "__(write|delete|remove|unlink|overwrite|destroy|drop|truncate|wipe)(_|\\z)"
+      },
+      "message": "MCP tool name suggests a destructive file or data operation."
+    },
+    {
+      "id": "mcp.risk.exfil_name",
+      "name": "MCP exfiltration-risk tool",
+      "group": "mcp.risk_classifier",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "medium",
+      "match": {
+        "mcp_only": true,
+        "tool_name_regex": "__(send|email|post|upload|transfer|share|export|forward|webhook|notify)(_|\\z)"
+      },
+      "message": "MCP tool name suggests data may be sent externally — review before running."
+    },
+    {
+      "id": "mcp.risk.credential_params",
+      "name": "MCP tool with credential parameters",
+      "group": "mcp.risk_classifier",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "warn",
+      "severity": "medium",
+      "match": {
+        "mcp_only": true,
+        "input_param_scan": true
+      },
+      "message": "MCP tool input contains parameter names that may carry credentials or secrets."
+    },
+    {
+      "id": "mcp.cross_tool.output_ref",
+      "name": "MCP output cross-tool steering",
+      "group": "mcp.cross_tool",
+      "enabled": true,
+      "phase": "PostToolUse",
+      "action": "warn",
+      "severity": "high",
+      "match": {
+        "mcp_only": true,
+        "output_injection_scan": true
+      },
+      "message": "MCP output contains cross-tool steering instructions — possible indirect injection."
+    },
+    {
+      "id": "mcp.secrets.output",
+      "name": "Redact secrets from MCP output",
+      "group": "mcp.secrets",
+      "enabled": true,
+      "phase": "PostToolUse",
+      "action": "redact",
+      "severity": "high",
+      "match": {
+        "mcp_only": true,
+        "output_secret_scan": true
+      },
+      "message": "Secret-like values were redacted from MCP tool output before entering context."
+    },
+    {
+      "id": "mcp.injection.output",
+      "name": "Sanitize prompt-injection from MCP output",
+      "group": "mcp.injection",
+      "enabled": true,
+      "phase": "PostToolUse",
+      "action": "sanitize",
+      "severity": "high",
+      "match": {
+        "mcp_only": true,
+        "output_injection_scan": true
+      },
+      "message": "Instruction-like text was flagged in MCP tool output."
+    },
+    {
+      "id": "mcp.unicode.output",
+      "name": "Strip hidden Unicode from MCP output",
+      "group": "mcp.unicode",
+      "enabled": true,
+      "phase": "PostToolUse",
+      "action": "sanitize",
+      "severity": "high",
+      "match": {
+        "mcp_only": true
+      },
+      "message": "Hidden Unicode characters (tag block, zero-width, BiDi) were stripped from MCP output."
+    },
+    {
+      "id": "mcp.normalizer.output",
+      "name": "Normalize and prune MCP output",
+      "group": "mcp.normalizer",
+      "enabled": true,
+      "phase": "PostToolUse",
+      "action": "optimize",
+      "severity": "low",
+      "match": {
+        "mcp_only": true
+      },
+      "message": "MCP output was normalized (null fields removed, arrays truncated)."
+    },
+    {
+      "id": "mcp.budget.large_output",
+      "name": "Flag large MCP output for light optimization",
+      "group": "mcp.budget",
+      "enabled": true,
+      "phase": "PostToolUse",
+      "action": "optimize",
+      "severity": "low",
+      "match": {
+        "mcp_only": true,
+        "output_min_bytes": 1024
+      },
+      "message": "MCP output is large — applying light normalization to reduce context usage."
+    },
+    {
+      "id": "mcp.budget.output",
+      "name": "Enforce token budget on MCP output",
+      "group": "mcp.budget",
+      "enabled": true,
+      "phase": "PostToolUse",
+      "action": "optimize",
+      "severity": "low",
+      "match": {
+        "mcp_only": true,
+        "output_min_bytes": 4096
+      },
+      "message": "MCP output exceeded token budget and was packed to fit."
+    }
+  ]
+}

@@ -675,7 +675,7 @@ INSERT INTO plans (id, status, config) VALUES
     "exportData": false, "priorityOptimizerUpdates": false,
     "customOptimizers": false, "ssoSaml": false,
     "optimizationHistory": false, "earlyAccessAdapters": false,
-    "sessionMemoryGuard": false, "preCompactOptimizer": false, "localMemoryPacks": false
+    "sessionMemoryGuard": false, "preCompactOptimizer": false, "localMemoryPacks": false, "firewallGroupToggles": false
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],
@@ -710,7 +710,7 @@ INSERT INTO plans (id, status, config) VALUES
     "exportData": false, "priorityOptimizerUpdates": false,
     "customOptimizers": false, "ssoSaml": false,
     "optimizationHistory": true, "earlyAccessAdapters": true,
-    "sessionMemoryGuard": false, "preCompactOptimizer": false, "localMemoryPacks": false
+    "sessionMemoryGuard": false, "preCompactOptimizer": false, "localMemoryPacks": false, "firewallGroupToggles": false
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],
@@ -745,7 +745,7 @@ INSERT INTO plans (id, status, config) VALUES
     "exportData": true, "priorityOptimizerUpdates": true,
     "customOptimizers": false, "ssoSaml": false,
     "optimizationHistory": true, "earlyAccessAdapters": true,
-    "sessionMemoryGuard": true, "preCompactOptimizer": true, "localMemoryPacks": true
+    "sessionMemoryGuard": true, "preCompactOptimizer": true, "localMemoryPacks": true, "firewallGroupToggles": true
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],
@@ -763,7 +763,7 @@ INSERT INTO plans (id, status, config) VALUES
   "billingMode": "subscription",
   "interval": "year",
   "stripe": { "productId": null, "priceId": null, "checkoutMode": "subscription" },
-  "pricing": { "amountCents": 9500, "currency": "usd", "displayPrice": "$95/yr" },
+  "pricing": { "amountCents": 9000, "currency": "usd", "displayPrice": "$90/yr" },
   "limits": {
     "cloudOptimizationsMonthly": 5000,
     "cloudTokensMonthly": 50000000,
@@ -780,7 +780,7 @@ INSERT INTO plans (id, status, config) VALUES
     "exportData": false, "priorityOptimizerUpdates": false,
     "customOptimizers": false, "ssoSaml": false,
     "optimizationHistory": true, "earlyAccessAdapters": true,
-    "sessionMemoryGuard": false, "preCompactOptimizer": false, "localMemoryPacks": false
+    "sessionMemoryGuard": false, "preCompactOptimizer": false, "localMemoryPacks": false, "firewallGroupToggles": false
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],
@@ -815,7 +815,7 @@ INSERT INTO plans (id, status, config) VALUES
     "exportData": true, "priorityOptimizerUpdates": true,
     "customOptimizers": false, "ssoSaml": false,
     "optimizationHistory": true, "earlyAccessAdapters": true,
-    "sessionMemoryGuard": true, "preCompactOptimizer": true, "localMemoryPacks": true
+    "sessionMemoryGuard": true, "preCompactOptimizer": true, "localMemoryPacks": true, "firewallGroupToggles": true
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],
@@ -850,7 +850,7 @@ INSERT INTO plans (id, status, config) VALUES
     "exportData": true, "priorityOptimizerUpdates": true,
     "customOptimizers": true, "ssoSaml": true,
     "optimizationHistory": true, "earlyAccessAdapters": true,
-    "sessionMemoryGuard": true, "preCompactOptimizer": true, "localMemoryPacks": true
+    "sessionMemoryGuard": true, "preCompactOptimizer": true, "localMemoryPacks": true, "firewallGroupToggles": true
   },
   "optimizers": {
     "local": ["generic","bash","read","webfetch"],
@@ -860,3 +860,31 @@ INSERT INTO plans (id, status, config) VALUES
 }')
 
 ON CONFLICT (id) DO NOTHING;  -- idempotent seed
+
+-- ── MCP Firewall: per-user rule-group overrides ───────────────────────────────
+-- Paid users can enable/disable named rule groups (e.g. "mcp.secrets") from the
+-- dashboard. The Worker reads these and returns them via GET /v1/policy.
+-- The CLI merges them into its cached policy on every sync.
+
+CREATE TABLE IF NOT EXISTS user_policy_overrides (
+    user_id    UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    group_id   TEXT        NOT NULL,
+    enabled    BOOLEAN     NOT NULL DEFAULT true,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, group_id)
+);
+
+-- Only the owning user can read/write their own overrides.
+ALTER TABLE user_policy_overrides ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "owner_select" ON user_policy_overrides
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "owner_upsert" ON user_policy_overrides
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "owner_update" ON user_policy_overrides
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "owner_delete" ON user_policy_overrides
+    FOR DELETE USING (auth.uid() = user_id);

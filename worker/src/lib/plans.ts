@@ -70,6 +70,9 @@ export interface Plan {
     sessionMemoryGuard: boolean
     preCompactOptimizer: boolean
     localMemoryPacks: boolean
+    // firewallGroupToggles: paid users can customise which MCP firewall rule groups are active.
+    // Value comes from the `plans` table in Supabase — not hardcoded here.
+    firewallGroupToggles: boolean
   }
 
   optimizers: {

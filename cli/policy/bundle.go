@@ -26,6 +26,7 @@ type bundledRule struct {
 	Action   RuleAction `json:"action"`
 	Severity Severity   `json:"severity"`
 	MinMode  Mode       `json:"min_mode,omitempty"`
+	Group    string     `json:"group,omitempty"`
 	Match    RuleMatch  `json:"match"`
 	Message  string     `json:"message"`
 	Patterns []pattern  `json:"patterns,omitempty"`
@@ -49,25 +50,26 @@ func BuiltinRules() []Rule {
 }
 
 func loadBundledRules() ([]Rule, error) {
-	data, err := bundledRuleFS.ReadFile("rules/builtin.json")
-	if err != nil {
-		return nil, err
-	}
-	var bundle ruleBundle
-	if err := json.Unmarshal(data, &bundle); err != nil {
-		return nil, err
-	}
-	if bundle.Version == 0 {
-		return nil, fmt.Errorf("missing bundle version")
-	}
-
 	var out []Rule
-	for _, br := range bundle.Rules {
-		expanded, err := expandBundledRule(br)
+	for _, name := range []string{"rules/builtin.json", "rules/mcp.json"} {
+		data, err := bundledRuleFS.ReadFile(name)
 		if err != nil {
-			return nil, fmt.Errorf("rule %q: %w", br.ID, err)
+			return nil, err
 		}
-		out = append(out, expanded...)
+		var bundle ruleBundle
+		if err := json.Unmarshal(data, &bundle); err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		if bundle.Version == 0 {
+			return nil, fmt.Errorf("%s: missing bundle version", name)
+		}
+		for _, br := range bundle.Rules {
+			expanded, err := expandBundledRule(br)
+			if err != nil {
+				return nil, fmt.Errorf("%s rule %q: %w", name, br.ID, err)
+			}
+			out = append(out, expanded...)
+		}
 	}
 	return out, nil
 }
@@ -117,6 +119,7 @@ func (br bundledRule) toRule(id, message string, match RuleMatch) Rule {
 		Action:   br.Action,
 		Severity: br.Severity,
 		MinMode:  br.MinMode,
+		Group:    br.Group,
 		Match:    match,
 		Message:  message,
 		Source:   "builtin",

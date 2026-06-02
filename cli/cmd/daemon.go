@@ -61,13 +61,17 @@ type sessionStats struct {
 }
 
 type daemonState struct {
-	mu        sync.Mutex
-	sessions  map[string]*sessionStats
-	apiKey    string
-	deviceID  string
-	cfg       config.Config
-	statsDB   *stats.DB
-	guardrail *guardrail.Handler
+	mu           sync.Mutex
+	sessions     map[string]*sessionStats
+	apiKey       string
+	deviceID     string
+	cfg          config.Config
+	statsDB      *stats.DB
+	guardrail    *guardrail.Handler
+	mcpRisk      *intercept.MCPRiskHandler
+	mcpSanitize  *intercept.MCPSanitizeHandler
+	mcpNormalize *intercept.MCPNormalizeHandler
+	mcpStats     *intercept.MCPStatsWriter
 }
 
 func (ds *daemonState) onSessionStart(event intercept.InterceptEvent) {
@@ -338,13 +342,26 @@ func runDaemon() error {
 	policyEngine := policy.NewEngine(policy.LoadRules())
 	mode := policy.Mode(cfg.EffectiveMode())
 
+	// MCP handlers — initialised once, shared across connections.
+	var mcpStatsWriter *intercept.MCPStatsWriter
+	if statsDB != nil {
+		if rawDB := statsDB.RawDB(); rawDB != nil {
+			_ = intercept.MigrateMCPSchema(rawDB)
+			mcpStatsWriter = intercept.NewMCPStatsWriter(rawDB)
+		}
+	}
+
 	state := &daemonState{
-		sessions:  make(map[string]*sessionStats),
-		apiKey:    apiKey,
-		deviceID:  deviceID,
-		cfg:       cfg,
-		statsDB:   statsDB,
-		guardrail: guardrail.New(policyEngine, mode),
+		sessions:     make(map[string]*sessionStats),
+		apiKey:       apiKey,
+		deviceID:     deviceID,
+		cfg:          cfg,
+		statsDB:      statsDB,
+		guardrail:    guardrail.New(policyEngine, mode),
+		mcpRisk:      &intercept.MCPRiskHandler{},
+		mcpSanitize:  &intercept.MCPSanitizeHandler{},
+		mcpNormalize: intercept.NewMCPNormalizeHandler(),
+		mcpStats:     mcpStatsWriter,
 	}
 
 	if statsDB != nil {
@@ -426,6 +443,13 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 		}
 		if state.cfg.IsFirewallEnabled() && state.guardrail != nil {
 			result, _ := state.guardrail.Run(event)
+			// MCP risk classifier runs after the policy guardrail.
+			// If guardrail already blocked/reviewed, skip the risk handler.
+			if result.Kind == intercept.ResultPassthrough && state.mcpRisk != nil && state.mcpRisk.Matches(event) {
+				if r, err := state.mcpRisk.Run(event); err == nil && r.Kind != intercept.ResultPassthrough {
+					result = r
+				}
+			}
 			state.onFirewallResult(event, result)
 			json.NewEncoder(conn).Encode(result)
 		} else {
@@ -437,7 +461,13 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 	// PostToolUse and other tool phases — run sanitization then optimizer.
 	var sanitizeReport intercept.SanitizeReport
 	if state.cfg.IsFirewallEnabled() && event.Phase == intercept.PhaseToolPost {
-		event, sanitizeReport = state.sanitizeOutput(event)
+		// Generic sanitization for non-MCP tools (secrets + injection via sanitize pkg).
+		if event.Tool == nil || !event.Tool.IsMCP {
+			event, sanitizeReport = state.sanitizeOutput(event)
+		} else {
+			// MCP-specific pipeline: sanitize → normalize → record stats.
+			event, sanitizeReport = state.runMCPPostPipeline(event)
+		}
 	}
 
 	// Tool calls → optimize + track stats + notify (when enabled for this host).
@@ -559,6 +589,60 @@ func (ds *daemonState) sanitizeOutput(event intercept.InterceptEvent) (intercept
 		event.Tool = &toolCopy
 	}
 	return event, report
+}
+
+// runMCPPostPipeline applies the MCP-specific PostToolUse pipeline:
+// sanitize (secrets + unicode + injection) → normalize (prune + truncate) → record stats.
+func (ds *daemonState) runMCPPostPipeline(event intercept.InterceptEvent) (intercept.InterceptEvent, intercept.SanitizeReport) {
+	report := intercept.SanitizeReport{}
+	if event.Tool == nil || event.Tool.Output == nil {
+		return event, report
+	}
+
+	// Pass 1: sanitize (secrets redaction, unicode strip, injection detection).
+	if ds.mcpSanitize != nil && ds.mcpSanitize.Matches(event) {
+		if r, err := ds.mcpSanitize.Run(event); err == nil && r.Kind != intercept.ResultPassthrough {
+			toolCopy := *event.Tool
+			toolCopy.Output = r.ToolOutput
+			event.Tool = &toolCopy
+			// Approximate: non-empty Stats means redactions occurred.
+			if r.Stats != nil && r.Stats.BeforeBytes > r.Stats.AfterBytes {
+				report.SecretsRedacted = 1 // at least one redaction happened
+			}
+			report.InjectionFound = r.Kind == intercept.ResultSanitize
+		}
+	}
+
+	// Pass 2: normalize (null pruner + array truncation + string budget).
+	if ds.mcpNormalize != nil && ds.mcpNormalize.Matches(event) {
+		if r, err := ds.mcpNormalize.Run(event); err == nil && r.Kind != intercept.ResultPassthrough {
+			toolCopy := *event.Tool
+			toolCopy.Output = r.ToolOutput
+			event.Tool = &toolCopy
+		}
+	}
+
+	// Pass 3: async stats recording.
+	if ds.mcpStats != nil && event.Tool != nil {
+		ds.mcpStats.RecordAsync(intercept.MCPToolEvent{
+			ServerID:       event.Tool.MCPServer,
+			ToolName:       event.Tool.Name,
+			Phase:          event.Phase,
+			Outcome:        "sanitize",
+			BytesIn:        event.Tool.DurationMs, // placeholder — real byte counts tracked in Stats
+			SecretsFound:   report.SecretsRedacted,
+			InjectionFlags: boolInt(report.InjectionFound),
+		})
+	}
+
+	return event, report
+}
+
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func shouldOptimizeEvent(event intercept.InterceptEvent, cfg config.Config) bool {
