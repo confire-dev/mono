@@ -1,6 +1,7 @@
 package intercept
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"regexp"
 	"strings"
@@ -27,9 +28,10 @@ func (h *MCPSanitizeHandler) Run(e InterceptEvent) (InterceptResult, error) {
 	report.SecretsRedacted = secretCount
 	report.SecretTypes = secretTypes
 
-	cleaned = stripHiddenUnicode(cleaned)
-	injected := detectInjection(cleaned)
-	report.InjectionFound = injected
+	strippedUnicode := stripHiddenUnicode(cleaned)
+	report.HiddenUnicodeFound = jsonSize(strippedUnicode) != jsonSize(cleaned)
+	cleaned = strippedUnicode
+	report.InjectionFound = detectInjection(cleaned)
 
 	if !report.HasFindings() {
 		return InterceptResult{Kind: ResultPassthrough}, nil
@@ -204,26 +206,59 @@ func redactString(s string, count *int, types map[string]bool) string {
 // ── Injection detection ───────────────────────────────────────────────────────
 
 var injectionPatterns = []*regexp.Regexp{
+	// Prompt injection — override / disregard
 	regexp.MustCompile(`(?i)(ignore|forget|disregard).{0,40}(previous|above|prior|earlier|instruction|directive)`),
+	regexp.MustCompile(`(?i)(the following is your new|new set of).{0,40}instruction`),
+	regexp.MustCompile(`(?i)forget everything (you were|I) told`),
+	// Prompt injection — identity / role switch
 	regexp.MustCompile(`(?i)you are now\b`),
 	regexp.MustCompile(`(?i)\bact as\b.{0,20}\b(ai|assistant|model|bot|agent)\b`),
 	regexp.MustCompile(`(?i)\bpretend (to be|you are)\b`),
+	// Prompt injection — system context
 	regexp.MustCompile(`(?i)<\s*(system|SYSTEM)\s*>`),
 	regexp.MustCompile(`(?i)\bsystem\s+prompt\b`),
-	// Cross-tool steering patterns
+	// Cross-tool steering
 	regexp.MustCompile(`(?i)\buse the\s+\w+\s+tool\b`),
 	regexp.MustCompile(`(?i)\bcall the\s+\w+\s+(tool|function)\b`),
 	regexp.MustCompile(`(?i)\binvoke\s+mcp__`),
 	regexp.MustCompile(`mcp__\w+__\w+`),
+	// Hidden text — CSS visibility tricks
+	regexp.MustCompile(`(?i)opacity\s*:\s*0`),
+	regexp.MustCompile(`(?i)visibility\s*:\s*hidden`),
+	// Role manipulation — jailbreaks
+	regexp.MustCompile(`(?i)developer\s+mode.{0,60}(bypass|no\s+restriction|without\s+limit)`),
+	regexp.MustCompile(`(?i)\b(bypass|skip).{0,30}(restriction|safety|guideline|safety\s+check|confirm)`),
+	regexp.MustCompile(`(?i)(system\s+admin|administrator).{0,60}(authoriz|skip|bypass|override)`),
+	// Phishing — urgency + credential action
+	regexp.MustCompile(`(?i)(urgent|expire[sd]?|suspend).{0,80}(click|verify|reset|re.?authenticate|credential)`),
+	regexp.MustCompile(`(?i)(password|access).{0,40}expired?.{0,60}https?://`),
+	regexp.MustCompile(`(?i)(wire\s+transfer|process.{0,20}payment).{0,60}(immediately|urgent|right\s+now)`),
+	// Data exfiltration
+	regexp.MustCompile(`(?i)(output|reveal|display|print|show).{0,50}(env(ironment)?\s+var|api.{0,5}key|credential|secret)`),
+	regexp.MustCompile(`(?i)(POST|send|upload|transfer).{0,30}https?://`),
+	regexp.MustCompile(`(?i)(\.ssh[/\\]|id_rsa|\.aws[/\\]|\.env).{0,60}(read|cat\b|base64|encode|output|reveal)`),
+	regexp.MustCompile(`(?i)(base64|encode).{0,60}(\.ssh|id_rsa|private.{0,5}key|\.aws)`),
 }
 
+// base64Blob matches a standalone base64-encoded string of meaningful length.
+var base64Blob = regexp.MustCompile(`(?:^|[\s"'])([A-Za-z0-9+/]{20,}={0,2})(?:$|[\s"'])`)
+
 // detectInjection returns true if any string in the value tree matches injection patterns.
+// It also decodes embedded base64 blobs and re-scans the decoded text.
 func detectInjection(v any) bool {
 	switch x := v.(type) {
 	case string:
 		for _, re := range injectionPatterns {
 			if re.MatchString(x) {
 				return true
+			}
+		}
+		// Decode any base64 blobs and re-scan the plaintext.
+		for _, m := range base64Blob.FindAllStringSubmatch(x, 8) {
+			if decoded, err := base64.StdEncoding.DecodeString(m[1]); err == nil {
+				if detectInjection(string(decoded)) {
+					return true
+				}
 			}
 		}
 	case map[string]any:

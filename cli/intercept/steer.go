@@ -9,13 +9,14 @@ const postToolSteerHeader = "[Confire post_tool steer]"
 
 // SanitizeReport captures post-tool firewall scan results (no secret values).
 type SanitizeReport struct {
-	SecretsRedacted int
-	SecretTypes     []string
-	InjectionFound  bool
+	SecretsRedacted    int
+	SecretTypes        []string
+	InjectionFound     bool
+	HiddenUnicodeFound bool
 }
 
 func (r SanitizeReport) HasFindings() bool {
-	return r.SecretsRedacted > 0 || r.InjectionFound
+	return r.SecretsRedacted > 0 || r.InjectionFound || r.HiddenUnicodeFound
 }
 
 // PostToolSteerInput builds standardized agent steering context for hosts

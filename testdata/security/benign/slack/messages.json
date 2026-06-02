@@ -1,0 +1,20 @@
+[
+  {
+    "id": "BN-SL-001",
+    "tool": "slack",
+    "content": "{\"messages\":[{\"text\":\"Hey team, the deploy to prod just finished. All green!\",\"user\":\"U123456\"}]}",
+    "notes": "Normal Slack message - must not flag"
+  },
+  {
+    "id": "BN-SL-002",
+    "tool": "slack",
+    "content": "{\"messages\":[{\"text\":\"Can someone review PR #4521? It's blocking the release.\",\"user\":\"U789012\"}]}",
+    "notes": "PR review request - must not flag"
+  },
+  {
+    "id": "BN-SL-003",
+    "tool": "slack",
+    "content": "{\"messages\":[{\"text\":\"Standup notes: worked on auth refactor yesterday, same today, no blockers.\",\"user\":\"U345678\"}]}",
+    "notes": "Standup message - must not flag"
+  }
+]
