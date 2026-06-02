@@ -127,8 +127,14 @@ func loadCache() *CachedPolicy {
 	return &cp
 }
 
-// applyGroupOverrides disables all rules whose Group appears in overrides with value false.
+// ApplyGroupOverrides disables all rules whose Group appears in overrides with value false.
 // Rules with no group, or whose group is not in the map, are unaffected.
+// This is the exported form used by tests and by the CLI sync path.
+func ApplyGroupOverrides(rules []Rule, overrides map[string]bool) []Rule {
+	return applyGroupOverrides(rules, overrides)
+}
+
+// applyGroupOverrides is the internal form called during rule loading.
 func applyGroupOverrides(rules []Rule, overrides map[string]bool) []Rule {
 	if len(overrides) == 0 {
 		return rules
