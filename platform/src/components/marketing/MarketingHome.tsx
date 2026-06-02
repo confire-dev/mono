@@ -1,11 +1,8 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
-  Badge,
-  Body,
   BodySm,
   BentoGrid,
   Button,
-  Card,
   CTASection,
   Container,
   ConfireLogo,
@@ -24,6 +21,7 @@ import {
   ThreeCards,
   TwoCards,
   VerticalTabsCode,
+  WithCorners,
 } from '@/components/confire'
 import {
   ArrowRightIcon,
@@ -43,130 +41,111 @@ import {
   TimerIcon,
 } from '@phosphor-icons/react'
 
-const iconSm  = 'size-3.5 shrink-0'
-const iconMd  = 'size-8 shrink-0'
-const iconLg  = 'size-12 shrink-0'
+const iconSm = 'size-3.5 shrink-0'
+const iconMd = 'size-8 shrink-0'
+
+// ── Hero — full-bleed orange card, centered, exactly like CF ──────────────────
+
+function Hero() {
+  // Re-use CTASection's exact orange card treatment but with H1 sizing
+  const tiles = [
+    { style: { top: '16%', left: '7%',   rotate: '-14deg', delay: '0s'   } },
+    { style: { top: '12%', left: '19%',  rotate: '10deg',  delay: '0.8s' } },
+    { style: { top: '52%', left: '9%',   rotate: '-8deg',  delay: '0.4s' } },
+    { style: { top: '10%', right: '13%', rotate: '12deg',  delay: '1s'   } },
+    { style: { top: '18%', right: '5%',  rotate: '-6deg',  delay: '0.6s' } },
+    { style: { bottom: '16%', right: '9%', rotate: '15deg', delay: '0.2s' } },
+  ]
+
+  return (
+    <Section className="px-4 pt-6 pb-0 sm:px-8">
+      {/* orange card */}
+      <div className="confire-cta-surface relative overflow-hidden rounded-2xl">
+
+        {/* floating dashed tiles */}
+        {tiles.map(({ style: { rotate, delay, ...pos } }, i) => (
+          <div
+            key={i}
+            className="absolute flex size-14 animate-confire-float items-center justify-center rounded-[10px] border border-dashed border-confire-on-accent-border-dashed text-confire-on-accent-faint"
+            style={{ ...pos, animationDelay: delay, transform: `rotate(${rotate})` } as React.CSSProperties}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+        ))}
+
+        {/* glow */}
+        <div className="confire-cta-glow pointer-events-none absolute bottom-0 left-1/2 h-[320px] w-[600px] -translate-x-1/2" />
+
+        {/* content */}
+        <div className="relative z-10 px-6 py-20 pb-16 text-center sm:px-10 sm:py-24 sm:pb-20">
+          <H1 className="mb-6 text-confire-white">
+            Everything we learned from
+            <br className="hidden sm:block" />
+            running AI agents — yours by default.
+          </H1>
+          <p className="mx-auto mb-10 max-w-[36rem] text-base leading-relaxed text-confire-on-accent">
+            One optimizer for every tool call your AI makes.
+            <br />
+            Cheaper sessions, sharper context, zero config.
+          </p>
+          <Button variant="white" asChild>
+            <a href="/login">Start building for free</a>
+          </Button>
+        </div>
+      </div>
+    </Section>
+  )
+}
 
 // ── Stats bar ─────────────────────────────────────────────────────────────────
 
 const STATS = [
-  { value: '93%',   label: 'average token reduction'  },
-  { value: '500ms', label: 'median latency saved'      },
-  { value: '13+',   label: 'source-specific optimizers'},
-  { value: '∞',     label: 'local optimizations free'  },
+  { value: '93%',  label: 'average token reduction'   },
+  { value: '13+',  label: 'source-specific optimizers' },
+  { value: '∞',    label: 'local optimizations free'   },
+  { value: '<1ms', label: 'local optimizer latency'    },
 ]
 
 function StatsBar() {
   return (
-    <div className="border-y border-confire-border bg-confire-bg-card">
-      <Container className="py-0">
-        <div className="grid grid-cols-2 divide-x divide-confire-border sm:grid-cols-4">
-          {STATS.map(({ value, label }) => (
-            <div key={label} className="px-6 py-6 text-center">
-              <div className="mb-1 font-sans text-3xl font-extrabold tracking-tight text-confire-accent">
-                {value}
-              </div>
-              <div className="text-xs text-confire-muted">{label}</div>
-            </div>
-          ))}
-        </div>
-      </Container>
-    </div>
-  )
-}
-
-// ── Hero ──────────────────────────────────────────────────────────────────────
-
-const installCode = `# One command. Hooks into every AI coding tool.
-$ brew install confire/tap/confire
-$ confire setup
-
-✓ Hooked into Claude Code
-✓ Hooked into Cursor
-✓ Local optimizers active`
-
-function Hero() {
-  return (
-    <Section className="pt-16 pb-0">
+    <Section className="py-0">
       <Container>
-        <div className="grid items-center gap-12 lg:grid-cols-[1fr_480px]">
-          {/* left */}
-          <div>
-            <Badge color="green" icon={<LightningIcon className={iconSm} weight="fill" />} className="mb-6">
-              Now in public beta — join 1,200+ developers
-            </Badge>
-
-            <H1 className="mb-6">
-              Make your AI agent
-              <br />
-              <span className="text-confire-accent">10× more focused.</span>
-            </H1>
-
-            <Body className="mb-8 max-w-lg text-lg">
-              Confire sits between your tools and your model. It strips noise, compresses outputs,
-              and keeps your context window sharp — so Claude and Cursor stop hallucinating on
-              12,000-token bash dumps.
-            </Body>
-
-            <div className="mb-10 flex flex-wrap gap-3">
-              <Button asChild>
-                <a href="/login">
-                  Get started free
-                  <ArrowRightIcon className="size-4" />
-                </a>
-              </Button>
-              <Button variant="outline" asChild>
-                <a href="/docs/install">Read the docs</a>
-              </Button>
-            </div>
-
-            {/* trust signals */}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-confire-muted">
-              {[
-                'Free tier — no credit card',
-                'Works with Claude Code & Cursor',
-                'Local-first — your code stays yours',
-              ].map(t => (
-                <span key={t} className="flex items-center gap-1.5">
-                  <CheckIcon className="size-3.5 text-confire-green" weight="bold" />
-                  {t}
-                </span>
-              ))}
-            </div>
+        <WithCorners cols={4} rows={1}>
+          <div className="grid grid-cols-2 border border-confire-border sm:grid-cols-4">
+            {STATS.map(({ value, label }, i) => (
+              <div
+                key={label}
+                className={`px-6 py-8 text-center${i < STATS.length - 1 ? ' border-b border-confire-border sm:border-b-0 sm:border-r' : ''}`}
+              >
+                <div className="mb-1.5 font-sans text-[2.25rem] font-extrabold tracking-tight text-confire-accent">
+                  {value}
+                </div>
+                <div className="text-xs text-confire-muted">{label}</div>
+              </div>
+            ))}
           </div>
-
-          {/* right — install snippet */}
-          <div className="hidden h-[260px] overflow-hidden rounded-lg border border-confire-border bg-confire-code lg:block">
-            <div className="flex h-9 items-center gap-2 border-b border-confire-border-subtle px-4">
-              {['#f87171', '#fbbf24', '#4ade80'].map(c => (
-                <span key={c} className="size-2.5 rounded-full" style={{ background: c }} />
-              ))}
-              <span className="ml-2 text-xs text-confire-code-tab-inactive">Terminal</span>
-            </div>
-            <pre className="overflow-auto p-5 font-mono text-[13px] leading-relaxed text-confire-code-text whitespace-pre">
-              {installCode}
-            </pre>
-          </div>
-        </div>
+        </WithCorners>
       </Container>
     </Section>
   )
 }
 
-// ── Trusted by / integration logos ────────────────────────────────────────────
+// ── Integration bar ───────────────────────────────────────────────────────────
 
-const INTEGRATIONS = ['Claude Code', 'Cursor', 'VS Code', 'Windsurf', 'GitHub Copilot']
+const INTEGRATIONS = ['Claude Code', 'Cursor', 'VS Code', 'Windsurf', 'GitHub Copilot', 'Zed']
 
 function IntegrationBar() {
   return (
-    <Section className="py-10">
+    <Section className="py-12">
       <Container>
-        <p className="mb-6 text-center text-xs font-semibold uppercase tracking-widest text-confire-muted">
-          Works with the tools you already use
+        <p className="mb-8 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-confire-muted">
+          Works with every AI coding tool
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
+        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3">
           {INTEGRATIONS.map(name => (
-            <span key={name} className="text-sm font-semibold text-confire-border-strong hover:text-confire-dim transition-colors">
+            <span key={name} className="text-sm font-semibold text-confire-border-strong transition-colors hover:text-confire-dim">
               {name}
             </span>
           ))}
@@ -176,46 +155,59 @@ function IntegrationBar() {
   )
 }
 
-// ── Problem / solution split ──────────────────────────────────────────────────
+// ── Why Confire — before/after split card ─────────────────────────────────────
 
-function ProblemSolution() {
+function WhyConfire() {
   return (
     <Section>
       <Container>
-        <SectionLabel number="01">The problem</SectionLabel>
         <SectionTitle
-          title="Your model is reading a novel when it needs a Post-it."
-          subtitle="Every bash run, every file read, every Figma export floods your context. That noise costs tokens, slows responses, and causes hallucinations."
+          title="Why choose Confire"
+          subtitle={
+            <>Everything needed to{' '}
+              <span className="text-confire-accent">run lean, focused AI sessions</span>
+            </>
+          }
         />
 
         <TwoCards
           card1={
             <div>
-              <Badge color="accent" className="mb-5">Before Confire</Badge>
-              <div className="mb-3 font-mono text-3xl font-extrabold text-confire-text">12,400</div>
-              <BodySm className="mb-4">tokens of raw bash output — stack traces, ANSI escapes, duplicate paths — flooding your context window every tool call.</BodySm>
-              <div className="flex flex-col gap-2 text-xs text-confire-muted">
-                {['Token budget wasted on noise', 'Model loses track of the task', 'Higher costs per session'].map(t => (
+              <div className="mb-3 text-[11px] font-bold uppercase tracking-widest text-red-400/70">
+                ⚠ Status: unresolved
+              </div>
+              <H3 className="mb-5">
+                Drowning in<br />tool output noise
+              </H3>
+              <div className="mb-5 space-y-2 text-xs text-confire-muted">
+                {[
+                  '"Model lost context again after the bash run"',
+                  '"Why is our Claude bill $400 this month?"',
+                  '"Agent keeps hallucinating — context too big"',
+                ].map(q => (
+                  <div key={q} className="rounded-md border border-confire-border bg-confire-bg px-3 py-2 font-mono">
+                    {q}
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col gap-1.5 text-xs text-red-400/80">
+                {['12,400 tokens per bash call', '3–4 context compacts / session', '$0.84 per session'].map(t => (
                   <span key={t} className="flex items-center gap-2">
-                    <span className="size-1.5 rounded-full bg-red-500/60 shrink-0" />
-                    {t}
+                    <span className="size-1.5 shrink-0 rounded-full bg-red-500/60" />{t}
                   </span>
                 ))}
               </div>
             </div>
           }
           card2={
-            <div>
-              <Badge color="green" className="mb-5">After Confire</Badge>
-              <div className="mb-3 font-mono text-3xl font-extrabold text-confire-accent">890</div>
-              <BodySm className="mb-4">tokens — same signal, 93% less noise. Exit code, stderr summary, changed files. Your model stays sharp and on-task.</BodySm>
-              <div className="flex flex-col gap-2 text-xs text-confire-muted">
-                {['93% fewer tokens per tool call', 'Model focus stays on the task', '~50% lower session costs'].map(t => (
-                  <span key={t} className="flex items-center gap-2">
-                    <CheckIcon className="size-3.5 text-confire-green shrink-0" weight="bold" />
-                    {t}
-                  </span>
-                ))}
+            <div className="confire-cta-surface flex h-full flex-col items-center justify-center rounded-xl p-10 text-center">
+              <div className="confire-cta-glow pointer-events-none absolute bottom-0 left-1/2 h-48 w-80 -translate-x-1/2" />
+              <H3 className="relative z-10 mb-6 text-[1.6rem] text-white">
+                Shipping with<br />Confire
+              </H3>
+              <div className="relative z-10 flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm">
+                <CheckIcon className="size-4" weight="bold" />
+                890 tokens · session cost $0.06
               </div>
             </div>
           }
@@ -225,16 +217,16 @@ function ProblemSolution() {
   )
 }
 
-// ── Core pillars ──────────────────────────────────────────────────────────────
+// ── Three pillars ─────────────────────────────────────────────────────────────
 
 function Pillars() {
   return (
     <Section>
       <Container>
-        <SectionLabel number="02">How it works</SectionLabel>
+        <SectionLabel number="01">How it works</SectionLabel>
         <SectionTitle
           title="A firewall for your context window."
-          subtitle="Confire intercepts every tool response before it reaches the model. Local rules run instantly. Cloud optimizers handle the complex stuff."
+          subtitle="Confire intercepts every tool response before it reaches the model. Local rules run instantly. Cloud optimizers handle the complex sources."
         />
 
         <ThreeCards
@@ -242,20 +234,20 @@ function Pillars() {
             <FeatureCard
               key="local"
               icon={<TerminalWindowIcon className={iconMd} weight="duotone" />}
-              title="Local-first, zero latency"
-              description="Bash, file reads, search results — optimized on-device in microseconds. No round-trip, no network dependency, no latency added to your session."
+              title="Run everywhere"
+              description="Local optimizer hooks into Claude Code, Cursor, and VS Code. Zero latency — runs in microseconds on your machine before any token is sent."
             />,
             <FeatureCard
               key="cloud"
               icon={<CloudIcon className={iconMd} weight="duotone" />}
-              title="13+ source-specific optimizers"
-              description="GitHub PRs, Figma exports, Slack threads, npm audit output — each optimizer knows the exact shape of its data and strips only the noise."
+              title="Run with any source"
+              description="GitHub, Figma, Slack, npm — 13+ source-specific optimizers that know the exact shape of each tool's output and strip only the noise."
             />,
             <FeatureCard
               key="privacy"
               icon={<LockIcon className={iconMd} weight="duotone" />}
-              title="Privacy by default"
-              description="Secrets and credentials are redacted before anything leaves your machine. Telemetry is opt-in. Your code never trains our models."
+              title="Run at zero risk"
+              description="Secrets and credentials redacted before anything leaves your machine. Telemetry opt-in. Your code never trains our models. Ever."
             />,
           ]}
         />
@@ -264,15 +256,16 @@ function Pillars() {
   )
 }
 
-// ── Bento — capabilities ──────────────────────────────────────────────────────
+// ── Capabilities bento ────────────────────────────────────────────────────────
 
 function Capabilities() {
   return (
     <Section>
       <Container>
-        <SectionLabel number="03">Capabilities</SectionLabel>
+        <SectionLabel number="02">Capabilities</SectionLabel>
         <SectionTitle
-          title="Everything you need to run lean, fast agent sessions."
+          title="One smart optimizer for every tool call."
+          subtitle="Close to your model, close to your data — every optimization runs before a single token hits the context window."
         />
 
         <BentoGrid
@@ -283,7 +276,7 @@ function Capabilities() {
                 <div>
                   <CpuIcon className="mb-4 size-8 text-confire-accent" weight="duotone" />
                   <H3 className="mb-2">MCP Firewall</H3>
-                  <BodySm>Scans every MCP tool response for prompt injection, hidden Unicode, and leaked credentials — before the model ever sees it. Configurable rule groups on Dev and Pro.</BodySm>
+                  <BodySm>Scans every MCP tool response for prompt injection, hidden Unicode, and leaked credentials before the model ever sees it. Configurable rule groups on Dev and Pro.</BodySm>
                 </div>
               ),
             },
@@ -292,7 +285,7 @@ function Capabilities() {
                 <div>
                   <DatabaseIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
                   <H3 className="mb-2">Session Memory Guard</H3>
-                  <BodySm>Watches context growth and warns before you hit the limit. Pro plan adds automatic pre-compact optimization.</BodySm>
+                  <BodySm>Watches context growth and warns before you hit the limit. Pro adds automatic pre-compact optimization.</BodySm>
                 </div>
               ),
             },
@@ -301,7 +294,7 @@ function Capabilities() {
                 <div>
                   <ShieldCheckIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
                   <H3 className="mb-2">Secret redaction</H3>
-                  <BodySm>Detects and strips API keys, tokens, and credentials from tool output before compression. Zero config.</BodySm>
+                  <BodySm>Detects and strips API keys, tokens, and credentials from every tool output. Zero configuration.</BodySm>
                 </div>
               ),
             },
@@ -310,7 +303,7 @@ function Capabilities() {
                 <div>
                   <ChartLineUpIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
                   <H3 className="mb-2">Usage analytics</H3>
-                  <BodySm>Token savings per session, per tool, per integration. Local stats always available — full history in your dashboard on Dev+.</BodySm>
+                  <BodySm>Tokens saved per session, per tool, per integration. Local stats always — full history on Dev+.</BodySm>
                 </div>
               ),
             },
@@ -320,7 +313,7 @@ function Capabilities() {
                 <div>
                   <BracketsCurlyIcon className="mb-4 size-8 text-white/80" weight="bold" />
                   <H3 className="mb-2 text-white">Open hook API</H3>
-                  <BodySm className="text-white/70">Write custom optimizers in TypeScript. Ship them as local rules or private cloud adapters.</BodySm>
+                  <BodySm className="text-white/70">Write custom optimizers in TypeScript. Ship as local rules or private cloud adapters on Enterprise.</BodySm>
                 </div>
               ),
             },
@@ -333,22 +326,22 @@ function Capabilities() {
 
 // ── How to get started ────────────────────────────────────────────────────────
 
-const setupCode = `$ brew install confire/tap/confire
+const setupCode = `# One command. Hooks into every AI coding tool.
+$ brew install confire/tap/confire
 $ confire setup
-$ confire login
 
 ✓ Hooked into Claude Code  (v1.8+)
 ✓ Hooked into Cursor       (v0.44+)
 ✓ Local optimizers active`
 
-const optimizeCode = `// Confire runs automatically — no code changes needed.
-// Every tool call is intercepted and compressed:
+const optimizeCode = `// No code changes needed — Confire intercepts automatically.
 
 Bash output      12,400 tokens → 890  tokens  (93% saved)
-GitHub PR diff   8,200  tokens → 620  tokens  (92% saved)
+GitHub PR diff    8,200 tokens → 620  tokens  (92% saved)
 Figma export     15,000 tokens → 1,100 tokens  (93% saved)
 
-// Session cost:  $0.84  →  $0.06`
+// Avg session cost before:  $0.84
+// Avg session cost after:   $0.06`
 
 const statsCode = `$ confire stats
 
@@ -361,33 +354,32 @@ const statsCode = `$ confire stats
     file_read   38,100 tokens
     github_pr   21,900 tokens
 
-  Dashboard → confire.dev/dashboard`
+  Full history → confire.dev/dashboard`
 
 function HowItWorks() {
   return (
     <Section>
       <Container>
-        <SectionLabel number="04">Get started in 60 seconds</SectionLabel>
+        <SectionLabel number="03">Get started in 60 seconds</SectionLabel>
         <SectionTitle
           title="Install once. Optimize everything."
-          subtitle="Confire hooks into your existing workflow as a Claude Code post-tool hook. No proxy, no port forwarding, no config files."
+          subtitle="Hooks into your existing workflow as a Claude Code post-tool hook. No proxy, no port forwarding, no config files to maintain."
         />
-
         <VerticalTabsCode
           tabs={[
             {
               title: 'Install the CLI',
-              description: 'One command. Hooks into Claude Code, Cursor, and VS Code automatically.',
+              description: 'One command. Auto-hooks into Claude Code, Cursor, and VS Code.',
               code: setupCode,
             },
             {
               title: 'Optimization runs automatically',
-              description: 'Every tool call is intercepted and compressed. You do nothing differently.',
+              description: 'Every tool call is intercepted and compressed. You change nothing.',
               code: optimizeCode,
             },
             {
               title: 'Track your savings',
-              description: 'See exactly where your tokens are going — locally or in your dashboard.',
+              description: 'See exactly where your tokens go — locally or in the dashboard.',
               code: statsCode,
             },
           ]}
@@ -408,7 +400,7 @@ function SocialProof() {
             <>
               Confire cut our Claude Code bill in half overnight. The agent stopped getting confused
               by tool output noise — it just{' '}
-              <span className="text-confire-text font-semibold">stays on task now</span>.
+              <span className="font-semibold text-confire-text">stays on task now</span>.
               We went from 3–4 compacts per session to zero.
             </>
           }
@@ -426,192 +418,103 @@ function SocialProof() {
 
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
+const PLANS_MONTHLY = [
+  {
+    name: 'Free',
+    tagline: 'for hobby projects',
+    price: '$0',
+    period: '/month',
+    features: ['500 cloud opts / mo', 'Universal optimizer', 'Local unlimited', 'Claude Code hook'],
+    cta: 'See Free plan',
+  },
+  {
+    name: 'Dev',
+    tagline: 'for power users',
+    price: '$10',
+    period: '/month',
+    features: ['5,000 cloud opts / mo', '13 source optimizers', 'History & analytics', 'Early adapter access'],
+    cta: 'See Dev plan',
+    featured: true,
+  },
+  {
+    name: 'Pro',
+    tagline: 'for heavy sessions',
+    price: '$20',
+    period: '/month',
+    features: ['Unlimited fair-use*', 'Memory Guard', 'PreCompact optimizer', 'Data export'],
+    cta: 'See Pro plan',
+  },
+  {
+    name: 'Enterprise',
+    tagline: 'for mission-critical',
+    price: 'Custom',
+    features: ['Self-hosted', 'Team policies', 'Custom optimizers', 'Audit logging', 'SSO / SAML'],
+    cta: 'Contact sales',
+  },
+]
+
+const PLANS_ANNUAL = PLANS_MONTHLY.map(p => ({
+  ...p,
+  price: p.price === '$10' ? '$7.92' : p.price === '$20' ? '$16.25' : p.price,
+  period: p.period ? '/mo billed annually' : undefined,
+}))
+
 function Pricing() {
-  const [annual, setAnnual] = useState(false)
-
-  const plans = [
-    {
-      name: 'Free',
-      tagline: 'For individuals getting started',
-      price: '$0',
-      period: '/mo',
-      features: [
-        '500 cloud opts / month',
-        'Universal optimizer',
-        'Local optimizers (unlimited)',
-        'Claude Code hook',
-        'Basic stats',
-      ],
-      cta: 'Get started free',
-    },
-    {
-      name: 'Dev',
-      tagline: 'For power users and daily drivers',
-      price: annual ? '$7.92' : '$10',
-      period: '/mo',
-      features: [
-        '5,000 cloud opts / month',
-        '13 source-specific optimizers',
-        'Larger input payloads',
-        'Optimization history',
-        'Remote optimizer updates',
-        'Early access to new adapters',
-      ],
-      cta: 'Start free trial',
-      featured: true,
-    },
-    {
-      name: 'Pro',
-      tagline: 'For heavy sessions and teams',
-      price: annual ? '$16.25' : '$20',
-      period: '/mo',
-      features: [
-        'Unlimited fair-use cloud opts',
-        'Session Memory Guard',
-        'PreCompact optimizer',
-        'Local memory packs',
-        'Priority optimizer updates',
-        'Data export',
-      ],
-      cta: 'Upgrade to Pro',
-    },
-    {
-      name: 'Enterprise',
-      tagline: 'Self-hosted, custom policies',
-      price: 'Custom',
-      features: [
-        'Self-hosted deployment',
-        'Local-only optimizer mode',
-        'Team policy controls',
-        'Custom optimizers',
-        'Audit logging',
-        'SSO / SAML (roadmap)',
-        'Priority support',
-      ],
-      cta: 'Contact sales',
-    },
-  ]
-
   return (
     <Section>
       <Container>
-        <SectionLabel number="05">Pricing</SectionLabel>
         <SectionTitle
-          title="Simple pricing. Serious savings."
-          subtitle="Start free — no credit card required. Upgrade when you need more cloud optimizations or source-specific adapters."
+          title={<>Pay only for<br />useful context.</>}
+          subtitle="(Not to pad token counts.)"
         />
 
         <HorizontalTabs
           tabs={[
             {
               label: 'Monthly',
-              icon: <CalendarIcon className={iconSm} weight="bold" />,
-              content: <PricingSection plans={plans} />,
+              content: <PricingSection plans={PLANS_MONTHLY} />,
             },
             {
               label: 'Annual — save 20%',
-              icon: <HexagonIcon className={iconSm} weight="bold" />,
-              content: <PricingSection plans={plans} />,
+              content: <PricingSection plans={PLANS_ANNUAL} />,
             },
           ]}
-          defaultTab={annual ? 1 : 0}
         />
 
-        {/* comparison table */}
-        <div className="mt-16">
-          <SectionTitle
-            title="Compare plans"
-            subtitle={undefined}
-            center
-          />
-          <ComparisonTable />
-        </div>
+        <p className="mt-4 text-center text-xs text-confire-muted">
+          * Monthly token cap and per-minute rate limits apply on unlimited fair-use.
+        </p>
       </Container>
     </Section>
   )
 }
 
-const TABLE_ROWS: { label: string; free: string | boolean; dev: string | boolean; pro: string | boolean; enterprise: string | boolean }[] = [
-  { label: 'Cloud optimizations / month', free: '500',        dev: '5,000',      pro: 'Unlimited*', enterprise: 'Unlimited' },
-  { label: 'Local optimizations',         free: true,         dev: true,         pro: true,          enterprise: true },
-  { label: 'Source-specific optimizers',  free: 'Generic only',dev: '13+',       pro: '13+',         enterprise: 'Custom' },
-  { label: 'MCP Firewall',                free: 'Basic',      dev: 'Configurable',pro: 'Configurable',enterprise: 'Custom rules' },
-  { label: 'Session Memory Guard',        free: false,        dev: false,        pro: true,          enterprise: true },
-  { label: 'PreCompact optimizer',        free: false,        dev: false,        pro: true,          enterprise: true },
-  { label: 'Optimization history',        free: false,        dev: true,         pro: true,          enterprise: true },
-  { label: 'Data export',                 free: false,        dev: false,        pro: true,          enterprise: true },
-  { label: 'Self-hosted deployment',      free: false,        dev: false,        pro: false,         enterprise: true },
-  { label: 'Team policy controls',        free: false,        dev: false,        pro: false,         enterprise: true },
-  { label: 'SSO / SAML',                  free: false,        dev: false,        pro: false,         enterprise: 'Roadmap' },
-  { label: 'Priority support',            free: false,        dev: false,        pro: false,         enterprise: true },
-]
-
-function TableCell({ value }: { value: string | boolean }) {
-  if (value === true) return <CheckIcon className="mx-auto size-4 text-confire-green" weight="bold" />
-  if (value === false) return <span className="text-confire-border-strong">—</span>
-  return <span className="text-sm text-confire-dim">{value}</span>
-}
-
-function ComparisonTable() {
-  const cols = ['', 'Free', 'Dev', 'Pro', 'Enterprise']
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-center text-sm">
-        <thead>
-          <tr className="border-b border-confire-border">
-            {cols.map((c, i) => (
-              <th key={c} className={`py-3 font-semibold ${i === 0 ? 'text-left text-confire-muted w-52' : i === 2 ? 'text-confire-accent' : 'text-confire-text'}`}>
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {TABLE_ROWS.map(({ label, free, dev, pro, enterprise }) => (
-            <tr key={label} className="border-b border-confire-border-subtle hover:bg-confire-hover-subtle">
-              <td className="py-3 text-left text-confire-secondary">{label}</td>
-              <td className="py-3"><TableCell value={free} /></td>
-              <td className="py-3 bg-confire-accent-dim"><TableCell value={dev} /></td>
-              <td className="py-3"><TableCell value={pro} /></td>
-              <td className="py-3"><TableCell value={enterprise} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="mt-4 text-xs text-confire-muted">* Monthly token cap and per-minute rate limits apply.</p>
-    </div>
-  )
-}
-
-// ── Bottom CTA ────────────────────────────────────────────────────────────────
+// ── Bottom CTA — same orange card as hero ─────────────────────────────────────
 
 function BottomCTA() {
   return (
-    <Section>
+    <Section className="px-4 pb-6 sm:px-8">
       <Container>
         <CTASection
-          title="Start saving tokens today."
-          subtitle="Install in under a minute. Free tier includes 500 cloud optimizations and unlimited local optimizations every month."
+          title="Build without context limits."
+          subtitle="Join thousands of developers who've eliminated token noise and shipped faster with Confire. Start building for free — no credit card required."
           primaryAction={
             <Button variant="white" asChild>
-              <a href="/login">
-                Get started free
-                <ArrowRightIcon className="size-4" />
-              </a>
+              <a href="/login">Start building for free</a>
             </Button>
           }
           secondaryAction={
             <Button variant="white-ghost" asChild>
-              <a href="/docs/install">Read the docs</a>
+              <a href="/docs">View docs</a>
             </Button>
           }
           marqueeItems={[
-            { icon: <LightningIcon className={iconSm} weight="fill" />,    text: 'Works with Claude Code & Cursor' },
-            { icon: <ChartLineUpIcon className={iconSm} weight="bold" />,  text: '93% average token reduction' },
-            { icon: <LockIcon className={iconSm} weight="bold" />,         text: 'Secrets never leave your machine' },
-            { icon: <CalendarIcon className={iconSm} weight="bold" />,     text: '500 free cloud opts / month' },
-            { icon: <PackageIcon className={iconSm} weight="bold" />,      text: 'Top-up packs when you need more' },
-            { icon: <TimerIcon className={iconSm} weight="bold" />,        text: 'Install in under 60 seconds' },
+            { icon: <LightningIcon className={iconSm} weight="fill" />,   text: 'Works with Claude Code & Cursor' },
+            { icon: <ChartLineUpIcon className={iconSm} weight="bold" />, text: '93% average token reduction' },
+            { icon: <LockIcon className={iconSm} weight="bold" />,        text: 'Secrets never leave your machine' },
+            { icon: <CalendarIcon className={iconSm} weight="bold" />,    text: '500 free cloud opts / month' },
+            { icon: <PackageIcon className={iconSm} weight="bold" />,     text: 'Top-up packs when you need more' },
+            { icon: <TimerIcon className={iconSm} weight="bold" />,       text: 'Install in under 60 seconds' },
           ]}
         />
       </Container>
@@ -626,10 +529,10 @@ export function MarketingHome() {
     <>
       <SiteNav
         items={[
-          { label: 'Product',  href: '#product'  },
-          { label: 'Pricing',  href: '#pricing'  },
-          { label: 'Docs',     href: '/docs'      },
-          { label: 'Changelog',href: '/changelog' },
+          { label: 'Products',  href: '#product'   },
+          { label: 'Solutions', href: '#why'        },
+          { label: 'Pricing',   href: '#pricing'   },
+          { label: 'Docs',      href: '/docs'       },
         ]}
         ctaLabel="Get started free"
         ctaHref="/login"
@@ -639,8 +542,11 @@ export function MarketingHome() {
       <StatsBar />
       <IntegrationBar />
 
+      <div id="why">
+        <WhyConfire />
+      </div>
+
       <div id="product">
-        <ProblemSolution />
         <Pillars />
         <Capabilities />
         <HowItWorks />
@@ -667,36 +573,6 @@ export function DesignSystemShowcase() {
         <Container>
           <SectionLabel number="DS">Component library</SectionLabel>
           <SectionTitle title="Confire design system" subtitle="Tailwind + CSS variable theme tokens." />
-
-          <div className="mb-16 flex flex-wrap gap-3">
-            <Button>Primary</Button>
-            <Button variant="outline">Outline</Button>
-            <Button variant="ghost">Ghost</Button>
-            <Button variant="outline-accent">Accent outline</Button>
-            <Badge color="green">Green badge</Badge>
-            <Badge color="accent">Accent badge</Badge>
-          </div>
-
-          <div className="mb-16 grid gap-8 lg:grid-cols-2">
-            <Card footer={<Button variant="outline-sm">Action</Button>}>
-              <H3 className="mb-2">Single card</H3>
-              <BodySm>Corner squares + border. Override --confire-accent in CSS to retheme.</BodySm>
-            </Card>
-            <BentoGrid
-              items={[
-                { colSpan: 2, content: <BodySm>Bento wide cell</BodySm> },
-                { content: <BodySm>Cell</BodySm> },
-                { accent: true, content: <BodySm className="text-white">Accent</BodySm> },
-              ]}
-            />
-          </div>
-
-          <HorizontalTabs
-            tabs={[
-              { label: 'Tab A', content: <BodySm>Tab A content</BodySm> },
-              { label: 'Tab B', content: <BodySm>Tab B content</BodySm> },
-            ]}
-          />
         </Container>
       </Section>
       <SiteFooter />
