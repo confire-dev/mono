@@ -38,6 +38,7 @@ cli/confire-*
 .vscode/launch.json
 *.swp
 *.swo
+.cursor/
 
 # Cloudflare
 .wrangler/
