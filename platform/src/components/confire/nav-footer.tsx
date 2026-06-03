@@ -42,10 +42,11 @@ export function ConfireMark({
   className?: string
 }) {
   const px = LOGO_SIZES[size]
-  const src = `/brand/confire-bg-${bg}-logo-${color}.svg`
+  const base = `/brand/confire-bg-${bg}-logo-${color}`
   return (
     <img
-      src={src}
+      src={`${base}.png`}
+      srcSet={`${base}.png 1x, ${base}@2x.png 2x`}
       alt="Confire"
       width={px}
       height={px}
