@@ -1,3 +1,11 @@
+## v0.8.1 — 2026-06-03
+
+### Fixes
+- fix(worker): ratelimits use name (not binding) and string namespace_id (e379d93)
+
+
+---
+
 ## v0.8.0 — 2026-06-03
 
 
