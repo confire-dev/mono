@@ -1,11 +1,14 @@
 name: Deploy Worker (production)
 
-# Manual-only deploy to api.confire.dev.
+# Auto-deploys to api.confire.dev on every push to main that touches the worker.
 # Uses the [env.production] environment in worker/wrangler.toml.
 # Requires the "production" GitHub environment (configure in repo Settings → Environments).
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'worker/**'
 
 permissions:
   contents: read
