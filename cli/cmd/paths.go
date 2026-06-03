@@ -66,6 +66,9 @@ func workerURLEnv() string {
 	if cfg.WorkerURL != "" {
 		return cfg.WorkerURL
 	}
+	if buildWorkerURL != "" {
+		return buildWorkerURL
+	}
 	return "https://api.confire.dev"
 }
 
@@ -79,6 +82,9 @@ func platformURL() string {
 	}
 	if u := os.Getenv("CONFIRE_PLATFORM_URL"); u != "" {
 		return u
+	}
+	if buildPlatformURL != "" {
+		return buildPlatformURL
 	}
 	return "https://confire.dev"
 }

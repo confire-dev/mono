@@ -2,25 +2,36 @@
 ## Author: Efe <efe@efebehar.dev>
 ##
 ## Usage:
-##   make dev           build dev binary (symbols kept, fast)
-##   make release       build hardened binary for current platform (garble + stripped)
-##   make dist          cross-compile all release targets into dist/
-##   make test          run unit tests
-##   make e2e           run end-to-end tests (requires built binary)
-##   make all           dev + test
+##   make dev              build confire binary (symbols kept, fast) — prod APIs
+##   make build-dev-env    build confire-dev binary pointing at dev APIs
+##   make install-dev-env  install confire-dev to GOPATH/bin
+##   make release          build hardened binary for current platform (garble + stripped)
+##   make dist             cross-compile all release targets into dist/
+##   make test             run unit tests
+##   make e2e              run end-to-end tests (requires built binary)
+##   make all              dev + test
 
 BINARY     := confire
+BINARY_DEV := confire-dev
 PKG        := github.com/confire-dev/confire
 VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT     ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
 DATE       ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 AUTHOR     := Efe <efe@efebehar.dev>
 
+DEV_WORKER_URL   := https://api-dev.confire.dev
+DEV_PLATFORM_URL := https://dev.confire.dev
+
 # ldflags applied to ALL builds
 BASE_FLAGS := -X '$(PKG)/cmd.buildVersion=$(VERSION)' \
               -X '$(PKG)/cmd.buildCommit=$(COMMIT)'   \
               -X '$(PKG)/cmd.buildDate=$(DATE)'        \
               -X '$(PKG)/cmd.buildAuthor=$(AUTHOR)'
+
+# Extra ldflags for confire-dev builds — bakes in dev API endpoints
+DEV_ENV_FLAGS := -X '$(PKG)/cmd.buildBinaryName=$(BINARY_DEV)'     \
+                 -X '$(PKG)/cmd.buildWorkerURL=$(DEV_WORKER_URL)'   \
+                 -X '$(PKG)/cmd.buildPlatformURL=$(DEV_PLATFORM_URL)'
 
 # Release flags: strip symbol table, DWARF debug info, source paths
 REL_FLAGS  := $(BASE_FLAGS) -s -w
@@ -37,17 +48,28 @@ TARGETS := \
 	linux/amd64  \
 	linux/arm64
 
-.PHONY: all dev release dist test e2e clean install checksums
+.PHONY: all dev build-dev-env install-dev-env release dist test e2e clean install checksums
 
 all: dev test
 
-## dev: fast build with symbols (for local development)
+## dev: fast build with symbols (prod APIs — for local testing against production)
 dev:
 	go build -trimpath -ldflags "$(BASE_FLAGS)" -o $(BINARY) .
 
 ## dev-install: build dev binary directly to DEST (avoids macOS provenance xattr on copied files)
 dev-install:
 	go build -trimpath -ldflags "$(BASE_FLAGS)" -o $(DEST) .
+
+## build-dev-env: build confire-dev binary pointing at dev APIs (api-dev.confire.dev / dev.confire.dev)
+build-dev-env:
+	go build -trimpath -ldflags "$(BASE_FLAGS) $(DEV_ENV_FLAGS)" -o $(BINARY_DEV) .
+	@echo "Built $(BINARY_DEV) -> api-dev.confire.dev"
+
+## install-dev-env: install confire-dev to GOPATH/bin
+install-dev-env:
+	go build -trimpath -ldflags "$(BASE_FLAGS) $(DEV_ENV_FLAGS)" \
+		-o "$(shell go env GOPATH)/bin/$(BINARY_DEV)" .
+	@echo "Installed $(BINARY_DEV) to $$(go env GOPATH)/bin/$(BINARY_DEV)"
 
 ## release: hardened binary for the current platform (garble + stripped)
 release:
@@ -86,13 +108,13 @@ test:
 e2e: dev
 	go test ./e2e/... -v -count=1 -timeout 60s -binary=$(shell pwd)/$(BINARY)
 
-## install: install to GOPATH/bin
+## install: install confire (prod) to GOPATH/bin
 install:
 	go install -trimpath -ldflags "$(BASE_FLAGS)" .
 
 ## clean
 clean:
-	rm -f $(BINARY)
+	rm -f $(BINARY) $(BINARY_DEV)
 	go clean -testcache
 
 clean-dist:

@@ -9,17 +9,20 @@ import (
 
 // Build metadata — set by ldflags in Makefile, never hardcoded.
 var (
-	buildVersion = "dev"
-	buildCommit  = "none"
-	buildDate    = "unknown"
-	buildAuthor  = "Efe <efe@efebehar.dev>"
+	buildVersion     = "dev"
+	buildCommit      = "none"
+	buildDate        = "unknown"
+	buildAuthor      = "Efe <efe@efebehar.dev>"
+	buildBinaryName  = "confire"  // overridden to "confire-dev" for dev-env builds
+	buildWorkerURL   = ""         // overridden for non-prod builds; empty = use hardcoded fallback
+	buildPlatformURL = ""         // overridden for non-prod builds; empty = use hardcoded fallback
 )
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("confire %s\n", buildVersion)
+		fmt.Printf("%s %s\n", buildBinaryName, buildVersion)
 		fmt.Printf("  commit : %s\n", buildCommit)
 		fmt.Printf("  built  : %s\n", buildDate)
 		fmt.Printf("  author : %s\n", buildAuthor)

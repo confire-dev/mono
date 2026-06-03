@@ -3,61 +3,144 @@ main = "src/index.ts"
 compatibility_date = "2025-05-01"
 compatibility_flags = ["nodejs_compat"]
 
+# ── Local dev (wrangler dev) ──────────────────────────────────────────────────
+# Top-level bindings are used only for local `wrangler dev`.
+# All cloud deployments use --env dev or --env production explicitly.
+
 [vars]
-ENVIRONMENT = "production"
-# Feature flags — flip to "true" via wrangler.toml or `wrangler secret put` to enable
+ENVIRONMENT = "local"
 OPTIMIZER_API_ENABLED = "false"
 
-# KV — content-hash optimizer cache (24h TTL, ~1ms lookup)
-# Local dev uses a local SQLite-backed KV store — IDs only matter for production deploy.
-# Replace with real IDs from: wrangler kv namespace create confire-cache
 [[kv_namespaces]]
 binding = "CACHE"
 id = "00000000000000000000000000000001"
 preview_id = "00000000000000000000000000000001"
 
-# Analytics Engine — real-time counters for the dashboard
-# Run: wrangler analytics-engine dataset create confire-events
 [[analytics_engine_datasets]]
 binding = "AE"
-dataset = "confire_events"
+dataset = "confire_events_dev"
 
-# Rate limiting — per-user request throttling, enforced at the Cloudflare edge (~1ms, no DB).
-# One binding per plan tier (limits are fixed at deploy time, not runtime).
-# Create namespaces: wrangler rate-limit create <name>
-# Free tier:  20 requests per minute
 [[rate_limiting]]
 binding = "RL_FREE"
 namespace_id = "1001"
 simple = { limit = 20, period = 60 }
 
-# Dev tier:  60 requests per minute
 [[rate_limiting]]
 binding = "RL_DEV"
 namespace_id = "1002"
 simple = { limit = 60, period = 60 }
 
-# Pro / Enterprise tier:  200 requests per minute
 [[rate_limiting]]
 binding = "RL_PRO"
 namespace_id = "1003"
 simple = { limit = 200, period = 60 }
 
-# Secrets (set via: wrangler secret put <NAME>)
-# SUPABASE_URL             — your Supabase project URL
-# SUPABASE_ANON_KEY        — Supabase anon/public key
-# SUPABASE_SERVICE_KEY     — Supabase service role key (server-side only)
-# AMPLITUDE_KEY            — Amplitude HTTP API key
-# STRIPE_SECRET_KEY        — Stripe secret key (checkout + top-up)
-# STRIPE_WEBHOOK_SECRET    — Stripe webhook signing secret
-# STRIPE_TOPUP_PRICE_ID    — one-time top-up pack price ID ($5 / 5,000 credits)
-# SUPABASE_WEBHOOK_SECRET  — shared secret for Supabase DB webhooks
-#                            Set in Supabase: Database → Webhooks → HTTP Headers
-#                            Key: Authorization   Value: Bearer <this secret>
-
 [dev]
 port = 8787
 local_protocol = "http"
 
+# ── dev environment (auto-deploys from main via CI) ───────────────────────────
+# URL: https://api-dev.confire.dev
+# Supabase: dev project
+# Stripe: test mode keys
+
+[env.dev]
+name = "confire-worker-dev"
+
 [env.dev.vars]
 ENVIRONMENT = "development"
+OPTIMIZER_API_ENABLED = "false"
+
+[[env.dev.routes]]
+pattern = "api-dev.confire.dev/*"
+zone_name = "confire.dev"
+
+# Create with: wrangler kv namespace create confire-cache-dev
+#              wrangler kv namespace create confire-cache-dev --preview
+[[env.dev.kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_WITH_DEV_KV_ID"
+preview_id = "REPLACE_WITH_DEV_KV_PREVIEW_ID"
+
+[[env.dev.analytics_engine_datasets]]
+binding = "AE"
+dataset = "confire_events_dev"
+
+# Create with: wrangler rate-limit create rl-free-dev (etc.)
+[[env.dev.rate_limiting]]
+binding = "RL_FREE"
+namespace_id = "REPLACE_WITH_DEV_RL_FREE_ID"
+simple = { limit = 20, period = 60 }
+
+[[env.dev.rate_limiting]]
+binding = "RL_DEV"
+namespace_id = "REPLACE_WITH_DEV_RL_DEV_ID"
+simple = { limit = 60, period = 60 }
+
+[[env.dev.rate_limiting]]
+binding = "RL_PRO"
+namespace_id = "REPLACE_WITH_DEV_RL_PRO_ID"
+simple = { limit = 200, period = 60 }
+
+# Secrets — set with: wrangler secret put <NAME> --env dev
+# SUPABASE_URL             — dev Supabase project URL
+# SUPABASE_ANON_KEY        — dev anon/public key
+# SUPABASE_SERVICE_KEY     — dev service role key
+# AMPLITUDE_KEY            — Amplitude API key (can share with prod)
+# STRIPE_SECRET_KEY        — Stripe test mode secret key (sk_test_...)
+# STRIPE_WEBHOOK_SECRET    — Stripe test webhook signing secret
+# STRIPE_TOPUP_PRICE_ID    — test-mode top-up price ID
+# SUPABASE_WEBHOOK_SECRET  — generate: openssl rand -base64 32
+
+# ── production environment (manual deploy only) ───────────────────────────────
+# URL: https://api.confire.dev
+# Supabase: prod project
+# Stripe: live mode keys
+
+[env.production]
+name = "confire-worker"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+OPTIMIZER_API_ENABLED = "false"
+
+[[env.production.routes]]
+pattern = "api.confire.dev/*"
+zone_name = "confire.dev"
+
+# Create with: wrangler kv namespace create confire-cache
+#              wrangler kv namespace create confire-cache --preview
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_WITH_PROD_KV_ID"
+preview_id = "REPLACE_WITH_PROD_KV_PREVIEW_ID"
+
+[[env.production.analytics_engine_datasets]]
+binding = "AE"
+dataset = "confire_events"
+
+# Create with: wrangler rate-limit create rl-free (etc.)
+[[env.production.rate_limiting]]
+binding = "RL_FREE"
+namespace_id = "REPLACE_WITH_PROD_RL_FREE_ID"
+simple = { limit = 20, period = 60 }
+
+[[env.production.rate_limiting]]
+binding = "RL_DEV"
+namespace_id = "REPLACE_WITH_PROD_RL_DEV_ID"
+simple = { limit = 60, period = 60 }
+
+[[env.production.rate_limiting]]
+binding = "RL_PRO"
+namespace_id = "REPLACE_WITH_PROD_RL_PRO_ID"
+simple = { limit = 200, period = 60 }
+
+# Secrets — set with: wrangler secret put <NAME> --env production
+# SUPABASE_URL             — prod Supabase project URL
+# SUPABASE_ANON_KEY        — prod anon/public key
+# SUPABASE_SERVICE_KEY     — prod service role key
+# AMPLITUDE_KEY            — Amplitude API key
+# STRIPE_SECRET_KEY        — Stripe live secret key (sk_live_...)
+# STRIPE_WEBHOOK_SECRET    — Stripe live webhook signing secret
+# STRIPE_TOPUP_PRICE_ID    — live top-up price ID
+# SUPABASE_WEBHOOK_SECRET  — generate: openssl rand -base64 32
