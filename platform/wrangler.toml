@@ -1,10 +1,9 @@
 name = "confire-platform-dev"
-pages_build_output_dir = "dist"
 compatibility_date = "2025-05-01"
+compatibility_flags = ["nodejs_compat"]
 
-# Non-secret build env vars — secrets (SUPABASE keys, Stripe key) are set via:
-#   wrangler pages secret put <KEY> --env production
-#   wrangler pages secret put <KEY> --env preview
+[assets]
+directory = "./dist"
 
 [vars]
 PUBLIC_WORKER_URL = "https://api.dev.confire.dev"
