@@ -1,23 +1,21 @@
 // POST /api/topup/create
 //
-// Creates a Stripe Checkout session for a one-time top-up pack purchase.
-// The CLI calls this with the user's API key; we resolve the user, create
-// the session, and return the checkout URL. Payment confirmation happens
-// exclusively via the Stripe webhook — this handler never grants credits.
-//
-// Pack size: 5,000 requests per pack, $5 per pack.
-// Quantity: caller-supplied (1–20), stored in session metadata for the webhook.
+// Creates a Stripe Checkout session for a one-time top-up credit pack.
+// Price and pack config are loaded from the billing_items table — no env var.
+// Payment confirmation and credit granting happen exclusively via the Stripe webhook.
 
 import type { Env } from '../types.js'
 import { authenticate } from '../lib/auth.js'
-import { writeAudit } from '../lib/supabase.js'
+import { fetchBillingItem, writeAudit } from '../lib/supabase.js'
 
-const REQUESTS_PER_PACK = 5_000
-const MAX_PACKS         = 20
+const TOPUP_ITEM_ID = 'topup_remote_optimization_pack'
 
 export async function handleCreateTopup(request: Request, env: Env): Promise<Response> {
-  if (!env.STRIPE_SECRET_KEY || !env.STRIPE_TOPUP_PRICE_ID) {
+  if (!env.STRIPE_SECRET_KEY) {
     return Response.json({ error: 'topup_not_configured' }, { status: 503 })
+  }
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
+    return Response.json({ error: 'supabase_not_configured' }, { status: 503 })
   }
 
   const auth = await authenticate(request, env)
@@ -25,38 +23,50 @@ export async function handleCreateTopup(request: Request, env: Env): Promise<Res
     return Response.json({ error: auth.error }, { status: auth.status })
   }
   const { user } = auth
+  const cfg = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
+
+  // Load top-up config from DB (price ID lives in billing_items, not env)
+  const item = await fetchBillingItem(cfg, TOPUP_ITEM_ID)
+  if (!item) {
+    return Response.json({ error: 'topup_not_configured' }, { status: 503 })
+  }
+
+  const { creditsPerUnit, maxQuantity, stripe } = item.config
+  const maxQty = maxQuantity ?? 20
 
   let quantity = 1
   try {
     const body = await request.json() as { quantity?: number }
     if (body.quantity && Number.isInteger(body.quantity)) {
-      quantity = Math.max(1, Math.min(MAX_PACKS, body.quantity))
+      quantity = Math.max(1, Math.min(maxQty, body.quantity))
     }
   } catch { /* default to 1 pack */ }
 
-  const totalCredits = quantity * REQUESTS_PER_PACK
+  const origin     = new URL(request.url).origin
+  const successUrl = `${origin.replace('api.confire.dev', 'confire.dev')}/billing?topup=success`
+  const cancelUrl  = `${origin.replace('api.confire.dev', 'confire.dev')}/billing?topup=cancelled`
+  const successUrlDev = successUrl.replace('api-dev.confire.dev', 'dev.confire.dev')
+  const cancelUrlDev  = cancelUrl.replace('api-dev.confire.dev', 'dev.confire.dev')
 
-  // Resolve origin for success/cancel URLs
-  const origin    = new URL(request.url).origin
-  const successUrl = `${origin.replace('api.confire.dev', 'confire.dev')}/billing/topup-success`
-  const cancelUrl  = `${origin.replace('api.confire.dev', 'confire.dev')}/billing/cancelled`
-
-  // Create Stripe Checkout session (payment mode = one-time charge)
   const params = new URLSearchParams({
-    mode:                          'payment',
-    'line_items[0][price]':        env.STRIPE_TOPUP_PRICE_ID,
-    'line_items[0][quantity]':     String(quantity),
-    client_reference_id:           user.id,
-    success_url:                   successUrl,
-    cancel_url:                    cancelUrl,
-    // Metadata carried to checkout.session.completed webhook
-    'metadata[type]':              'topup',
-    'metadata[total_credits]':     String(totalCredits),
-    'metadata[requests_per_pack]': String(REQUESTS_PER_PACK),
-    'metadata[quantity]':          String(quantity),
+    mode:                                               'payment',
+    'line_items[0][price]':                             stripe.priceId,
+    'line_items[0][quantity]':                          String(quantity),
+    'line_items[0][adjustable_quantity][enabled]':      'true',
+    'line_items[0][adjustable_quantity][minimum]':      '1',
+    'line_items[0][adjustable_quantity][maximum]':      String(maxQty),
+    client_reference_id:                                user.id,
+    success_url:                                        successUrl.includes('api-dev') ? successUrlDev : successUrl,
+    cancel_url:                                         cancelUrl.includes('api-dev')  ? cancelUrlDev  : cancelUrl,
+    'metadata[kind]':                                   'topup',
+    'metadata[topup_id]':                               TOPUP_ITEM_ID,
+    'metadata[credit_type]':                            'remote_optimization',
+    'metadata[credits_per_unit]':                       String(creditsPerUnit),
+    'metadata[max_quantity]':                           String(maxQty),
+    // quantity snapshotted here; webhook re-reads from line_items for accuracy
+    'metadata[quantity]':                               String(quantity),
   })
 
-  // Attach existing Stripe customer if available (avoids duplicate customers)
   if (user.stripe_customer_id) {
     params.set('customer', user.stripe_customer_id)
   } else if (user.email) {
@@ -82,17 +92,12 @@ export async function handleCreateTopup(request: Request, env: Env): Promise<Res
 
   const session = await res.json() as { id: string; url: string }
 
-  const cfg = env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY
-    ? { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
-    : null
+  await writeAudit(cfg, user.id, 'topup_checkout_created', {
+    session_id:    session.id,
+    quantity,
+    credits_per_unit: creditsPerUnit,
+    price_id:      stripe.priceId,
+  }).catch(() => {})
 
-  if (cfg) {
-    await writeAudit(cfg, user.id, 'topup_checkout_created', {
-      session_id:     session.id,
-      quantity,
-      total_credits:  totalCredits,
-    }).catch(() => {})
-  }
-
-  return Response.json({ url: session.url, totalCredits, quantity })
+  return Response.json({ url: session.url, creditsPerUnit, quantity, maxQuantity: maxQty })
 }

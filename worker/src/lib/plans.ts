@@ -15,7 +15,7 @@
 import type { Env } from '../types.js'
 
 export type PlanId = 'free' | 'dev' | 'dev_annual' | 'pro' | 'pro_annual' | 'enterprise'
-export type BillingInterval = 'month' | 'year'
+export type BillingInterval = 'monthly' | 'annual'
 
 export interface Plan {
   id: PlanId
@@ -28,7 +28,11 @@ export interface Plan {
 
   stripe: {
     productId: string | null
-    priceId: string | null
+    priceId: string | null  // monthly price (backward compat)
+    prices?: {
+      monthly?: string | null
+      annual?: string | null
+    }
     checkoutMode: 'subscription' | 'payment' | null
   }
 
@@ -48,7 +52,8 @@ export interface Plan {
   }
 
   credits: {
-    includedMonthly: number
+    includedMonthly: number  // monthly included credits (also used by seed trigger)
+    annual?: number           // total credits for annual subscribers per period
     rollover: boolean
     allowManualGrants: boolean
     allowPurchases: boolean
@@ -170,4 +175,16 @@ export async function syncPlansToKV(env: Env): Promise<void> {
 // Other isolates will re-read from KV on their next request.
 export function invalidatePlanCache(): void {
   _cache = null
+}
+
+// getPriceForInterval returns the Stripe price ID for the requested billing interval.
+// Falls back to stripe.priceId (monthly) when prices object is absent.
+export function getPriceForInterval(plan: Plan, interval: BillingInterval): string | null {
+  return plan.stripe.prices?.[interval] ?? plan.stripe.priceId ?? null
+}
+
+// getCreditsForInterval returns how many credits to grant for a billing period.
+export function getCreditsForInterval(plan: Plan, interval: BillingInterval): number {
+  if (interval === 'annual' && plan.credits.annual != null) return plan.credits.annual
+  return plan.credits.includedMonthly
 }

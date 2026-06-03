@@ -82,7 +82,7 @@ export interface Env {
   // Stripe — checkout creation + webhooks
   STRIPE_SECRET_KEY?: string
   STRIPE_WEBHOOK_SECRET?: string
-  STRIPE_TOPUP_PRICE_ID?: string   // one-time $5/pack product price ID
+  // STRIPE_TOPUP_PRICE_ID removed — top-up price is stored in billing_items table
   // Supabase — database webhooks (set in wrangler secrets)
   SUPABASE_WEBHOOK_SECRET?: string
   // Environment tag

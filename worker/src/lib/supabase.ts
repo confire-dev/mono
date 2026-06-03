@@ -23,12 +23,25 @@ export interface Profile {
   name?: string
   plan: Plan
   plan_id: Plan
+  billing_interval?: 'monthly' | 'annual'
   subscription_status: SubscriptionStatus
   stripe_customer_id?: string
   stripe_subscription_id?: string
   subscription_current_period_start?: string
   subscription_current_period_end?: string
   is_banned: boolean
+}
+
+export interface BillingItem {
+  id: string
+  type: string
+  config: {
+    name: string
+    creditsPerUnit: number
+    maxQuantity: number
+    creditType: string
+    stripe: { productId: string; priceId: string }
+  }
 }
 
 export interface CreditBalance {
@@ -393,6 +406,7 @@ export async function closeCliSession(
 // ── Stripe webhook handlers ────────────────────────────────────────────────
 
 // Called when a subscription is created or updated.
+// Credits are granted on invoice.paid — not here — to avoid double-granting.
 export async function handleSubscriptionUpdated(
   cfg: SupabaseConfig,
   event: {
@@ -401,47 +415,60 @@ export async function handleSubscriptionUpdated(
     subscriptionId: string
     status: string
     planId: string
+    billingInterval: 'monthly' | 'annual'
     currentPeriodStart: number
     currentPeriodEnd: number
   }
 ): Promise<void> {
   const status = mapStripeStatus(event.status)
 
-  // Update profile billing state — write both plan columns until old one is dropped
   await sbFetch(cfg, 'PATCH',
     `/rest/v1/profiles?stripe_customer_id=eq.${encodeURIComponent(event.stripeCustomerId)}`, {
       stripe_subscription_id:            event.subscriptionId,
       plan:                              event.planId,
       plan_id:                           event.planId,
+      billing_interval:                  event.billingInterval,
       subscription_status:               status,
       subscription_current_period_start: new Date(event.currentPeriodStart * 1000).toISOString(),
       subscription_current_period_end:   new Date(event.currentPeriodEnd * 1000).toISOString(),
       updated_at:                        new Date().toISOString(),
     })
+}
 
-  // Grant included credits for the new period (idempotent via stripe_event_id)
+// Called on invoice.paid — grants included credits for the billing period.
+// Idempotency key = Stripe invoice ID (safe on webhook retry).
+export async function handleInvoicePaid(
+  cfg: SupabaseConfig,
+  event: {
+    stripeCustomerId: string
+    stripeInvoiceId: string
+    planId: string
+    billingInterval: 'monthly' | 'annual'
+  }
+): Promise<void> {
   const profileRes = await sbFetch(cfg, 'GET',
     `/rest/v1/profiles?stripe_customer_id=eq.${encodeURIComponent(event.stripeCustomerId)}&select=id&limit=1`)
+  if (!profileRes.ok) return
   const profiles = await profileRes.json() as Array<{ id: string }>
   if (!profiles.length) return
+  const userId = profiles[0]!.id
 
-  if (status === 'active' || status === 'trialing') {
-    // Stripe webhook has no access to KV (env not available here).
-    // Query the plans table directly for the includedMonthly value.
-    const plansRes = await sbFetch(cfg, 'GET',
-      `/rest/v1/plans?id=eq.${encodeURIComponent(event.planId)}&select=config&limit=1`)
-    const planRows = plansRes.ok
-      ? await plansRes.json() as Array<{ config: { credits: { includedMonthly: number } } }>
-      : []
-    const includedCredits = planRows[0]?.config?.credits?.includedMonthly ?? 500
+  // Resolve credits from plans table
+  const plansRes = await sbFetch(cfg, 'GET',
+    `/rest/v1/plans?id=eq.${encodeURIComponent(event.planId)}&select=config&limit=1`)
+  const planRows = plansRes.ok
+    ? await plansRes.json() as Array<{ config: { credits: { includedMonthly: number; annual?: number } } }>
+    : []
+  const credits = event.billingInterval === 'annual'
+    ? (planRows[0]?.config?.credits?.annual ?? planRows[0]?.config?.credits?.includedMonthly ?? 500)
+    : (planRows[0]?.config?.credits?.includedMonthly ?? 500)
 
-    await sbFetch(cfg, 'POST', '/rest/v1/rpc/grant_credits', {
-      p_user_id:          profiles[0]!.id,
-      p_included:         includedCredits,
-      p_source:           'subscription',
-      p_stripe_event_id:  event.stripeEventId,
-    })
-  }
+  await sbFetch(cfg, 'POST', '/rest/v1/rpc/grant_credits', {
+    p_user_id:         userId,
+    p_included:        credits,
+    p_source:          'subscription',
+    p_stripe_event_id: event.stripeInvoiceId,
+  })
 }
 
 export async function handleSubscriptionCanceled(
@@ -454,6 +481,32 @@ export async function handleSubscriptionCanceled(
       subscription_status: 'canceled',
       updated_at:          new Date().toISOString(),
     })
+}
+
+// ── Billing items ─────────────────────────────────────────────────────────────
+
+export async function fetchBillingItem(cfg: SupabaseConfig, id: string): Promise<BillingItem | null> {
+  const res = await sbFetch(cfg, 'GET',
+    `/rest/v1/billing_items?id=eq.${encodeURIComponent(id)}&active=eq.true&limit=1`)
+  if (!res.ok) return null
+  const rows = await res.json() as BillingItem[]
+  return rows[0] ?? null
+}
+
+// markWebhookEventProcessed inserts the event ID into stripe_webhook_events.
+// Returns true if this event is new (should be processed).
+// Returns false if already processed (should be skipped — idempotent).
+export async function markWebhookEventProcessed(
+  cfg: SupabaseConfig,
+  eventId: string,
+  eventType: string,
+): Promise<boolean> {
+  const res = await sbFetch(cfg, 'POST', '/rest/v1/stripe_webhook_events',
+    { id: eventId, type: eventType },
+    { 'Prefer': 'resolution=ignore-duplicates,return=representation' })
+  if (!res.ok) return true // if DB is down, process anyway (fail open)
+  const rows = await res.json() as unknown[]
+  return rows.length > 0
 }
 
 // ── Promotions ─────────────────────────────────────────────────────────────

@@ -1,14 +1,12 @@
 // POST /api/checkout/create
 //
-// Validates a plan slug server-side, then creates a Stripe Checkout session.
-// The caller (Astro auth callback) passes the user's Supabase JWT.
-// This handler re-validates the JWT, resolves the plan from KV, and only
-// creates a checkout session for plans that are active and purchasable.
-//
+// Creates a Stripe Checkout session for a subscription.
+// Accepts planSlug + interval (monthly | annual).
 // Paid access is NEVER granted here — only the Stripe webhook does that.
 
 import type { Env } from '../types.js'
-import { getPlans } from '../lib/plans.js'
+import { getPlans, getPriceForInterval } from '../lib/plans.js'
+import type { BillingInterval } from '../lib/plans.js'
 import { upsertProfile, writeAudit } from '../lib/supabase.js'
 
 async function verifySupabaseJWT(
@@ -44,7 +42,7 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     return Response.json({ error: 'invalid_token' }, { status: 401 })
   }
 
-  let body: { planSlug?: string; successUrl?: string; cancelUrl?: string }
+  let body: { planSlug?: string; interval?: string; successUrl?: string; cancelUrl?: string }
   try {
     body = await request.json()
   } catch {
@@ -52,18 +50,32 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
   }
 
   const { planSlug, successUrl, cancelUrl } = body
+  const interval: BillingInterval = body.interval === 'annual' ? 'annual' : 'monthly'
+
   if (!planSlug || !successUrl || !cancelUrl) {
     return Response.json({ error: 'missing_fields' }, { status: 400 })
   }
 
-  // Validate plan slug server-side against live plan data.
-  // Never trust the slug from the client for anything beyond lookup.
   const plans = await getPlans(env)
   const plan  = plans[planSlug]
 
-  if (!plan || plan.status !== 'active' || plan.billingMode === 'free' || !plan.stripe.priceId) {
+  if (
+    !plan ||
+    plan.status !== 'active' ||
+    plan.billingMode === 'free' ||
+    plan.billingMode === 'enterprise' ||
+    plan.stripe.checkoutMode !== 'subscription'
+  ) {
     return Response.json(
       { error: 'invalid_plan', message: 'Plan is not available for purchase.' },
+      { status: 422 },
+    )
+  }
+
+  const priceId = getPriceForInterval(plan, interval)
+  if (!priceId) {
+    return Response.json(
+      { error: 'invalid_interval', message: `No ${interval} price configured for this plan.` },
       { status: 422 },
     )
   }
@@ -71,32 +83,34 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
   const cfg     = { url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }
   const profile = await upsertProfile(cfg, verified.sub, verified.email)
 
-  // Prevent duplicate subscriptions for already-active paid users.
-  if (profile.subscription_status === 'active' && profile.plan !== 'free') {
-    const isSamePlan = profile.plan === plan.id
-    return Response.json({
-      redirect: '/dashboard',
-      message:  isSamePlan ? 'already_subscribed' : 'plan_change_from_billing',
-    })
+  // Prevent duplicate subscriptions for already-active paid users on the same plan+interval
+  if (
+    profile.plan === plan.id &&
+    profile.billing_interval === interval &&
+    (profile.subscription_status === 'active' || profile.subscription_status === 'trialing')
+  ) {
+    return Response.json({ redirect: '/dashboard', message: 'already_subscribed' })
   }
 
-  // Build Stripe Checkout session via REST API (no SDK — stays V8-safe).
   const params = new URLSearchParams({
-    mode:                              'subscription',
-    'line_items[0][price]':            plan.stripe.priceId,
-    'line_items[0][quantity]':         '1',
-    success_url:                       successUrl,
-    cancel_url:                        cancelUrl,
-    client_reference_id:               verified.sub,
-    'metadata[user_id]':               verified.sub,
-    'metadata[plan_slug]':             plan.id,
-    'metadata[price_id]':              plan.stripe.priceId,
-    // Also embed on the subscription so the webhook can read metadata there too.
-    'subscription_data[metadata][user_id]':   verified.sub,
-    'subscription_data[metadata][plan_slug]': plan.id,
+    mode:                                            'subscription',
+    'line_items[0][price]':                          priceId,
+    'line_items[0][quantity]':                       '1',
+    success_url:                                     successUrl,
+    cancel_url:                                      cancelUrl,
+    client_reference_id:                             verified.sub,
+    // Checkout session metadata
+    'metadata[kind]':                                'subscription',
+    'metadata[plan_id]':                             plan.id,
+    'metadata[billing_interval]':                    interval,
+    'metadata[credit_type]':                         'remote_optimization',
+    // Subscription metadata (carried to webhook events)
+    'subscription_data[metadata][kind]':             'subscription',
+    'subscription_data[metadata][plan_id]':          plan.id,
+    'subscription_data[metadata][billing_interval]': interval,
+    'subscription_data[metadata][credit_type]':      'remote_optimization',
   })
 
-  // Link to existing Stripe customer when available to avoid duplicate customers.
   if (profile.stripe_customer_id) {
     params.set('customer', profile.stripe_customer_id)
   } else {
@@ -123,8 +137,10 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
   const session = await stripeRes.json() as { url: string; id: string }
 
   await writeAudit(cfg, verified.sub, 'checkout_session_created', {
-    plan_slug:  plan.id,
+    plan_id:    plan.id,
+    interval,
     session_id: session.id,
+    price_id:   priceId,
   })
 
   return Response.json({ checkoutUrl: session.url })

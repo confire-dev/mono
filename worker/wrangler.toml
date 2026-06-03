@@ -91,7 +91,7 @@ simple = { limit = 200, period = 60 }
 # AMPLITUDE_KEY            — Amplitude API key (can share with prod)
 # STRIPE_SECRET_KEY        — Stripe test mode secret key (sk_test_...)
 # STRIPE_WEBHOOK_SECRET    — Stripe test webhook signing secret
-# STRIPE_TOPUP_PRICE_ID    — test-mode top-up price ID
+# STRIPE_TOPUP_PRICE_ID    — removed: top-up price lives in billing_items table
 # SUPABASE_WEBHOOK_SECRET  — generate: openssl rand -base64 32
 
 # ── production environment (manual deploy only) ───────────────────────────────
