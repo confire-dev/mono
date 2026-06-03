@@ -33,14 +33,9 @@ wrangler kv namespace create confire_cache --preview
 # The [[analytics_engine_datasets]] binding is already declared in wrangler.toml.
 # Cloudflare creates the dataset automatically on the first env.AE.writeDataPoint() call.
 
-# Rate limiting namespaces (one per plan tier, per environment)
-wrangler rate-limit create rl-free-dev   # dev
-wrangler rate-limit create rl-dev-dev
-wrangler rate-limit create rl-pro-dev
-wrangler rate-limit create rl-free      # production
-wrangler rate-limit create rl-dev
-wrangler rate-limit create rl-pro
-# Copy namespace_ids into worker/wrangler.toml
+# Rate limiting — no CLI command needed.
+# [[ratelimits]] bindings are declared in wrangler.toml with numeric namespace_ids you choose.
+# They activate on deploy. Used for burst protection only — monthly quota is enforced in Supabase.
 ```
 
 ### 2. Set worker secrets

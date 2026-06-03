@@ -20,19 +20,22 @@ preview_id = "00000000000000000000000000000001"
 binding = "AE"
 dataset = "confire_events_dev"
 
-[[rate_limiting]]
+# Rate limiting — burst protection only (not monthly quota; quota is enforced in Supabase).
+# namespace_id is a number you choose; no CLI command needed. Defined here and active on deploy.
+# Keyed by userId so limits are per user, not global.
+[[ratelimits]]
 binding = "RL_FREE"
-namespace_id = "1001"
+namespace_id = 1001
 simple = { limit = 20, period = 60 }
 
-[[rate_limiting]]
+[[ratelimits]]
 binding = "RL_DEV"
-namespace_id = "1002"
+namespace_id = 1002
 simple = { limit = 60, period = 60 }
 
-[[rate_limiting]]
+[[ratelimits]]
 binding = "RL_PRO"
-namespace_id = "1003"
+namespace_id = 1003
 simple = { limit = 200, period = 60 }
 
 [dev]
@@ -66,20 +69,19 @@ preview_id = "REPLACE_WITH_DEV_KV_PREVIEW_ID"
 binding = "AE"
 dataset = "confire_events_dev"
 
-# Create with: wrangler rate-limit create rl-free-dev (etc.)
-[[env.dev.rate_limiting]]
+[[env.dev.ratelimits]]
 binding = "RL_FREE"
-namespace_id = "REPLACE_WITH_DEV_RL_FREE_ID"
+namespace_id = 2001
 simple = { limit = 20, period = 60 }
 
-[[env.dev.rate_limiting]]
+[[env.dev.ratelimits]]
 binding = "RL_DEV"
-namespace_id = "REPLACE_WITH_DEV_RL_DEV_ID"
+namespace_id = 2002
 simple = { limit = 60, period = 60 }
 
-[[env.dev.rate_limiting]]
+[[env.dev.ratelimits]]
 binding = "RL_PRO"
-namespace_id = "REPLACE_WITH_DEV_RL_PRO_ID"
+namespace_id = 2003
 simple = { limit = 200, period = 60 }
 
 # Secrets — set with: wrangler secret put <NAME> --env dev
@@ -119,20 +121,19 @@ preview_id = "REPLACE_WITH_PROD_KV_PREVIEW_ID"
 binding = "AE"
 dataset = "confire_events"
 
-# Create with: wrangler rate-limit create rl-free (etc.)
-[[env.production.rate_limiting]]
+[[env.production.ratelimits]]
 binding = "RL_FREE"
-namespace_id = "REPLACE_WITH_PROD_RL_FREE_ID"
+namespace_id = 3001
 simple = { limit = 20, period = 60 }
 
-[[env.production.rate_limiting]]
+[[env.production.ratelimits]]
 binding = "RL_DEV"
-namespace_id = "REPLACE_WITH_PROD_RL_DEV_ID"
+namespace_id = 3002
 simple = { limit = 60, period = 60 }
 
-[[env.production.rate_limiting]]
+[[env.production.ratelimits]]
 binding = "RL_PRO"
-namespace_id = "REPLACE_WITH_PROD_RL_PRO_ID"
+namespace_id = 3003
 simple = { limit = 200, period = 60 }
 
 # Secrets — set with: wrangler secret put <NAME> --env production
