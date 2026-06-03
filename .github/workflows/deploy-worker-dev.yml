@@ -1,6 +1,6 @@
 name: Deploy Worker (dev)
 
-# Auto-deploys to api-dev.confire.dev on every push to main that touches the worker.
+# Auto-deploys to api.dev.confire.dev on every push to main that touches the worker.
 # Uses the [env.dev] environment in worker/wrangler.toml.
 
 on:

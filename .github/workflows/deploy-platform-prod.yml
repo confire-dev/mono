@@ -1,7 +1,7 @@
 name: Deploy Platform (production)
 
 # Manual-only deploy of the Astro platform to confire.dev via Cloudflare Pages Direct Upload.
-# The dev platform (dev.confire.dev) auto-deploys via Cloudflare Pages git integration — no workflow needed.
+# The dev platform (dev.confire.dev) auto-deploys via deploy-platform-dev.yml on push to main.
 # Requires the "production" GitHub environment (configure in repo Settings → Environments).
 
 on:
