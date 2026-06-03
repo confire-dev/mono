@@ -23,10 +23,10 @@ All `wrangler` commands below take `--env dev` or `--env production`.
 
 ```bash
 # KV namespace
-wrangler kv namespace create confire-cache-dev   # dev
-wrangler kv namespace create confire-cache-dev --preview
-wrangler kv namespace create confire-cache       # production
-wrangler kv namespace create confire-cache --preview
+wrangler kv namespace create confire_cache_dev   # dev
+wrangler kv namespace create confire_cache_dev --preview
+wrangler kv namespace create confire_cache       # production
+wrangler kv namespace create confire_cache --preview
 # Copy the IDs into worker/wrangler.toml under [env.dev] and [env.production]
 
 # Analytics Engine (production only — dev reuses the dev dataset name)

@@ -55,8 +55,8 @@ OPTIMIZER_API_ENABLED = "false"
 pattern = "api-dev.confire.dev/*"
 zone_name = "confire.dev"
 
-# Create with: wrangler kv namespace create confire-cache-dev
-#              wrangler kv namespace create confire-cache-dev --preview
+# Create with: wrangler kv namespace create confire_cache_dev
+#              wrangler kv namespace create confire_cache_dev --preview
 [[env.dev.kv_namespaces]]
 binding = "CACHE"
 id = "REPLACE_WITH_DEV_KV_ID"
@@ -108,8 +108,8 @@ OPTIMIZER_API_ENABLED = "false"
 pattern = "api.confire.dev/*"
 zone_name = "confire.dev"
 
-# Create with: wrangler kv namespace create confire-cache
-#              wrangler kv namespace create confire-cache --preview
+# Create with: wrangler kv namespace create confire_cache
+#              wrangler kv namespace create confire_cache --preview
 [[env.production.kv_namespaces]]
 binding = "CACHE"
 id = "REPLACE_WITH_PROD_KV_ID"
