@@ -1,3 +1,11 @@
+## v0.7.6 — 2026-06-03
+
+### Fixes
+- fix(worker): use [[ratelimits]] (correct TOML key) with chosen namespace_ids (59bb03f)
+
+
+---
+
 ## v0.7.5 — 2026-06-03
 
 
