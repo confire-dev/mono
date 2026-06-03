@@ -1,26 +1,22 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { Button, Text, TimeseriesChart } from '@cloudflare/kumo'
+import { Button, Sidebar, Text, TimeseriesChart } from '@cloudflare/kumo'
 import {
-  House, Pulse, Shield, Terminal, CreditCard, BookOpen,
-  GearSix, SignOut, List, X, CaretRight, Lightning,
-  DeviceMobile, ChartBar,
+  House, Pulse, Shield, Terminal, CreditCard,
+  GearSix, SignOut, Lightning, DeviceMobile, User,
+  ArrowSquareOut, CheckCircle, Warning, ArrowRight,
 } from '@phosphor-icons/react'
 import { useAuth } from '@/hooks/use-auth'
 import { useDashboard } from '@/hooks/use-dashboard'
 import { formatTokenCount } from '@/lib/types'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
-})
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -32,7 +28,6 @@ function timeAgo(iso: string): string {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
-
 const INTEGRATION_COLOR: Record<string, string> = {
   'claude-code': '#f4811f',
   cursor:        '#7b68ee',
@@ -40,20 +35,25 @@ const INTEGRATION_COLOR: Record<string, string> = {
   default:       '#6b7280',
 }
 
+const ACTION_LABELS: Record<string, { label: string; color: string }> = {
+  optimized:  { label: 'optimized',  color: '#4ade80' },
+  reviewed:   { label: 'reviewed',   color: '#60a5fa' },
+  blocked:    { label: 'blocked',    color: '#f87171' },
+  sanitized:  { label: 'sanitized',  color: '#a78bfa' },
+  redacted:   { label: 'redacted',   color: '#fbbf24' },
+  passthrough:{ label: 'passed',     color: '#6b7280' },
+  local:      { label: 'local',      color: '#6b7280' },
+}
+
 // ── primitives ────────────────────────────────────────────────────────────────
 
-function Card({ children, className, style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div
-      className={className}
-      style={{
-        background: 'var(--confire-bg-card)',
-        border: '1px solid var(--confire-border)',
-        borderRadius: 8,
-        overflow: 'hidden',
-        ...style,
-      }}
-    >
+    <div style={{
+      background: 'var(--confire-bg-card)',
+      border: '1px solid var(--confire-border)',
+      borderRadius: 8, overflow: 'hidden', ...style,
+    }}>
       {children}
     </div>
   )
@@ -63,8 +63,7 @@ function CardHeader({ title, action }: { title: string; action?: React.ReactNode
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '14px 20px',
-      borderBottom: '1px solid var(--confire-border)',
+      padding: '14px 20px', borderBottom: '1px solid var(--confire-border)',
     }}>
       <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--confire-text)', letterSpacing: '0.01em' }}>{title}</span>
       {action}
@@ -80,27 +79,12 @@ function EmptyRow({ label }: { label: string }) {
   )
 }
 
-function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
-  return (
-    <div style={{
-      background: 'var(--confire-bg-card)',
-      border: `1px solid ${accent ? '#f4811f44' : 'var(--confire-border)'}`,
-      borderRadius: 8,
-      padding: '20px 20px 16px',
-    }}>
-      <div style={{ fontSize: 12, color: 'var(--confire-text-muted)', marginBottom: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--confire-text)', lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: 'var(--confire-text-dim)', marginTop: 6 }}>{sub}</div>}
-    </div>
-  )
-}
-
 function PlanBadge({ plan }: { plan: string }) {
   const isFree = plan === 'free'
   const isEnterprise = plan.startsWith('enterprise')
   const bg  = isFree ? 'var(--confire-border)' : isEnterprise ? 'rgba(167,139,250,0.15)' : 'rgba(244,129,31,0.15)'
-  const fg  = isFree ? 'var(--confire-text-muted)'   : isEnterprise ? '#a78bfa'                : '#f4811f'
-  const bdr = isFree ? 'var(--confire-border)'   : isEnterprise ? 'rgba(167,139,250,0.4)'  : 'rgba(244,129,31,0.4)'
+  const fg  = isFree ? 'var(--confire-text-muted)' : isEnterprise ? '#a78bfa' : '#f4811f'
+  const bdr = isFree ? 'var(--confire-border)' : isEnterprise ? 'rgba(167,139,250,0.4)' : 'rgba(244,129,31,0.4)'
   return (
     <span style={{
       background: bg, color: fg, border: `1px solid ${bdr}`,
@@ -112,23 +96,17 @@ function PlanBadge({ plan }: { plan: string }) {
 
 function Toggle({ on, disabled, onClick }: { on: boolean; disabled?: boolean; onClick: () => void }) {
   return (
-    <button
-      disabled={disabled}
-      onClick={onClick}
-      aria-checked={on}
-      role="switch"
+    <button disabled={disabled} onClick={onClick} role="switch" aria-checked={on}
       style={{
         width: 36, height: 20, borderRadius: 10, border: 'none', flexShrink: 0,
         background: on ? '#f4811f' : 'var(--confire-border)',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
         position: 'relative', transition: 'background 0.15s',
       }}
     >
       <span style={{
         position: 'absolute', top: 2, left: on ? 18 : 2,
-        width: 16, height: 16, borderRadius: '50%',
-        background: '#fff', transition: 'left 0.15s',
+        width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
       }} />
     </button>
   )
@@ -136,7 +114,7 @@ function Toggle({ on, disabled, onClick }: { on: boolean; disabled?: boolean; on
 
 // ── nav ───────────────────────────────────────────────────────────────────────
 
-const NAV_SECTIONS = [
+const NAV = [
   {
     label: null,
     items: [{ label: 'Overview', href: '/dashboard', icon: House }],
@@ -144,8 +122,7 @@ const NAV_SECTIONS = [
   {
     label: 'Observe',
     items: [
-      { label: 'Activity',  href: '/dashboard/activity', icon: Pulse },
-      { label: 'Analytics', href: '/dashboard/analytics', icon: ChartBar },
+      { label: 'Activity', href: '/dashboard/activity', icon: Pulse },
     ],
   },
   {
@@ -158,15 +135,14 @@ const NAV_SECTIONS = [
   {
     label: 'Resources',
     items: [
-      { label: 'CLI & Setup', href: '/cli', icon: Terminal },
+      { label: 'Setup', href: '/dashboard/setup', icon: Terminal },
     ],
   },
 ]
 
 const NAV_BOTTOM = [
-  { label: 'Billing',       href: '/billing',  icon: CreditCard },
-  { label: 'Documentation', href: '/docs',     icon: BookOpen },
-  { label: 'Settings',      href: '/settings', icon: GearSix },
+  { label: 'Billing',  href: '/dashboard/billing',  icon: CreditCard },
+  { label: 'Settings', href: '/dashboard/settings', icon: GearSix },
 ]
 
 function navigate(href: string) {
@@ -174,373 +150,485 @@ function navigate(href: string) {
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
-function NavItem({ label, href, icon: Icon, active }: { label: string; href: string; icon: React.ElementType; active: boolean }) {
-  const isExternal = href.startsWith('/docs') || href.startsWith('http')
+// ── sidebar ───────────────────────────────────────────────────────────────────
+
+function AppSidebar({ currentPath }: { currentPath: string }) {
+  function click(href: string) {
+    return (e: React.MouseEvent) => { e.preventDefault(); navigate(href) }
+  }
+
   return (
-    <a
-      href={href}
-      onClick={isExternal ? undefined : e => { e.preventDefault(); navigate(href) }}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 9,
-        padding: '6px 10px', borderRadius: 5, textDecoration: 'none',
-        fontSize: 13, fontWeight: active ? 500 : 400,
-        color: active ? 'var(--confire-text)' : 'var(--confire-text-dim)',
-        background: active ? 'rgba(255,255,255,0.07)' : 'transparent',
-        transition: 'background 0.1s, color 0.1s',
-      }}
-      onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = 'var(--confire-text)' } }}
-      onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--confire-text-dim)' } }}
-    >
-      <Icon size={15} weight={active ? 'fill' : 'regular'} color={active ? '#f4811f' : undefined} />
-      {label}
-    </a>
+    <Sidebar>
+      <Sidebar.Header>
+        <a href="/dashboard" onClick={click('/dashboard')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', padding: '2px 0', overflow: 'hidden' }}>
+          <div style={{
+            width: 26, height: 26, borderRadius: 7, background: '#f4811f',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <Lightning size={13} weight="fill" color="#fff" />
+          </div>
+          {/* hidden when collapsed via CSS data attribute on parent */}
+          <span
+            className="group-data-[state=collapsed]/sidebar:hidden"
+            style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}
+          >
+            Confire
+          </span>
+        </a>
+      </Sidebar.Header>
+
+      <Sidebar.Content>
+        {NAV.map(({ label, items }, i) => (
+          <Sidebar.Group key={i}>
+            {label && <Sidebar.GroupLabel>{label}</Sidebar.GroupLabel>}
+            <Sidebar.Menu>
+              {items.map(({ label: l, href, icon }) => {
+                const active = href === '/dashboard' ? currentPath === href : currentPath.startsWith(href)
+                return (
+                  <Sidebar.MenuButton key={href} icon={icon} href={href} active={active} tooltip={l} onClick={click(href) as any}>
+                    {l}
+                  </Sidebar.MenuButton>
+                )
+              })}
+            </Sidebar.Menu>
+          </Sidebar.Group>
+        ))}
+
+        {/* spacer — pushes bottom items to the foot of the content area */}
+        <div style={{ flex: 1 }} />
+
+        {/* bottom nav — sits above the footer line */}
+        <Sidebar.Group>
+          <Sidebar.Menu>
+            {NAV_BOTTOM.map(({ label: l, href, icon }) => (
+              <Sidebar.MenuButton key={href} icon={icon} href={href} active={currentPath === href} tooltip={l} onClick={click(href) as any}>
+                {l}
+              </Sidebar.MenuButton>
+            ))}
+            <Sidebar.MenuButton icon={ArrowSquareOut} href="https://docs.confire.dev" tooltip="Docs">
+              Docs
+            </Sidebar.MenuButton>
+          </Sidebar.Menu>
+        </Sidebar.Group>
+      </Sidebar.Content>
+
+      {/* footer line — collapse trigger only */}
+      <Sidebar.Footer>
+        <Sidebar.Trigger />
+      </Sidebar.Footer>
+    </Sidebar>
   )
 }
 
-function NavSection({ label, children }: { label: string | null; children: React.ReactNode }) {
+// ── user menu ─────────────────────────────────────────────────────────────────
+
+function UserMenu({ email, plan, onSignOut }: { email: string; plan?: string; onSignOut: () => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  const row: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 5,
+    fontSize: 13, color: 'var(--confire-text-dim)', textDecoration: 'none',
+    background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+  }
+
   return (
-    <div style={{ marginBottom: 4 }}>
-      {label && (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(v => !v)} style={{
+        width: 32, height: 32, borderRadius: '50%',
+        background: open ? 'rgba(244,129,31,0.25)' : 'rgba(244,129,31,0.15)',
+        border: `1px solid ${open ? 'rgba(244,129,31,0.5)' : 'rgba(244,129,31,0.3)'}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 12, fontWeight: 600, color: '#f4811f', cursor: 'pointer',
+      }}>
+        {email[0]?.toUpperCase() ?? 'U'}
+      </button>
+      {open && (
         <div style={{
-          fontSize: 10, fontWeight: 600, color: 'var(--confire-text-muted)',
-          textTransform: 'uppercase', letterSpacing: '0.08em',
-          padding: '10px 10px 4px',
+          position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+          background: 'var(--confire-bg-card)', border: '1px solid var(--confire-border)',
+          borderRadius: 8, padding: '4px', minWidth: 210, zIndex: 200,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
         }}>
-          {label}
+          <div style={{ padding: '8px 12px 10px', borderBottom: '1px solid var(--confire-border)', marginBottom: 4 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--confire-text)', marginBottom: 2 }}>{email.split('@')[0]}</div>
+            <div style={{ fontSize: 11, color: 'var(--confire-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>
+            {plan && <div style={{ marginTop: 6 }}><PlanBadge plan={plan} /></div>}
+          </div>
+          <a href="/dashboard/settings" onClick={() => setOpen(false)} style={row}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'var(--confire-text)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--confire-text-dim)' }}>
+            <User size={14} /> Profile
+          </a>
+          <a href="/dashboard/billing" onClick={() => setOpen(false)} style={row}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'var(--confire-text)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--confire-text-dim)' }}>
+            <CreditCard size={14} /> Billing
+          </a>
+          <div style={{ height: 1, background: 'var(--confire-border)', margin: '4px 0' }} />
+          <button onClick={() => { setOpen(false); onSignOut() }} style={{ ...row, color: '#f87171' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.08)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+            <SignOut size={14} /> Log out
+          </button>
         </div>
       )}
-      {children}
     </div>
   )
 }
 
-function Sidebar({ currentPath, email, plan, totalSavedTokens, totalCalls, onSignOut, mobile, onClose }: {
-  currentPath: string
-  email: string
-  plan?: string
-  totalSavedTokens: number
-  totalCalls: number
-  onSignOut: () => void
-  mobile?: boolean
-  onClose?: () => void
-}) {
-  const username = email.split('@')[0] || 'User'
+// ── overview page ─────────────────────────────────────────────────────────────
 
+function StatusChip({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
   return (
     <div style={{
-      width: 240, flexShrink: 0, height: '100svh', position: mobile ? 'fixed' : 'sticky',
-      top: 0, left: 0, zIndex: mobile ? 50 : undefined,
-      background: 'var(--confire-bg-footer)',
-      borderRight: '1px solid var(--confire-border)',
-      display: 'flex', flexDirection: 'column',
-      overflowY: 'auto',
+      display: 'flex', flexDirection: 'column', gap: 4,
+      padding: '10px 16px', borderRadius: 7,
+      background: 'var(--confire-bg-card)', border: '1px solid var(--confire-border)',
+      flex: '1 1 0', minWidth: 120,
     }}>
-      {/* header: logo LEFT, user info RIGHT */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 14px', height: 60,
-        borderBottom: '1px solid var(--confire-border)',
-        flexShrink: 0, gap: 10,
-      }}>
-        {/* logo */}
-        <a href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 7, textDecoration: 'none', flexShrink: 0 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 7, background: '#f4811f',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Lightning size={15} weight="fill" color="#fff" />
-          </div>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--confire-text)', letterSpacing: '-0.01em' }}>Confire</span>
-        </a>
-
-        {/* user info */}
-        <div style={{ textAlign: 'right', minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--confire-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {username}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--confire-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>
-            {email}
-          </div>
-          {plan && <PlanBadge plan={plan} />}
-        </div>
-
-        {mobile && onClose && (
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--confire-text-dim)', lineHeight: 1, flexShrink: 0 }}>
-            <X size={15} />
-          </button>
-        )}
-      </div>
-
-      {/* main nav */}
-      <nav style={{ padding: '8px 10px', flex: 1 }}>
-        {NAV_SECTIONS.map((section, i) => (
-          <NavSection key={i} label={section.label}>
-            {section.items.map(item => (
-              <NavItem
-                key={item.href}
-                {...item}
-                active={currentPath === item.href || (item.href !== '/dashboard' && currentPath.startsWith(item.href))}
-              />
-            ))}
-          </NavSection>
-        ))}
-      </nav>
-
-      {/* live stats widget */}
-      <div style={{
-        margin: '0 10px 10px',
-        borderRadius: 8, border: '1px solid var(--confire-border)',
-        background: 'var(--confire-bg-card)',
-        padding: '12px 14px',
-        flexShrink: 0,
-      }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--confire-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
-          Your savings
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={{ fontSize: 11, color: 'var(--confire-text-dim)' }}>Tokens saved</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#f4811f', fontVariantNumeric: 'tabular-nums' }}>
-              {formatTokenCount(totalSavedTokens)}
-            </span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={{ fontSize: 11, color: 'var(--confire-text-dim)' }}>Tool calls</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--confire-text)', fontVariantNumeric: 'tabular-nums' }}>
-              {totalCalls.toLocaleString()}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* bottom nav */}
-      <div style={{ padding: '8px 10px 12px', borderTop: '1px solid var(--confire-border)', flexShrink: 0 }}>
-        {NAV_BOTTOM.map(item => (
-          <NavItem key={item.href} {...item} active={currentPath === item.href} />
-        ))}
-        <button
-          onClick={onSignOut}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 9,
-            padding: '6px 10px', borderRadius: 5, width: '100%',
-            fontSize: 13, color: 'var(--confire-text-dim)',
-            background: 'none', border: 'none', cursor: 'pointer',
-            transition: 'background 0.1s, color 0.1s', textAlign: 'left',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.08)'; e.currentTarget.style.color = '#f87171' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--confire-text-dim)' }}
-        >
-          <SignOut size={15} />
-          Sign out
-        </button>
-      </div>
+      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--confire-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 500, color: ok === false ? '#f87171' : ok === true ? '#4ade80' : '#f4811f' }}>{value}</span>
     </div>
   )
 }
 
-// ── usage chart ───────────────────────────────────────────────────────────────
+function BigStatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
+  return (
+    <div style={{
+      background: 'var(--confire-bg-card)',
+      border: `1px solid ${accent ? '#f4811f44' : 'var(--confire-border)'}`,
+      borderRadius: 8, padding: '20px 20px 16px',
+    }}>
+      <div style={{ fontSize: 11, color: 'var(--confire-text-muted)', marginBottom: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: accent ? '#f4811f' : 'var(--confire-text)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: 'var(--confire-text-dim)', marginTop: 6 }}>{sub}</div>}
+    </div>
+  )
+}
 
-function UsageChart({ calls }: { calls: { raw_bytes: number; optimized_bytes: number; created_at: string }[] }) {
+function OverviewPage({
+  me, recentCalls, allCallBytes, apiKeys, firewall, canToggle, totalSavedTokens, totalCallsAllTime,
+  revokeKey, toggleFirewallGroup,
+}: any) {
+  // context reduction from byte data
+  const totalRaw = allCallBytes.reduce((s: number, c: any) => s + c.raw_bytes, 0)
+  const totalOpt = allCallBytes.reduce((s: number, c: any) => s + c.optimized_bytes, 0)
+  const contextReduction = totalRaw > 0 ? Math.round((1 - totalOpt / totalRaw) * 100) : 0
+
+  // protected = calls with a meaningful action (not just passthrough/local)
+  const protectedCalls = recentCalls.filter((c: any) => c.mode && c.mode !== 'passthrough' && c.mode !== 'local')
+  const secretsRedacted = recentCalls.filter((c: any) => c.mode === 'redacted').length
+
+  // top noisy tools
+  const byTool: Record<string, { total: number; count: number }> = {}
+  for (const c of recentCalls) {
+    const t = c.tool_type || 'unknown'
+    if (!byTool[t]) byTool[t] = { total: 0, count: 0 }
+    byTool[t].total += c.reduction_ratio || 0
+    byTool[t].count += 1
+  }
+  const topTools = Object.entries(byTool)
+    .map(([tool, { total, count }]) => ({ tool, avg: Math.round(total / count) }))
+    .sort((a, b) => b.avg - a.avg)
+    .slice(0, 4)
+
+  // usage chart data
   const byDay = new Map<string, number>()
-  for (const c of calls) {
+  for (const c of allCallBytes) {
     const day = c.created_at.slice(0, 10)
     byDay.set(day, (byDay.get(day) ?? 0) + Math.max(0, Math.round((c.raw_bytes - c.optimized_bytes) / 4)))
   }
-  const data: [number, number][] = Array.from(byDay.entries())
+  const chartData: [number, number][] = Array.from(byDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([day, tokens]) => [new Date(day).getTime(), tokens])
 
-  if (data.length === 0) return null
+  const usedPct = me ? Math.min(100, Math.round((me.used / me.effectiveLimit) * 100)) : 0
+
+  // active integrations from recent calls
+  const seenIntegrations = [...new Set(recentCalls.slice(0, 20).map((c: any) => c.integration).filter(Boolean))] as string[]
 
   return (
-    <Card>
-      <CardHeader title="Tokens saved — daily" />
-      <div style={{ padding: '12px 8px 4px' }}>
-        <TimeseriesChart
-          echarts={echarts}
-          type="line"
-          data={[{ name: 'Tokens saved', data, color: '#f4811f' }]}
-          tooltipValueFormat={v => `${Math.round(v).toLocaleString()} tokens`}
-          height={180}
-        />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* page heading */}
+      <div>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, marginBottom: 4 }}>Overview</h1>
+        <p style={{ fontSize: 13, color: 'var(--confire-text-dim)', margin: 0 }}>
+          {me ? `${me.planName} plan · ${me.subscriptionStatus}` : 'Your Confire account'}
+        </p>
       </div>
-    </Card>
-  )
-}
 
-// ── firewall card ─────────────────────────────────────────────────────────────
+      {/* status row */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <StatusChip label="Mode" value="Balanced" ok={true} />
+        {seenIntegrations.includes('claude-code') && <StatusChip label="Claude Code" value="Full firewall" ok={true} />}
+        {seenIntegrations.includes('cursor') && <StatusChip label="Cursor" value="MCP gateway" ok={true} />}
+        {seenIntegrations.includes('vscode') && <StatusChip label="VS Code" value="MCP gateway" ok={true} />}
+        <StatusChip label="Cloud optimizer" value={me?.used > 0 ? 'Enabled' : 'Enabled'} ok={true} />
+      </div>
 
-function FirewallCard({
-  groups, canToggle, toggle,
-}: {
-  groups: { id: string; label: string; enabled: boolean }[]
-  canToggle: boolean
-  toggle: (id: string, enabled: boolean) => void
-}) {
-  return (
-    <Card>
-      <CardHeader title="MCP Firewall" action={
-        !canToggle ? (
-          <a href="/pricing" style={{ fontSize: 11, color: '#f4811f', textDecoration: 'none' }}>Upgrade to enable →</a>
-        ) : undefined
-      } />
-      {groups.length === 0 && <EmptyRow label="No firewall groups configured" />}
-      {groups.map((g, i) => (
-        <div key={g.id} style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '11px 20px',
-          borderBottom: i < groups.length - 1 ? '1px solid var(--confire-border)' : undefined,
-        }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--confire-text)' }}>{g.label}</div>
-            <div style={{ fontSize: 11, color: 'var(--confire-text-muted)', marginTop: 2 }}>{g.id}</div>
-          </div>
-          <Toggle on={g.enabled} disabled={!canToggle} onClick={() => toggle(g.id, !g.enabled)} />
+      {/* 4 stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }} className="stat-grid">
+        <BigStatCard label="Tokens saved" value={formatTokenCount(totalSavedTokens)} sub="all-time" accent />
+        <BigStatCard label="Context reduction" value={contextReduction > 0 ? `${contextReduction}%` : '—'} sub="avg across calls" />
+        <BigStatCard label="Protected actions" value={protectedCalls.length.toLocaleString()} sub="reviewed / blocked" />
+        <BigStatCard label="Secrets redacted" value={secretsRedacted > 0 ? secretsRedacted.toString() : '0'} sub="all-time" />
+      </div>
+
+      {/* recent activity + top tools */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }} className="activity-col">
+
+        {/* recent activity */}
+        <Card>
+          <CardHeader title="Recent activity" />
+          {recentCalls.length === 0
+            ? <EmptyRow label="No activity yet — install the CLI to get started" />
+            : recentCalls.slice(0, 8).map((c: any, i: number) => {
+                const action = ACTION_LABELS[c.mode] ?? ACTION_LABELS.passthrough
+                return (
+                  <div key={c.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '9px 20px',
+                    borderBottom: i < Math.min(recentCalls.length, 8) - 1 ? '1px solid var(--confire-border)' : undefined,
+                  }}>
+                    <span style={{
+                      width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                      background: INTEGRATION_COLOR[c.integration] ?? INTEGRATION_COLOR.default,
+                    }} />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--confire-text)', fontFamily: 'monospace' }}>
+                        {c.tool_type}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--confire-text-muted)', marginLeft: 8 }}>{c.integration}</span>
+                    </div>
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, color: action.color,
+                      background: `${action.color}18`, borderRadius: 4, padding: '2px 6px',
+                    }}>
+                      {action.label}
+                    </span>
+                    {c.reduction_ratio > 0 && (
+                      <span style={{ fontSize: 11, color: '#4ade80', fontVariantNumeric: 'tabular-nums', minWidth: 40, textAlign: 'right' }}>
+                        −{c.reduction_ratio}%
+                      </span>
+                    )}
+                    <span style={{ fontSize: 11, color: 'var(--confire-text-muted)', minWidth: 52, textAlign: 'right' }}>
+                      {timeAgo(c.created_at)}
+                    </span>
+                  </div>
+                )
+              })
+          }
+        </Card>
+
+        {/* top noisy tools */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Card>
+            <CardHeader title="Top noisy tools" />
+            {topTools.length === 0
+              ? <EmptyRow label="No data yet" />
+              : topTools.map((t, i) => (
+                  <div key={t.tool} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '9px 20px',
+                    borderBottom: i < topTools.length - 1 ? '1px solid var(--confire-border)' : undefined,
+                  }}>
+                    <span style={{ fontSize: 12, color: 'var(--confire-text)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                      {t.tool}
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#4ade80', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                      {t.avg}% avg
+                    </span>
+                  </div>
+                ))
+            }
+          </Card>
+
+          {/* plan usage */}
+          {me && (
+            <Card>
+              <CardHeader title="Plan usage" />
+              <div style={{ padding: '14px 20px 16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
+                  <span style={{ color: 'var(--confire-text-dim)' }}>Remote optimizations</span>
+                  <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                    {me.used.toLocaleString()} / {me.effectiveLimit.toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ height: 4, background: 'var(--confire-border)', borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}>
+                  <div style={{
+                    height: '100%', width: `${usedPct}%`,
+                    background: usedPct >= 80 ? '#f87171' : '#f4811f',
+                    borderRadius: 3, transition: 'width 0.3s',
+                  }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                  <span style={{ color: 'var(--confire-text-muted)' }}>Custom rules</span>
+                  <span style={{ color: me.plan === 'free' ? '#6b7280' : '#4ade80', fontWeight: 500 }}>
+                    {me.plan === 'free' ? 'locked' : 'enabled'}
+                  </span>
+                </div>
+                {me.plan === 'free' && (
+                  <a href="/dashboard/billing" style={{
+                    display: 'block', marginTop: 12, padding: '7px 12px', textAlign: 'center',
+                    background: 'rgba(244,129,31,0.1)', border: '1px solid rgba(244,129,31,0.3)',
+                    borderRadius: 6, fontSize: 12, fontWeight: 600, color: '#f4811f', textDecoration: 'none',
+                  }}>
+                    Upgrade to Dev →
+                  </a>
+                )}
+              </div>
+            </Card>
+          )}
         </div>
-      ))}
-    </Card>
-  )
-}
+      </div>
 
-// ── devices card ──────────────────────────────────────────────────────────────
-
-function DevicesCard({
-  apiKeys, revokeKey,
-}: {
-  apiKeys: { id: string; key_prefix: string; key_suffix?: string; device_id?: string; last_used_at?: string; created_at: string }[]
-  revokeKey: { mutate: (id: string) => void; isPending: boolean; variables?: string }
-}) {
-  return (
-    <Card>
-      <CardHeader title="Connected devices" />
-      {apiKeys.length === 0
-        ? <EmptyRow label="No devices — install the CLI to get started" />
-        : apiKeys.map((k, i) => {
-            const name    = k.device_id || k.key_prefix
-            const keyHint = k.key_suffix ? `••••${k.key_suffix}` : k.key_prefix.slice(0, 8) + '••••'
-            return (
-              <div key={k.id} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '12px 20px',
-                borderBottom: i < apiKeys.length - 1 ? '1px solid var(--confire-border)' : undefined,
-              }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--confire-text)' }}>{name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--confire-text-muted)', marginTop: 2, fontFamily: 'monospace' }}>
-                    {keyHint} · {k.last_used_at ? `active ${timeAgo(k.last_used_at)}` : `created ${timeAgo(k.created_at)}`}
-                  </div>
-                </div>
-                <button
-                  disabled={revokeKey.isPending && revokeKey.variables === k.id}
-                  onClick={() => revokeKey.mutate(k.id)}
-                  style={{
-                    fontSize: 12, color: '#f87171',
-                    background: 'transparent', border: '1px solid rgba(248,113,113,0.3)',
-                    borderRadius: 4, padding: '3px 10px', cursor: 'pointer',
-                    opacity: revokeKey.isPending && revokeKey.variables === k.id ? 0.5 : 1,
-                  }}
-                >
-                  {revokeKey.isPending && revokeKey.variables === k.id ? '…' : 'Revoke'}
-                </button>
-              </div>
-            )
-          })
-      }
-    </Card>
-  )
-}
-
-// ── recent calls card ─────────────────────────────────────────────────────────
-
-function RecentCallsCard({ calls }: { calls: { id: string; tool_type: string; integration: string; mode: string; reduction_ratio: number; created_at: string }[] }) {
-  return (
-    <Card>
-      <CardHeader title="Recent tool calls" />
-      {calls.length === 0
-        ? <EmptyRow label="No tool calls yet" />
-        : calls.slice(0, 10).map((c, i) => (
-            <div key={c.id} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '10px 20px',
-              borderBottom: i < Math.min(calls.length, 10) - 1 ? '1px solid var(--confire-border)' : undefined,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                <span style={{
-                  width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-                  background: INTEGRATION_COLOR[c.integration] ?? INTEGRATION_COLOR.default,
-                }} />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--confire-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {c.tool_type}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--confire-text-muted)' }}>{c.integration} · {c.mode}</div>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 12 }}>
-                <div style={{ fontSize: 12, color: c.reduction_ratio > 0 ? '#2dd9a0' : 'var(--confire-text-muted)' }}>
-                  {c.reduction_ratio > 0 ? `−${c.reduction_ratio}%` : '—'}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--confire-text-muted)' }}>{timeAgo(c.created_at)}</div>
-              </div>
-            </div>
-          ))
-      }
-    </Card>
-  )
-}
-
-// ── quick links ───────────────────────────────────────────────────────────────
-
-const QUICK_LINKS = [
-  { label: 'Upgrade plan',    href: '/pricing',  desc: 'More optimizations & features', icon: Lightning },
-  { label: 'Documentation',   href: '/docs',     desc: 'Guides and API reference',      icon: BookOpen },
-  { label: 'Billing',         href: '/billing',  desc: 'Manage subscription & credits', icon: CreditCard },
-]
-
-function QuickLinks() {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-      {QUICK_LINKS.map(({ label, href, desc, icon: Icon }) => (
-        <a key={href} href={href} style={{ textDecoration: 'none' }}>
-          <div
-            style={{
-              background: 'var(--confire-bg-card)', border: '1px solid var(--confire-border)',
-              borderRadius: 8, padding: '16px 18px',
-              transition: 'border-color 0.15s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = '#f4811f')}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--confire-border)')}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <Icon size={15} color="#f4811f" />
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#f4811f' }}>{label}</span>
-              <CaretRight size={11} color="#f4811f" style={{ marginLeft: 'auto' }} />
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--confire-text-muted)' }}>{desc}</div>
+      {/* token savings chart */}
+      {chartData.length > 0 && (
+        <Card>
+          <CardHeader title="Tokens saved — daily" />
+          <div style={{ padding: '12px 8px 4px' }}>
+            <TimeseriesChart
+              echarts={echarts}
+              type="line"
+              data={[{ name: 'Tokens saved', data: chartData, color: '#f4811f' }]}
+              tooltipValueFormat={(v: number) => `${Math.round(v).toLocaleString()} tokens`}
+              height={160}
+            />
           </div>
-        </a>
-      ))}
+        </Card>
+      )}
+
+      {/* firewall + devices */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }} className="two-col">
+        {/* firewall */}
+        <Card>
+          <CardHeader title="MCP Firewall" action={
+            !canToggle ? <a href="/dashboard/billing" style={{ fontSize: 11, color: '#f4811f', textDecoration: 'none' }}>Upgrade to enable →</a> : undefined
+          } />
+          {firewall.length === 0
+            ? <EmptyRow label="No firewall groups configured" />
+            : firewall.map((g: any, i: number) => (
+                <div key={g.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '11px 20px',
+                  borderBottom: i < firewall.length - 1 ? '1px solid var(--confire-border)' : undefined,
+                }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--confire-text)' }}>{g.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--confire-text-muted)', marginTop: 2 }}>{g.id}</div>
+                  </div>
+                  <Toggle on={g.enabled} disabled={!canToggle} onClick={() => toggleFirewallGroup.mutate({ id: g.id, enabled: !g.enabled })} />
+                </div>
+              ))
+          }
+        </Card>
+
+        {/* devices */}
+        <Card>
+          <CardHeader title="Connected devices" />
+          {apiKeys.length === 0
+            ? <EmptyRow label="No devices — install the CLI to get started" />
+            : apiKeys.map((k: any, i: number) => {
+                const name    = k.device_id || k.key_prefix
+                const keyHint = k.key_suffix ? `••••${k.key_suffix}` : k.key_prefix.slice(0, 8) + '••••'
+                return (
+                  <div key={k.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '12px 20px',
+                    borderBottom: i < apiKeys.length - 1 ? '1px solid var(--confire-border)' : undefined,
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--confire-text)' }}>{name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--confire-text-muted)', marginTop: 2, fontFamily: 'monospace' }}>
+                        {keyHint} · {k.last_used_at ? `active ${timeAgo(k.last_used_at)}` : `created ${timeAgo(k.created_at)}`}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => revokeKey.mutate(k.id)}
+                      disabled={revokeKey.isPending && revokeKey.variables === k.id}
+                      style={{
+                        fontSize: 12, color: '#f87171',
+                        background: 'transparent', border: '1px solid rgba(248,113,113,0.3)',
+                        borderRadius: 4, padding: '3px 10px', cursor: 'pointer',
+                        opacity: revokeKey.isPending && revokeKey.variables === k.id ? 0.5 : 1,
+                      }}
+                    >
+                      {revokeKey.isPending && revokeKey.variables === k.id ? '…' : 'Revoke'}
+                    </button>
+                  </div>
+                )
+              })
+          }
+        </Card>
+      </div>
     </div>
   )
 }
 
-// ── scaffold page components ──────────────────────────────────────────────────
+// ── known routes ─────────────────────────────────────────────────────────────
 
-function EmptyPage({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon: React.ElementType }) {
+const KNOWN_PATHS = [
+  '/dashboard',
+  '/dashboard/activity',
+  '/dashboard/firewall',
+  '/dashboard/devices',
+  '/dashboard/setup',
+  '/dashboard/billing',
+  '/dashboard/settings',
+]
+
+// ── dashboard 404 ─────────────────────────────────────────────────────────────
+
+function Dashboard404({ path }: { path: string }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: 10, border: '1px solid var(--confire-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'var(--confire-bg-card)',
-        }}>
-          <Icon size={20} color="var(--confire-text-dim)" weight="duotone" />
-        </div>
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{title}</div>
-          <div style={{ fontSize: 13, color: 'var(--confire-text-dim)', marginTop: 2 }}>{subtitle}</div>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16, textAlign: 'center' }}>
+      <div style={{
+        fontSize: 11, fontWeight: 700, color: 'var(--confire-text-muted)',
+        textTransform: 'uppercase', letterSpacing: '0.1em',
+        background: 'rgba(244,129,31,0.08)', border: '1px solid rgba(244,129,31,0.2)',
+        borderRadius: 4, padding: '3px 10px',
+      }}>
+        404
+      </div>
+      <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--confire-text)' }}>
+        Page not found
+      </h1>
+      <p style={{ fontSize: 13, color: 'var(--confire-text-dim)', margin: 0, maxWidth: 320 }}>
+        <code style={{ fontFamily: 'monospace', color: 'var(--confire-text-muted)', fontSize: 12 }}>{path}</code>
+        {' '}doesn't exist. It may have been moved or removed.
+      </p>
+      <a
+        href="/dashboard"
+        onClick={(e) => { e.preventDefault(); navigate('/dashboard') }}
+        style={{
+          marginTop: 8, padding: '8px 20px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+          background: '#f4811f', color: '#fff', textDecoration: 'none', border: 'none',
+          cursor: 'pointer', display: 'inline-block',
+        }}
+      >
+        Back to Overview
+      </a>
+    </div>
+  )
+}
+
+// ── stub pages ────────────────────────────────────────────────────────────────
+
+function StubPage({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon: React.ElementType }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, marginBottom: 4 }}>{title}</h1>
+        <p style={{ fontSize: 13, color: 'var(--confire-text-dim)', margin: 0 }}>{subtitle}</p>
       </div>
       <Card>
         <div style={{ padding: '60px 20px', textAlign: 'center' }}>
@@ -553,39 +641,20 @@ function EmptyPage({ title, subtitle, icon: Icon }: { title: string; subtitle: s
   )
 }
 
-const PAGE_META: Record<string, { title: string; subtitle: string; icon: React.ElementType }> = {
-  '/dashboard':            { title: 'Overview',    subtitle: 'Your Confire account at a glance',           icon: House },
-  '/dashboard/activity':   { title: 'Activity',    subtitle: 'All tool call events in real time',          icon: Pulse },
-  '/dashboard/analytics':  { title: 'Analytics',   subtitle: 'Token savings trends and breakdowns',        icon: ChartBar },
-  '/dashboard/firewall':   { title: 'Firewall',    subtitle: 'MCP prompt-injection and security rules',    icon: Shield },
-  '/dashboard/devices':    { title: 'Devices',     subtitle: 'Connected machines and API keys',            icon: DeviceMobile },
-  '/billing':              { title: 'Billing',     subtitle: 'Manage your subscription and credits',       icon: CreditCard },
-  '/settings':             { title: 'Settings',    subtitle: 'Account preferences and configuration',     icon: GearSix },
-  '/cli':                  { title: 'CLI & Setup', subtitle: 'Install and configure the Confire CLI',      icon: Terminal },
-}
-
-function pageTitle(path: string): string {
-  for (const [prefix, meta] of Object.entries(PAGE_META)) {
-    if (prefix !== '/dashboard' && path.startsWith(prefix)) return meta.title
-  }
-  return PAGE_META['/dashboard'].title
-}
-
-// ── main page ─────────────────────────────────────────────────────────────────
+// ── main dashboard ────────────────────────────────────────────────────────────
 
 function Dashboard() {
   const { user, session, loading: authLoading, signOut } = useAuth()
-  const apiKey    = session?.access_token ?? null
+  const apiKey     = session?.access_token ?? null
   const workerBase = (import.meta as any).env?.PUBLIC_WORKER_URL ?? ''
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [currentPath, setCurrentPath] = useState(() =>
     typeof window !== 'undefined' ? window.location.pathname : '/dashboard'
   )
 
   useEffect(() => {
-    const handler = () => setCurrentPath(window.location.pathname)
-    window.addEventListener('popstate', handler)
-    return () => window.removeEventListener('popstate', handler)
+    const h = () => setCurrentPath(window.location.pathname)
+    window.addEventListener('popstate', h)
+    return () => window.removeEventListener('popstate', h)
   }, [])
 
   const {
@@ -597,58 +666,39 @@ function Dashboard() {
 
   if (authLoading || loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '100svh', alignItems: 'center', justifyContent: 'center', background: 'var(--confire-bg)' }}>
+      <div style={{ display: 'flex', height: '100svh', alignItems: 'center', justifyContent: 'center', background: 'var(--confire-bg)' }}>
         <Text variant="secondary" size="sm">Loading…</Text>
       </div>
     )
   }
 
-  if (!user) {
-    window.location.href = '/login'
-    return null
-  }
+  if (!user) { window.location.href = '/login'; return null }
 
-  const usedPct  = me ? Math.min(100, Math.round((me.used / me.effectiveLimit) * 100)) : 0
   const canToggle = !!(me?.features?.firewallGroupToggles)
 
+  // page title for topbar
+  const pageLabel: Record<string, string> = {
+    '/dashboard': 'Overview',
+    '/dashboard/activity': 'Activity',
+    '/dashboard/firewall': 'Firewall',
+    '/dashboard/devices': 'Devices',
+    '/dashboard/setup': 'Setup',
+    '/dashboard/billing': 'Billing',
+    '/dashboard/settings': 'Settings',
+  }
+  const topLabel = Object.entries(pageLabel).find(([p]) => p !== '/dashboard' && currentPath.startsWith(p))?.[1]
+    ?? (currentPath === '/dashboard' ? 'Overview' : 'Dashboard')
+
   return (
-    <div style={{ display: 'flex', minHeight: '100svh', background: 'var(--confire-bg)', color: 'var(--confire-text)' }}>
+    <Sidebar.Provider
+      defaultOpen
+      defaultWidth={260}
+      style={{ height: '100svh', background: 'var(--confire-bg)', color: 'var(--confire-text)' } as React.CSSProperties}
+    >
+      <AppSidebar currentPath={currentPath} />
 
-      {/* mobile overlay */}
-      {sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.5)' }}
-        />
-      )}
-
-      {/* sidebar — desktop always-visible, mobile slide-in */}
-      <div className="sidebar-desktop" style={{ display: 'flex' }}>
-        <Sidebar
-          currentPath={currentPath}
-          email={user.email ?? ''}
-          plan={me?.plan}
-          totalSavedTokens={totalSavedTokens}
-          totalCalls={totalCallsAllTime}
-          onSignOut={signOut}
-        />
-      </div>
-
-      {sidebarOpen && (
-        <Sidebar
-          currentPath={currentPath}
-          email={user.email ?? ''}
-          plan={me?.plan}
-          totalSavedTokens={totalSavedTokens}
-          totalCalls={totalCallsAllTime}
-          onSignOut={() => { signOut(); setSidebarOpen(false) }}
-          mobile
-          onClose={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* main content */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      {/* main area */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* top bar */}
         <div style={{
@@ -657,157 +707,67 @@ function Dashboard() {
           borderBottom: '1px solid var(--confire-border)',
           background: 'var(--confire-bg-footer)',
         }}>
-          {/* hamburger — mobile only */}
-          <button
-            className="hamburger"
-            onClick={() => setSidebarOpen(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--confire-text-dim)', lineHeight: 1, marginRight: 8 }}
-          >
-            <List size={18} />
-          </button>
-
-          {/* page title */}
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--confire-text-muted)' }}>
-            <span style={{ fontWeight: 500 }}>{pageTitle(currentPath)}</span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {me && <PlanBadge plan={me.plan} />}
-            {/* user avatar */}
-            <div style={{
-              width: 28, height: 28, borderRadius: '50%',
-              background: 'rgba(244,129,31,0.15)', border: '1px solid rgba(244,129,31,0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 11, fontWeight: 600, color: '#f4811f', cursor: 'default',
-              flexShrink: 0,
-            }}>
-              {user?.email?.[0]?.toUpperCase() ?? 'U'}
-            </div>
-          </div>
+          <Sidebar.Trigger className="sidebar-mobile-trigger" />
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--confire-text-muted)', marginLeft: 4 }}>
+            {topLabel}
+          </span>
+          <UserMenu email={user.email ?? ''} plan={me?.plan} onSignOut={signOut} />
         </div>
 
-        {/* page body */}
-        <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto' }}>
-          <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-            {/* scaffold pages */}
-            {currentPath.startsWith('/dashboard/activity') && (
-              <EmptyPage title="Activity" subtitle="All tool call events in real time" icon={Pulse} />
+        {/* scrollable content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '28px 28px 48px' }}>
+          {error && (
+            <div style={{ background: '#3b1c1c', border: '1px solid #6b2d2d', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#f87171', marginBottom: 20 }}>
+              {error}
+            </div>
+          )}
+          <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+            {currentPath === '/dashboard' && (
+              <OverviewPage
+                me={me} recentCalls={recentCalls} allCallBytes={allCallBytes}
+                apiKeys={apiKeys} firewall={firewall} canToggle={canToggle}
+                totalSavedTokens={totalSavedTokens} totalCallsAllTime={totalCallsAllTime}
+                revokeKey={revokeKey} toggleFirewallGroup={toggleFirewallGroup}
+              />
             )}
-            {currentPath.startsWith('/dashboard/analytics') && (
-              <EmptyPage title="Analytics" subtitle="Token savings trends and breakdowns" icon={ChartBar} />
+            {currentPath.startsWith('/dashboard/activity') && (
+              <StubPage title="Activity" subtitle="Every tool call Confire processed, in real time" icon={Pulse} />
             )}
             {currentPath.startsWith('/dashboard/firewall') && (
-              <EmptyPage title="Firewall" subtitle="MCP prompt-injection and security rules" icon={Shield} />
+              <StubPage title="Firewall" subtitle="Configure mode, built-in rules, and custom policies" icon={Shield} />
             )}
             {currentPath.startsWith('/dashboard/devices') && (
-              <EmptyPage title="Devices" subtitle="Connected machines and API keys" icon={DeviceMobile} />
+              <StubPage title="Devices" subtitle="Installed clients, versions, and connection status" icon={DeviceMobile} />
             )}
-            {currentPath.startsWith('/billing') && (
-              <EmptyPage title="Billing" subtitle="Manage your subscription and credits" icon={CreditCard} />
+            {currentPath.startsWith('/dashboard/setup') && (
+              <StubPage title="Setup" subtitle="Install, configure, and verify Confire on your machine" icon={Terminal} />
             )}
-            {currentPath.startsWith('/settings') && (
-              <EmptyPage title="Settings" subtitle="Account preferences and configuration" icon={GearSix} />
+            {currentPath.startsWith('/dashboard/billing') && (
+              <StubPage title="Billing" subtitle="Plan, usage, and upgrade options" icon={CreditCard} />
             )}
-            {currentPath.startsWith('/cli') && (
-              <EmptyPage title="CLI & Setup" subtitle="Install and configure the Confire CLI" icon={Terminal} />
+            {currentPath.startsWith('/dashboard/settings') && (
+              <StubPage title="Settings" subtitle="Account preferences, telemetry, and API keys" icon={GearSix} />
             )}
-
-            {/* overview page */}
-            {currentPath === '/dashboard' && <>
-
-            {/* page title */}
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Overview</div>
-              <div style={{ fontSize: 13, color: 'var(--confire-text-dim)' }}>
-                {me ? `${me.planName} plan · ${me.subscriptionStatus}` : 'Your Confire account'}
-              </div>
-            </div>
-
-            {error && (
-              <div style={{ background: '#3b1c1c', border: '1px solid #6b2d2d', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#f87171' }}>
-                {error}
-              </div>
+            {!KNOWN_PATHS.some(p => p === currentPath || (p !== '/dashboard' && currentPath.startsWith(p))) && (
+              <Dashboard404 path={currentPath} />
             )}
-
-            {/* stat cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }} className="stat-grid">
-              <StatCard label="Tokens saved" value={formatTokenCount(totalSavedTokens)} sub="all-time" accent />
-              <StatCard label="Tool calls processed" value={totalCallsAllTime.toLocaleString()} sub="by Confire" />
-              <StatCard
-                label="Usage this period"
-                value={me ? `${me.used.toLocaleString()} / ${me.effectiveLimit.toLocaleString()}` : '—'}
-                sub={me ? `${usedPct}% of limit` : undefined}
-              />
-            </div>
-
-            {/* usage chart */}
-            <UsageChart calls={allCallBytes} />
-
-            {/* usage bar */}
-            {me && (
-              <Card>
-                <CardHeader title="Usage quota" />
-                <div style={{ padding: '18px 20px 16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
-                    <span style={{ color: 'var(--confire-text-dim)' }}>Cloud optimizations</span>
-                    <span style={{ fontWeight: 500 }}>{me.used.toLocaleString()} / {me.effectiveLimit.toLocaleString()}</span>
-                  </div>
-                  <div style={{ height: 5, background: 'var(--confire-border)', borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%', width: `${usedPct}%`,
-                      background: usedPct >= 80 ? '#f87171' : '#f4811f',
-                      borderRadius: 3, transition: 'width 0.3s',
-                    }} />
-                  </div>
-                  {me.purchasedCredits > 0 && (
-                    <div style={{ fontSize: 12, color: 'var(--confire-text-muted)', marginTop: 8 }}>
-                      +{me.purchasedCredits.toLocaleString()} purchased credits available
-                    </div>
-                  )}
-                  {usedPct >= 80 && (
-                    <div style={{ marginTop: 12, padding: '10px 12px', background: 'rgba(244,129,31,0.08)', border: '1px solid rgba(244,129,31,0.25)', borderRadius: 6, fontSize: 12, color: '#f4811f' }}>
-                      You're at {usedPct}% of your limit.{' '}
-                      <a href="/pricing" style={{ color: '#f4811f', fontWeight: 600 }}>Upgrade or buy credits →</a>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            )}
-
-            {/* firewall + devices */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }} className="two-col">
-              <FirewallCard groups={firewall} canToggle={canToggle} toggle={(id, enabled) => toggleFirewallGroup.mutate({ id, enabled })} />
-              <DevicesCard apiKeys={apiKeys} revokeKey={revokeKey} />
-            </div>
-
-            {/* recent calls */}
-            <RecentCallsCard calls={recentCalls} />
-
-            {/* quick links */}
-            <QuickLinks />
-
-            </>}
-
           </div>
         </div>
       </div>
 
-      {/* responsive styles injected once */}
       <style>{`
-        .hamburger { display: none !important; }
+        .sidebar-mobile-trigger { display: none !important; }
         @media (max-width: 768px) {
-          .sidebar-desktop { display: none !important; }
-          .hamburger { display: flex !important; }
+          .sidebar-mobile-trigger { display: flex !important; }
           .stat-grid { grid-template-columns: 1fr 1fr !important; }
           .two-col { grid-template-columns: 1fr !important; }
+          .activity-col { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 480px) {
-          .stat-grid { grid-template-columns: 1fr !important; }
+          .stat-grid { grid-template-columns: 1fr 1fr !important; }
         }
       `}</style>
-
-    </div>
+    </Sidebar.Provider>
   )
 }
 
@@ -818,3 +778,7 @@ export function DashboardApp() {
     </QueryClientProvider>
   )
 }
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
+})

@@ -1,0 +1,99 @@
+---
+import '@/styles/global.css'
+---
+
+<!doctype html>
+<html lang="en" style="color-scheme: dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404 — Confire</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet" />
+  </head>
+  <body style="margin:0;background:#111;color:#fff;font-family:'Geist',system-ui,sans-serif;min-height:100svh;display:flex;flex-direction:column;">
+
+    <!-- dot grid background -->
+    <div style="position:fixed;inset:0;pointer-events:none;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:28px 28px;z-index:0;"></div>
+
+    <!-- top bar -->
+    <header style="position:relative;z-index:10;display:flex;align-items:center;padding:0 28px;height:56px;">
+      <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C12 2 5 6 5 13C5 17.418 8.134 21 12 21C15.866 21 19 17.418 19 13C19 6 12 2 12 2Z" fill="#f4811f" opacity="0.9"/>
+          <path d="M12 7C12 7 8.5 10 8.5 14C8.5 16.485 10.015 18.5 12 18.5C13.985 18.5 15.5 16.485 15.5 14C15.5 10 12 7 12 7Z" fill="#fdb97d" opacity="0.7"/>
+        </svg>
+        <span style="font-size:16px;font-weight:700;color:#fff;letter-spacing:-0.01em;">Confire</span>
+      </a>
+    </header>
+
+    <!-- main content -->
+    <main style="position:relative;z-index:10;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;gap:0;">
+
+      <!-- large 404 SVG with lightning pattern fill -->
+      <svg
+        viewBox="0 0 900 320"
+        style="width:min(800px,90vw);height:auto;display:block;overflow:visible;"
+        aria-hidden="true"
+      >
+        <defs>
+          <!-- lightning bolt tile (6×10) -->
+          <pattern id="lp" patternUnits="userSpaceOnUse" width="14" height="18" patternTransform="rotate(-15)">
+            <path d="M8 0L4 8h4l-4 10 8-12H8L11 0z" fill="#f4811f" opacity="0.28"/>
+          </pattern>
+          <!-- glow gradient -->
+          <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"  stop-color="#f4811f" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="#f4811f" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <!-- soft glow behind the text -->
+        <ellipse cx="450" cy="160" rx="420" ry="160" fill="url(#glow)"/>
+
+        <!-- filled text with the lightning pattern -->
+        <text
+          x="450" y="270"
+          text-anchor="middle"
+          font-family="'Geist',system-ui,sans-serif"
+          font-weight="900"
+          font-size="280"
+          letter-spacing="-8"
+          fill="url(#lp)"
+        >404</text>
+
+        <!-- orange outline on top -->
+        <text
+          x="450" y="270"
+          text-anchor="middle"
+          font-family="'Geist',system-ui,sans-serif"
+          font-weight="900"
+          font-size="280"
+          letter-spacing="-8"
+          fill="none"
+          stroke="#f4811f"
+          stroke-width="1.5"
+          stroke-opacity="0.5"
+        >404</text>
+      </svg>
+
+      <!-- message -->
+      <p style="font-size:14px;color:#a1a1aa;margin:8px 0 0;text-align:center;max-width:420px;line-height:1.6;">
+        We can't find the page you were looking for. It may have been moved, renamed, or no longer exists.
+      </p>
+
+      <!-- buttons -->
+      <div style="display:flex;gap:12px;margin-top:28px;flex-wrap:wrap;justify-content:center;">
+        <a href="/" style="padding:10px 24px;border-radius:9999px;font-size:14px;font-weight:600;background:#f4811f;color:#fff;text-decoration:none;white-space:nowrap;">
+          Take me home
+        </a>
+        <a href="/dashboard" style="padding:10px 24px;border-radius:9999px;font-size:14px;font-weight:600;background:rgba(255,255,255,0.07);color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,0.12);white-space:nowrap;">
+          Go to Dashboard
+        </a>
+      </div>
+    </main>
+
+  </body>
+</html>
