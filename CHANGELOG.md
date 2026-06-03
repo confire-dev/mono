@@ -1,3 +1,12 @@
+## v0.7.2 — 2026-06-03
+
+### Fixes
+- fix(platform): use black bg white logo PNG as favicon (3094ddc)
+- fix(platform): use confire orange PNG as favicon (e429418)
+
+
+---
+
 ## v0.7.1 — 2026-06-03
 
 ### Fixes
