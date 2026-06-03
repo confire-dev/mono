@@ -1,3 +1,11 @@
+## v0.8.2 — 2026-06-03
+
+### Fixes
+- fix(worker): rename binding to name in env.dev and env.production ratelimits (fbba9c1)
+
+
+---
+
 ## v0.8.1 — 2026-06-03
 
 ### Fixes
