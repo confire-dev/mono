@@ -1,0 +1,36 @@
+CONFIRE — NOTICE
+
+Product:   Confire
+Company:   Trana, Inc.
+Copyright: Copyright © 2026 Trana, Inc. All rights reserved.
+Website:   https://confire.dev
+
+LICENSE SUMMARY
+
+Confire is proprietary software owned by Trana, Inc. Use is permitted only
+under the terms of an applicable written agreement, subscription, trial, or
+other written authorization from Trana, Inc. Copying, redistribution,
+modification, reverse engineering, and resale are prohibited unless expressly
+authorized. See the LICENSE file for the full proprietary license terms.
+
+THIRD-PARTY DEPENDENCIES
+
+This software includes third-party open-source components. A full list of
+third-party dependencies and their licenses is available at:
+
+  https://confire.dev/oss-licenses
+
+Or run: confire version --licenses  (when implemented)
+
+[TODO: generate and embed SBOM / third-party notices before production release]
+
+SECURITY
+
+To report a security vulnerability, please follow the responsible disclosure
+process described at:
+
+  https://confire.dev/security
+
+Do not report security issues through public GitHub issues.
+
+For general inquiries: support@confire.dev

@@ -6,7 +6,7 @@
 
 | Environment | Worker | Platform | Deploy trigger |
 |---|---|---|---|
-| **dev** | `confire-worker-dev` at `api-dev.confire.dev` | `dev.confire.dev` (Pages: `confire-platform-dev`) | Auto on push to `main` |
+| **dev** | `confire-worker-dev` at `api.dev.confire.dev` | `dev.confire.dev` (Pages: `confire-platform-dev`) | Auto on push to `main` |
 | **production** | `confire-worker` at `api.confire.dev` | `confire.dev` (Pages: `confire-platform`) | Manual workflow dispatch only |
 
 Dev uses a separate Supabase project and Stripe test-mode keys.
@@ -79,14 +79,36 @@ Go to **Supabase Dashboard → SQL Editor** for each project and run `docs/supab
 
 ### 5. Configure Supabase DB webhook
 
-**Supabase Dashboard → Database → Webhooks → Create** for each project:
-- Table: `plans`, Events: INSERT, UPDATE, DELETE
-- Header: `Authorization: Bearer <SUPABASE_WEBHOOK_SECRET>`
+**Supabase Dashboard → Database → Webhooks → Create a new hook** for each project:
 
-| Project | Webhook URL |
+| Field | Value |
 |---|---|
-| dev | `https://api-dev.confire.dev/webhooks/supabase` |
-| production | `https://api.confire.dev/webhooks/supabase` |
+| Name | `sync-plans-to-worker` (any label) |
+| Table | `public` · `plans` |
+| Events | `INSERT` `UPDATE` `DELETE` |
+| Type | `HTTP Request` |
+| Method | `POST` |
+| URL (dev) | `https://api.dev.confire.dev/webhooks/supabase` |
+| URL (prod) | `https://api.confire.dev/webhooks/supabase` |
+| HTTP Headers | `Authorization: Bearer <SUPABASE_WEBHOOK_SECRET>` |
+| HTTP Parameters | *(leave empty)* |
+| Timeout | 5000 ms (default) |
+| Retry | disabled (Worker returns 200 even on error to prevent retry loops) |
+
+`SUPABASE_WEBHOOK_SECRET` must match the value set via `wrangler secret put SUPABASE_WEBHOOK_SECRET`.
+Generate one with: `openssl rand -base64 32`
+
+The webhook payload the Worker receives:
+
+```json
+{
+  "type":       "INSERT" | "UPDATE" | "DELETE",
+  "table":      "plans",
+  "schema":     "public",
+  "record":     { /* new row, null on DELETE */ },
+  "old_record": { /* previous row, null on INSERT */ }
+}
+```
 
 ### 6. First worker deploy
 
@@ -106,7 +128,7 @@ wrangler deploy --env production
    ```
    PUBLIC_SUPABASE_URL=https://<dev-project>.supabase.co
    PUBLIC_SUPABASE_ANON_KEY=eyJ...
-   PUBLIC_WORKER_URL=https://api-dev.confire.dev
+   PUBLIC_WORKER_URL=https://api.dev.confire.dev
    PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
    ```
 5. Custom domain: `dev.confire.dev`
@@ -123,7 +145,7 @@ wrangler deploy --env production
 ### 8. Verify
 
 ```bash
-curl https://api-dev.confire.dev/health
+curl https://api.dev.confire.dev/health
 curl https://api.confire.dev/health
 ```
 
@@ -225,7 +247,7 @@ cd cli
 make dev          # build with symbols (fast)
 make install      # install to GOPATH/bin
 
-# confire-dev — dev APIs (api-dev.confire.dev / dev.confire.dev)
+# confire-dev — dev APIs (api.dev.confire.dev / dev.confire.dev)
 make build-dev-env    # build ./confire-dev
 make install-dev-env  # install to GOPATH/bin/confire-dev
 

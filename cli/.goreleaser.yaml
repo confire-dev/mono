@@ -1,0 +1,86 @@
+# GoReleaser configuration for Confire CLI.
+#
+# Run from the cli/ directory:
+#   goreleaser release --snapshot --clean   # local preview
+#   goreleaser release --clean              # production release (requires git tag)
+#
+# Install GoReleaser: go install github.com/goreleaser/goreleaser/v2@latest
+# Docs: https://goreleaser.com
+
+version: 2
+
+project_name: confire
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: confire
+    main: .
+    binary: confire
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X 'github.com/confire-dev/confire/cmd.buildVersion={{.Version}}'
+      - -X 'github.com/confire-dev/confire/cmd.buildCommit={{.Commit}}'
+      - -X 'github.com/confire-dev/confire/cmd.buildDate={{.Date}}'
+      - -X 'github.com/confire-dev/confire/cmd.buildBuiltBy=goreleaser'
+    flags:
+      - -trimpath
+
+archives:
+  - id: confire
+    builds:
+      - confire
+    name_template: "confire_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format: tar.gz
+    files:
+      - ../LICENSE
+      - ../NOTICE
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+signs:
+  - cmd: cosign
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+    output: true
+    # cosign signing is skipped automatically if cosign is not installed.
+    # To disable intentionally: comment out this block or set COSIGN_EXPERIMENTAL=0.
+
+snapshot:
+  version_template: "{{ .Tag }}-snapshot-{{ .ShortCommit }}"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+      - "^ci:"
+      - "^test:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  # To publish to a custom location instead of GitHub Releases,
+  # disable the default GitHub publisher and upload artifacts manually
+  # (e.g. via scripts/publish-release-r2.sh).
+  disable: true

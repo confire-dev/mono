@@ -1,0 +1,64 @@
+CONFIRE PROPRIETARY SOFTWARE LICENSE
+
+NOTE: This is a template. Review with legal counsel before production use.
+
+Copyright © 2026 Trana, Inc. All rights reserved.
+
+PROPRIETARY SOFTWARE — NOT OPEN SOURCE
+
+This software and all associated documentation, source code, binaries,
+configurations, and derivative works (collectively, the "Software") are the
+exclusive proprietary property of Trana, Inc. ("Trana").
+
+GRANT OF USE
+
+Use of the Software is permitted solely under the terms of an applicable
+written agreement, subscription plan, trial authorization, or other written
+authorization expressly granted by Trana. No rights are granted by
+implication, estoppel, or otherwise.
+
+RESTRICTIONS
+
+Unless expressly authorized in writing by Trana, you may not:
+
+  1. Copy, reproduce, or duplicate the Software in whole or in part;
+  2. Distribute, publish, or otherwise transfer the Software to any third party;
+  3. Modify, adapt, translate, or create derivative works based on the Software;
+  4. Sublicense, sell, resell, rent, lease, or otherwise commercialize the Software;
+  5. Reverse engineer, decompile, disassemble, or attempt to derive source code
+     from any compiled portion of the Software;
+  6. Remove, alter, or obscure any proprietary notices, labels, or markings
+     on or in the Software.
+
+OWNERSHIP
+
+All title, ownership rights, and intellectual property rights in and to the
+Software remain exclusively with Trana. Nothing in these terms transfers any
+intellectual property rights to you.
+
+DISCLAIMER OF WARRANTIES
+
+THE SOFTWARE IS PROVIDED "AS IS" AND WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, UNLESS OTHERWISE
+EXPRESSLY STATED IN A SEPARATE WRITTEN AGREEMENT WITH TRANA. TRANA DISCLAIMS
+ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, TRANA SHALL NOT BE LIABLE
+FOR ANY INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ARISING OUT OF OR RELATED TO YOUR USE OF OR INABILITY TO USE THE SOFTWARE,
+EVEN IF TRANA HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+GOVERNING LAW
+
+This License shall be governed by the laws of the State of Delaware, without
+regard to its conflict of law provisions.
+
+CONTACT
+
+For licensing inquiries or written authorizations:
+  Trana, Inc.
+  https://confire.dev
+  legal@confire.dev

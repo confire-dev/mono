@@ -7,6 +7,7 @@
 ##   make install-dev-env  install confire-dev to GOPATH/bin
 ##   make release          build hardened binary for current platform (garble + stripped)
 ##   make dist             cross-compile all release targets into dist/
+##   make snapshot         run goreleaser snapshot (local release preview)
 ##   make test             run unit tests
 ##   make e2e              run end-to-end tests (requires built binary)
 ##   make all              dev + test
@@ -19,13 +20,14 @@ COMMIT     ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
 DATE       ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 AUTHOR     := Efe <efe@efebehar.dev>
 
-DEV_WORKER_URL   := https://api-dev.confire.dev
+DEV_WORKER_URL   := https://api.dev.confire.dev
 DEV_PLATFORM_URL := https://dev.confire.dev
 
 # ldflags applied to ALL builds
-BASE_FLAGS := -X '$(PKG)/cmd.buildVersion=$(VERSION)' \
-              -X '$(PKG)/cmd.buildCommit=$(COMMIT)'   \
-              -X '$(PKG)/cmd.buildDate=$(DATE)'        \
+BASE_FLAGS := -X '$(PKG)/cmd.buildVersion=$(VERSION)'  \
+              -X '$(PKG)/cmd.buildCommit=$(COMMIT)'    \
+              -X '$(PKG)/cmd.buildDate=$(DATE)'         \
+              -X '$(PKG)/cmd.buildBuiltBy=make'         \
               -X '$(PKG)/cmd.buildAuthor=$(AUTHOR)'
 
 # Extra ldflags for confire-dev builds — bakes in dev API endpoints
@@ -48,7 +50,7 @@ TARGETS := \
 	linux/amd64  \
 	linux/arm64
 
-.PHONY: all dev build-dev-env install-dev-env release dist test e2e clean install checksums
+.PHONY: all dev build-dev-env install-dev-env release dist snapshot test e2e clean install checksums
 
 all: dev test
 
@@ -60,10 +62,10 @@ dev:
 dev-install:
 	go build -trimpath -ldflags "$(BASE_FLAGS)" -o $(DEST) .
 
-## build-dev-env: build confire-dev binary pointing at dev APIs (api-dev.confire.dev / dev.confire.dev)
+## build-dev-env: build confire-dev binary pointing at dev APIs (api.dev.confire.dev / dev.confire.dev)
 build-dev-env:
 	go build -trimpath -ldflags "$(BASE_FLAGS) $(DEV_ENV_FLAGS)" -o $(BINARY_DEV) .
-	@echo "Built $(BINARY_DEV) -> api-dev.confire.dev"
+	@echo "Built $(BINARY_DEV) -> api.dev.confire.dev"
 
 ## install-dev-env: install confire-dev to GOPATH/bin
 install-dev-env:
@@ -93,6 +95,14 @@ dist: clean-dist
 			-o "$(DIST_DIR)/$(BINARY)_$(OS)_$(ARCH)" . ; \
 	)
 	@$(MAKE) --no-print-directory checksums
+
+## snapshot: local goreleaser preview (no publish, no git tag required)
+snapshot:
+	@if command -v goreleaser >/dev/null 2>&1; then \
+		goreleaser release --snapshot --clean; \
+	else \
+		echo "goreleaser not installed — run 'go install github.com/goreleaser/goreleaser/v2@latest' or use 'make dist' instead."; \
+	fi
 
 ## checksums: generate SHA-256 checksums for all dist/ binaries
 checksums:
