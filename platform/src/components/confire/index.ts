@@ -26,6 +26,7 @@ export {
 export { Marquee, CTASection, type MarqueeItem, type CTASectionProps } from './cta'
 export {
   ConfireLogo,
+  ConfireMark,
   SiteNav,
   SiteFooter,
   type NavItem,

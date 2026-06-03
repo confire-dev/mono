@@ -18,26 +18,64 @@ export interface SiteNavProps {
   className?: string
 }
 
-export function ConfireLogo({ className, wordmark = 'CONFIRE' }: { className?: string; wordmark?: string }) {
+type LogoBg      = 'transparent' | 'black' | 'white'
+type LogoColor   = 'orange' | 'white' | 'black'
+type LogoSize    = 'sm' | 'md' | 'lg'
+
+const LOGO_SIZES: Record<LogoSize, number> = { sm: 20, md: 24, lg: 32 }
+
+/**
+ * Confire flame mark using the real brand SVG assets in /public/brand/.
+ *
+ * Defaults: bg=transparent, color=orange — the primary logo for dark surfaces.
+ * All variants are static image references so only the src string is in the bundle.
+ */
+export function ConfireMark({
+  bg = 'transparent',
+  color = 'orange',
+  size = 'md',
+  className,
+}: {
+  bg?: LogoBg
+  color?: LogoColor
+  size?: LogoSize
+  className?: string
+}) {
+  const px = LOGO_SIZES[size]
+  const src = `/brand/confire-bg-${bg}-logo-${color}.svg`
+  return (
+    <img
+      src={src}
+      alt="Confire"
+      width={px}
+      height={px}
+      className={cn('shrink-0', className)}
+      draggable={false}
+    />
+  )
+}
+
+export function ConfireLogo({
+  className,
+  wordmark = 'CONFIRE',
+  markBg = 'transparent',
+  markColor = 'orange',
+  markSize = 'md',
+}: {
+  className?: string
+  wordmark?: string | false
+  markBg?: LogoBg
+  markColor?: LogoColor
+  markSize?: LogoSize
+}) {
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      <svg width="36" height="24" viewBox="0 0 44 30" fill="none" aria-hidden>
-        <path
-          d="M36 22H8C5.8 22 4 20.2 4 18s1.8-4 4-4h.4C8.8 10.5 12 8 16 8c2.4 0 4.5 1 6 2.6C23.1 9 25 8 27.2 8c4.9 0 8.8 3.9 8.8 8.7v.1C38.2 17.3 40 19.4 40 22c0 0-1.3 0-4 0z"
-          fill="var(--confire-accent)"
-        />
-        <path
-          d="M10 22h24c1.1 0 2 .9 2 2s-.9 2-2 2H10c-1.1 0-2-.9-2-2s.9-2 2-2z"
-          fill="var(--confire-accent)"
-          opacity="0.65"
-        />
-        <path
-          d="M12 26h20c.6 0 1 .4 1 1s-.4 1-1 1H12c-.6 0-1-.4-1-1s.4-1 1-1z"
-          fill="var(--confire-accent)"
-          opacity="0.45"
-        />
-      </svg>
-      <span className="text-[13px] font-extrabold tracking-[0.13em] text-confire-text">{wordmark}</span>
+      <ConfireMark bg={markBg} color={markColor} size={markSize} />
+      {wordmark !== false && (
+        <span className="text-[13px] font-extrabold tracking-[0.13em] text-confire-text">
+          {wordmark}
+        </span>
+      )}
     </div>
   )
 }
