@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/use-auth'
 import { Button } from './button'
 import { Container } from './container'
 
@@ -89,6 +90,8 @@ export function SiteNav({
   ctaHref = '/login',
   className,
 }: SiteNavProps) {
+  const { user, loading } = useAuth()
+
   return (
     <nav
       className={cn(
@@ -108,12 +111,20 @@ export function SiteNav({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost-sm" asChild>
-            <a href={loginHref}>Login</a>
-          </Button>
-          <Button variant="outline-sm" asChild>
-            <a href={ctaHref}>{ctaLabel}</a>
-          </Button>
+          {!loading && user ? (
+            <Button variant="outline-sm" asChild>
+              <a href="/dashboard">Dashboard</a>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost-sm" asChild>
+                <a href={loginHref}>Login</a>
+              </Button>
+              <Button variant="outline-sm" asChild>
+                <a href={ctaHref}>{ctaLabel}</a>
+              </Button>
+            </>
+          )}
         </div>
       </Container>
     </nav>
