@@ -29,8 +29,9 @@ wrangler kv namespace create confire_cache       # production
 wrangler kv namespace create confire_cache --preview
 # Copy the IDs into worker/wrangler.toml under [env.dev] and [env.production]
 
-# Analytics Engine (production only — dev reuses the dev dataset name)
-wrangler analytics-engine dataset create confire_events
+# Analytics Engine — no CLI command needed.
+# The [[analytics_engine_datasets]] binding is already declared in wrangler.toml.
+# Cloudflare creates the dataset automatically on the first env.AE.writeDataPoint() call.
 
 # Rate limiting namespaces (one per plan tier, per environment)
 wrangler rate-limit create rl-free-dev   # dev
