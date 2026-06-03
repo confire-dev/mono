@@ -1,3 +1,11 @@
+## v0.7.3 — 2026-06-03
+
+### Fixes
+- fix(platform): revert favicon to transparent orange logo (ebe7074)
+
+
+---
+
 ## v0.7.2 — 2026-06-03
 
 ### Fixes
