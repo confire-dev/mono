@@ -1,3 +1,11 @@
+## v0.7.1 — 2026-06-03
+
+### Fixes
+- fix(platform): use PNG with 2x srcSet for ConfireMark instead of SVG (ee4aa4f)
+
+
+---
+
 ## v0.7.0 — 2026-06-03
 
 
