@@ -5,7 +5,7 @@ name: Deploy Worker (dev)
 
 on:
   push:
-    branches: [main]
+    branches: [develop]
     paths:
       - 'worker/**'
 
