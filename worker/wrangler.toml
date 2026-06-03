@@ -43,7 +43,7 @@ port = 8787
 local_protocol = "http"
 
 # ── dev environment (auto-deploys from main via CI) ───────────────────────────
-# URL: https://api-dev.confire.dev
+# URL: https://api.dev.confire.dev
 # Supabase: dev project
 # Stripe: test mode keys
 
@@ -55,15 +55,15 @@ ENVIRONMENT = "development"
 OPTIMIZER_API_ENABLED = "false"
 
 [[env.dev.routes]]
-pattern = "api-dev.confire.dev/*"
+pattern = "api.dev.confire.dev/*"
 zone_name = "confire.dev"
 
 # Create with: wrangler kv namespace create confire_cache_dev
 #              wrangler kv namespace create confire_cache_dev --preview
 [[env.dev.kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_WITH_DEV_KV_ID"
-preview_id = "REPLACE_WITH_DEV_KV_PREVIEW_ID"
+id = "c16cfd854b4644f5a5cc88628082043f"
+preview_id = "9b609c31b20c4653b3f8e41431773373"
 
 [[env.dev.analytics_engine_datasets]]
 binding = "AE"
@@ -114,8 +114,8 @@ zone_name = "confire.dev"
 #              wrangler kv namespace create confire_cache --preview
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_WITH_PROD_KV_ID"
-preview_id = "REPLACE_WITH_PROD_KV_PREVIEW_ID"
+id = "e731dc18dfd04a1f8a3b6f51349e8b5e"
+preview_id = "a3bfdf6a2a9a4515b57feb484f5efbdc"
 
 [[env.production.analytics_engine_datasets]]
 binding = "AE"
