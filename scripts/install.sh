@@ -13,7 +13,7 @@ set -e
 
 BINARY="confire"
 GET_URL="${CONFIRE_GET_URL:-https://get.confire.dev}"
-RELEASES_BASE="${GET_URL}/releases"
+RELEASES_URL="${CONFIRE_RELEASES_URL:-https://releases.confire.dev}"
 
 VERSION=""
 INSTALL_DIR="${CONFIRE_INSTALL_DIR:-}"
@@ -92,7 +92,7 @@ fi
 # ── Artifact paths ───────────────────────────────────────────────────────────
 # confire_v1.0.0_darwin_arm64.tar.gz
 ARCHIVE_NAME="${BINARY}_${VERSION}_${OS_NAME}_${ARCH_NAME}.tar.gz"
-BASE_URL="${RELEASES_BASE}/${VERSION}"
+BASE_URL="${RELEASES_URL}/${VERSION}"
 ARCHIVE_URL="${BASE_URL}/${ARCHIVE_NAME}"
 CHECKSUM_URL="${BASE_URL}/checksums.txt"
 BUNDLE_URL="${BASE_URL}/checksums.txt.bundle"

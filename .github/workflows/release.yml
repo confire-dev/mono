@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: write  # needed to create GitHub releases and upload assets
+  contents: write
 
 jobs:
   build:
@@ -17,28 +17,24 @@ jobs:
         include:
           - goos: darwin
             goarch: amd64
-            suffix: darwin_amd64
           - goos: darwin
             goarch: arm64
-            suffix: darwin_arm64
           - goos: linux
             goarch: amd64
-            suffix: linux_amd64
           - goos: linux
             goarch: arm64
-            suffix: linux_arm64
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # full history so git describe works
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
 
-      - name: Build
+      - name: Build and archive
         working-directory: cli
         env:
           GOOS: ${{ matrix.goos }}
@@ -48,18 +44,24 @@ jobs:
           VERSION="${GITHUB_REF_NAME}"
           COMMIT="${GITHUB_SHA::8}"
           DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          PKG="github.com/confire-dev/confire"
+          PKG="github.com/confire-dev/confire/cmd"
           LDFLAGS="-s -w \
-            -X '${PKG}/cmd.buildVersion=${VERSION}' \
-            -X '${PKG}/cmd.buildCommit=${COMMIT}' \
-            -X '${PKG}/cmd.buildDate=${DATE}'"
-          go build -trimpath -ldflags "${LDFLAGS}" -o "confire_${{ matrix.suffix }}" .
+            -X '${PKG}.buildVersion=${VERSION}' \
+            -X '${PKG}.buildCommit=${COMMIT}' \
+            -X '${PKG}.buildDate=${DATE}' \
+            -X '${PKG}.buildBuiltBy=ci'"
+
+          ARCHIVE="confire_${VERSION}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz"
+          go build -trimpath -ldflags "${LDFLAGS}" -o confire .
+          tar -czf "${ARCHIVE}" confire
+          rm confire
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: confire_${{ matrix.suffix }}
-          path: cli/confire_${{ matrix.suffix }}
+          name: confire_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: cli/confire_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz
           retention-days: 1
 
   release:
@@ -77,7 +79,7 @@ jobs:
 
       - name: Checksums
         working-directory: dist
-        run: sha256sum confire_* > confire_checksums.txt
+        run: sha256sum confire_*.tar.gz > checksums.txt
 
       - name: Show dist
         run: ls -lh dist/
@@ -86,28 +88,25 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/confire_darwin_amd64
-            dist/confire_darwin_arm64
-            dist/confire_linux_amd64
-            dist/confire_linux_arm64
-            dist/confire_checksums.txt
+            dist/confire_${{ github.ref_name }}_darwin_amd64.tar.gz
+            dist/confire_${{ github.ref_name }}_darwin_arm64.tar.gz
+            dist/confire_${{ github.ref_name }}_linux_amd64.tar.gz
+            dist/confire_${{ github.ref_name }}_linux_arm64.tar.gz
+            dist/checksums.txt
           generate_release_notes: true
           fail_on_unmatched_files: true
 
       - name: Update Homebrew formula
-        # Stamps the real version + sha256 values into homebrew/confire.rb
-        # and commits back to main so the tap repo pull is always up-to-date.
-        # Runs only when HOMEBREW_TAP_TOKEN secret is set.
         if: env.HOMEBREW_TAP_TOKEN != ''
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           VERSION: ${{ github.ref_name }}
         run: |
-          SHA_DARWIN_AMD64=$(grep "confire_darwin_amd64"  dist/confire_checksums.txt | awk '{print $1}')
-          SHA_DARWIN_ARM64=$(grep "confire_darwin_arm64"  dist/confire_checksums.txt | awk '{print $1}')
-          SHA_LINUX_AMD64=$(grep  "confire_linux_amd64"   dist/confire_checksums.txt | awk '{print $1}')
-          SHA_LINUX_ARM64=$(grep  "confire_linux_arm64"   dist/confire_checksums.txt | awk '{print $1}')
-          VER="${VERSION#v}"  # strip leading 'v'
+          SHA_DARWIN_AMD64=$(grep "darwin_amd64" dist/checksums.txt | awk '{print $1}')
+          SHA_DARWIN_ARM64=$(grep "darwin_arm64" dist/checksums.txt | awk '{print $1}')
+          SHA_LINUX_AMD64=$(grep  "linux_amd64"  dist/checksums.txt | awk '{print $1}')
+          SHA_LINUX_ARM64=$(grep  "linux_arm64"  dist/checksums.txt | awk '{print $1}')
+          VER="${VERSION#v}"
 
           sed -i \
             -e "s/version \"[^\"]*\"/version \"${VER}\"/" \
@@ -117,7 +116,6 @@ jobs:
             -e "s/PLACEHOLDER_SHA256_LINUX_ARM64/${SHA_LINUX_ARM64}/"   \
             homebrew/confire.rb
 
-          # Push updated formula to the Homebrew tap repo.
           git clone \
             "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/confire-ai/homebrew-confire.git" \
             tap-repo
@@ -130,7 +128,7 @@ jobs:
           git push
 
   publish-r2:
-    name: Publish to R2 (get.confire.dev / releases.confire.dev)
+    name: Publish to R2 (get.confire.dev)
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -146,7 +144,7 @@ jobs:
 
       - name: Checksums
         working-directory: dist
-        run: sha256sum confire_* > confire_checksums.txt
+        run: sha256sum confire_*.tar.gz > checksums.txt
 
       - uses: pnpm/action-setup@v4
 
@@ -166,4 +164,3 @@ jobs:
         run: |
           chmod +x ../scripts/publish-release-r2.sh
           ../scripts/publish-release-r2.sh "${{ github.ref_name }}" ../dist
-

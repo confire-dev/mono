@@ -1,0 +1,14 @@
+name = "confire-platform-dev"
+pages_build_output_dir = "./dist"
+compatibility_date = "2025-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+PUBLIC_WORKER_URL = "https://api.dev.confire.dev"
+
+# Production environment (confire.dev)
+[env.production]
+name = "confire-platform"
+
+[env.production.vars]
+PUBLIC_WORKER_URL = "https://api.confire.dev"

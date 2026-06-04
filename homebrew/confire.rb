@@ -7,46 +7,46 @@
 #   brew tap confire-ai/confire
 #   brew install confire
 #
-# After a release, update the version, url, and sha256 fields below,
-# then push to github.com/confire-ai/homebrew-confire.
+# After a release, the release workflow auto-updates version + sha256
+# and pushes to github.com/confire-ai/homebrew-confire.
 
 class Confire < Formula
-  desc "Context and tool firewall for Claude Code"
+  desc "Deterministic client-side policy evaluation for AI systems"
   homepage "https://confire.dev"
   version "0.9.4"
-  license "Proprietary"
+  license :cannot_represent
 
   on_macos do
     on_intel do
-      url "https://releases.confire.dev/v#{version}/confire_darwin_amd64"
+      url "https://releases.confire.dev/v#{version}/confire_v#{version}_darwin_amd64.tar.gz"
       sha256 "PLACEHOLDER_SHA256_DARWIN_AMD64"
     end
 
     on_arm do
-      url "https://releases.confire.dev/v#{version}/confire_darwin_arm64"
+      url "https://releases.confire.dev/v#{version}/confire_v#{version}_darwin_arm64.tar.gz"
       sha256 "PLACEHOLDER_SHA256_DARWIN_ARM64"
     end
   end
 
   on_linux do
     on_intel do
-      url "https://releases.confire.dev/v#{version}/confire_linux_amd64"
+      url "https://releases.confire.dev/v#{version}/confire_v#{version}_linux_amd64.tar.gz"
       sha256 "PLACEHOLDER_SHA256_LINUX_AMD64"
     end
 
     on_arm do
-      url "https://releases.confire.dev/v#{version}/confire_linux_arm64"
+      url "https://releases.confire.dev/v#{version}/confire_v#{version}_linux_arm64.tar.gz"
       sha256 "PLACEHOLDER_SHA256_LINUX_ARM64"
     end
   end
 
   def install
-    bin.install stable.url.split("/").last => "confire"
+    bin.install "confire"
   end
 
   def caveats
     <<~EOS
-      To set up Confire hooks in Claude Code:
+      To set up Confire for your AI agent:
         confire setup
 
       To connect your account:
@@ -58,6 +58,6 @@ class Confire < Formula
   end
 
   test do
-    assert_match "confire", shell_output("#{bin}/confire version")
+    assert_match "Confire", shell_output("#{bin}/confire version")
   end
 end

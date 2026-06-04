@@ -11,15 +11,24 @@ import { syncPlansToKV }         from './lib/plans.js'
 import { handleSupabaseWebhook } from './handlers/db-webhook.js'
 import { handleGetPolicy, handlePatchPolicyGroups } from './handlers/policy.js'
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Methods': 'POST, GET, PATCH, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Confire-Sig, X-Confire-Timestamp, X-Confire-Device',
+const ALLOWED_ORIGINS = new Set([
+  'https://confire.dev',
+  'https://dev.confire.dev',
+])
+
+function corsHeaders(origin: string | null): Record<string, string> {
+  const allowed = origin && ALLOWED_ORIGINS.has(origin) ? origin : 'https://confire.dev'
+  return {
+    'Access-Control-Allow-Origin':  allowed,
+    'Access-Control-Allow-Methods': 'POST, GET, PATCH, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Confire-Sig, X-Confire-Timestamp, X-Confire-Device',
+    'Vary': 'Origin',
+  }
 }
 
-function withCors(res: Response): Response {
+function withCors(res: Response, origin: string | null): Response {
   const h = new Headers(res.headers)
-  for (const [k, v] of Object.entries(CORS_HEADERS)) h.set(k, v)
+  for (const [k, v] of Object.entries(corsHeaders(origin))) h.set(k, v)
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h })
 }
 
@@ -28,12 +37,14 @@ export default {
     const url    = new URL(request.url)
     const method = request.method
 
+    const origin = request.headers.get('Origin')
+
     if (method === 'OPTIONS') {
-      return new Response(null, { headers: CORS_HEADERS })
+      return new Response(null, { headers: corsHeaders(origin) })
     }
 
     const res = await route(request, url, method, env)
-    return withCors(res)
+    return withCors(res, origin)
   },
 }
 
@@ -104,17 +115,8 @@ async function route(request: Request, url: URL, method: string, env: Env): Prom
       return handleSupabaseWebhook(request, env)
     }
 
-    // ── Admin: manual plan sync (fallback / debug) ────────────────────────
-    // Normally not needed — the Supabase webhook handles it automatically.
-    // Useful for: initial setup, debugging, webhook failure recovery.
-    if (method === 'POST' && url.pathname === '/admin/plans/sync') {
-      try {
-        await syncPlansToKV(env)
-        return Response.json({ ok: true, message: 'Plans synced from Supabase → KV' })
-      } catch (e) {
-        return Response.json({ error: String(e) }, { status: 500 })
-      }
-    }
+    // ── Admin: manual plan sync — disabled (use Supabase webhook instead) ──
+    // if (method === 'POST' && url.pathname === '/admin/plans/sync') { ... }
 
     // ── Health ────────────────────────────────────────────────────────────
     if (method === 'GET' && url.pathname === '/health') {
