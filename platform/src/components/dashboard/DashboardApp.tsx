@@ -13,7 +13,7 @@ import {
   ArrowSquareOut, CheckCircle, Warning, ArrowRight,
 } from '@phosphor-icons/react'
 import { useAuth } from '@/hooks/use-auth'
-import { useDashboard } from '@/hooks/use-dashboard'
+import { useDashboard, type MeData } from '@/hooks/use-dashboard'
 import { formatTokenCount } from '@/lib/types'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
@@ -621,6 +621,215 @@ function Dashboard404({ path }: { path: string }) {
   )
 }
 
+// ── billing page ─────────────────────────────────────────────────────────────
+
+const DEV_FEATURES = [
+  '5,000 remote optimizations/month',
+  'Custom dashboard guardrails',
+  'Remote policy sync to local CLI',
+  'Optimization history',
+  'Larger input payloads',
+  'Tool-use guidance',
+  'Early access to new clients',
+]
+
+function BillingPage({ me, apiKey, workerBase }: {
+  me: MeData | null
+  apiKey: string | null
+  workerBase: string
+}) {
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+  const [checkoutError, setCheckoutError]     = useState<string | null>(null)
+
+  async function startCheckout(planSlug: string, interval: 'monthly' | 'annual') {
+    if (!apiKey) { window.location.href = '/login'; return }
+    const key = `${planSlug}-${interval}`
+    setCheckoutLoading(key)
+    setCheckoutError(null)
+    try {
+      const res = await fetch(`${workerBase}/api/checkout/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          planSlug,
+          interval,
+          successUrl: `${window.location.origin}/billing/success`,
+          cancelUrl:  `${window.location.origin}/dashboard/billing`,
+        }),
+      })
+      const data = await res.json() as { checkoutUrl?: string; redirect?: string; error?: string; message?: string }
+      if (!res.ok) {
+        setCheckoutError(data.message ?? data.error ?? 'Checkout failed — please try again.')
+        return
+      }
+      if (data.redirect)        window.location.href = data.redirect
+      else if (data.checkoutUrl) window.location.href = data.checkoutUrl
+    } catch {
+      setCheckoutError('Network error — please try again.')
+    } finally {
+      setCheckoutLoading(null)
+    }
+  }
+
+  const isFree   = !me || me.plan === 'free'
+  const isAnnual = me?.plan?.includes('annual') ?? false
+  const usedPct  = me ? Math.min(100, Math.round((me.used / me.effectiveLimit) * 100)) : 0
+
+  const rowStyle = (last?: boolean): React.CSSProperties => ({
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '10px 20px',
+    borderBottom: last ? undefined : '1px solid var(--confire-border)',
+    fontSize: 13,
+  })
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, marginBottom: 4 }}>Billing</h1>
+        <p style={{ fontSize: 13, color: 'var(--confire-text-dim)', margin: 0 }}>
+          Plan, usage, and upgrade options
+        </p>
+      </div>
+
+      {checkoutError && (
+        <div style={{
+          background: '#3b1c1c', border: '1px solid #6b2d2d', borderRadius: 8,
+          padding: '12px 16px', fontSize: 13, color: '#f87171',
+        }}>
+          {checkoutError}
+        </div>
+      )}
+
+      {/* Current plan */}
+      <Card>
+        <CardHeader title="Current plan" />
+        {me ? (
+          <>
+            <div style={rowStyle()}>
+              <span style={{ color: 'var(--confire-text-dim)' }}>Plan</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontWeight: 600 }}>{me.planName}</span>
+                {isAnnual && (
+                  <span style={{ fontSize: 11, color: 'var(--confire-text-muted)' }}>annual</span>
+                )}
+                <PlanBadge plan={me.plan} />
+              </div>
+            </div>
+            <div style={rowStyle(true)}>
+              <span style={{ color: 'var(--confire-text-dim)' }}>Status</span>
+              <span style={{
+                fontWeight: 600,
+                color: me.subscriptionStatus === 'active'   ? '#4ade80' :
+                       me.subscriptionStatus === 'trialing' ? '#60a5fa' :
+                       'var(--confire-text-muted)',
+              }}>
+                {me.subscriptionStatus === 'none' ? 'free tier' : me.subscriptionStatus}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div style={{ padding: '14px 20px', fontSize: 13, color: 'var(--confire-text-muted)' }}>Loading…</div>
+        )}
+      </Card>
+
+      {/* Usage */}
+      {me && (
+        <Card>
+          <CardHeader title="Usage this period" />
+          <div style={{ padding: '14px 20px 18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
+              <span style={{ color: 'var(--confire-text-dim)' }}>Remote optimizations</span>
+              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                {me.used.toLocaleString()} / {me.effectiveLimit.toLocaleString()}
+              </span>
+            </div>
+            <div style={{ height: 6, background: 'var(--confire-border)', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{
+                height: '100%', width: `${usedPct}%`,
+                background: usedPct >= 80 ? '#f87171' : '#f4811f',
+                borderRadius: 3, transition: 'width 0.3s',
+              }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--confire-text-muted)' }}>
+              <span>{usedPct}% used</span>
+              {me.purchasedCredits > 0 && (
+                <span>+{me.purchasedCredits.toLocaleString()} purchased credits</span>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Upgrade (free plan) */}
+      {isFree && (
+        <Card>
+          <CardHeader title="Upgrade to Dev — $10 / month" />
+          <div style={{ padding: '16px 20px 20px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px', marginBottom: 18 }}>
+              {DEV_FEATURES.map(f => (
+                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--confire-text-dim)' }}>
+                  <CheckCircle size={13} color="#4ade80" weight="fill" />
+                  {f}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => startCheckout('dev', 'monthly')}
+                disabled={!!checkoutLoading}
+                style={{
+                  padding: '9px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                  background: '#f4811f', color: '#fff', border: 'none', cursor: 'pointer',
+                  opacity: checkoutLoading === 'dev-monthly' ? 0.7 : 1,
+                }}
+              >
+                {checkoutLoading === 'dev-monthly' ? 'Loading…' : 'Dev — $10 / month'}
+              </button>
+              <button
+                onClick={() => startCheckout('dev_annual', 'annual')}
+                disabled={!!checkoutLoading}
+                style={{
+                  padding: '9px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                  background: 'transparent', color: '#f4811f',
+                  border: '1px solid rgba(244,129,31,0.4)', cursor: 'pointer',
+                  opacity: checkoutLoading === 'dev_annual-annual' ? 0.7 : 1,
+                }}
+              >
+                {checkoutLoading === 'dev_annual-annual' ? 'Loading…' : 'Dev Annual — $95 / year'}
+              </button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Active subscription info */}
+      {!isFree && me && (
+        <Card>
+          <CardHeader title="Subscription" />
+          <div style={{ padding: '14px 20px' }}>
+            <p style={{ fontSize: 13, color: 'var(--confire-text-dim)', margin: '0 0 12px', lineHeight: 1.6 }}>
+              Your subscription renews {isAnnual ? 'annually' : 'monthly'}.
+              To cancel, change plans, or update your payment method, email{' '}
+              <a href="mailto:billing@confire.dev" style={{ color: '#f4811f', textDecoration: 'none' }}>
+                billing@confire.dev
+              </a>.
+            </p>
+            {me.subscriptionStatus === 'active' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#4ade80' }}>
+                <CheckCircle size={13} weight="fill" />
+                Subscription active
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+    </div>
+  )
+}
+
 // ── stub pages ────────────────────────────────────────────────────────────────
 
 function StubPage({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon: React.ElementType }) {
@@ -743,7 +952,7 @@ function Dashboard() {
               <StubPage title="Setup" subtitle="Install, configure, and verify Confire on your machine" icon={Terminal} />
             )}
             {currentPath.startsWith('/dashboard/billing') && (
-              <StubPage title="Billing" subtitle="Plan, usage, and upgrade options" icon={CreditCard} />
+              <BillingPage me={me} apiKey={apiKey} workerBase={workerBase} />
             )}
             {currentPath.startsWith('/dashboard/settings') && (
               <StubPage title="Settings" subtitle="Account preferences, telemetry, and API keys" icon={GearSix} />
