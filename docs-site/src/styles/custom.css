@@ -47,3 +47,13 @@ code:not(pre > code) {
 .starlight-aside {
   border-radius: 6px;
 }
+
+/* Sidebar section headers: plain labels, not collapsible dropdowns */
+details:has(.group-label) > summary {
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
+}
+details:has(.group-label) > summary .caret {
+  display: none;
+}
