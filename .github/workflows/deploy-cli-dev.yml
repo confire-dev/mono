@@ -50,7 +50,8 @@ jobs:
             -X '${PKG}.buildBuiltBy=ci-dev' \
             -X '${PKG}.buildWorkerURL=https://api.dev.confire.dev' \
             -X '${PKG}.buildPlatformURL=https://dev.confire.dev' \
-            -X '${PKG}.buildGetURL=https://get.dev.confire.dev'"
+            -X '${PKG}.buildGetURL=https://get.dev.confire.dev' \
+            -X '${PKG}.buildBinaryName=confire-dev'"
 
           mkdir -p dist
 
