@@ -21,14 +21,8 @@ export function AppShell({ children, className }: Props) {
           background: 'transparent',
         }}
       >
-        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C12 2 5 6 5 13C5 17.418 8.134 21 12 21C15.866 21 19 17.418 19 13C19 6 12 2 12 2Z" fill="#f4811f" opacity="0.9"/>
-            <path d="M12 7C12 7 8.5 10 8.5 14C8.5 16.485 10.015 18.5 12 18.5C13.985 18.5 15.5 16.485 15.5 14C15.5 10 12 7 12 7Z" fill="#fdb97d" opacity="0.7"/>
-          </svg>
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>
-            Confire
-          </span>
+        <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <img src="/brand/confire-bg-transparent-logo-white.svg" alt="Confire" height={28} style={{ height: 28, width: 'auto' }} />
         </a>
       </header>
 

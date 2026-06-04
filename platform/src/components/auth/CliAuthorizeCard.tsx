@@ -109,19 +109,9 @@ export function CliAuthorizeCard({ user, device, callbackURL }: Props) {
         <div style={{ width: '100%', maxWidth: 480 }}>
           <LayerCard className="rounded-2xl p-8">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {/* logo + brand */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 40, height: 40, borderRadius: 10, background: '#f4811f',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2C12 2 5 6 5 13C5 17.418 8.134 21 12 21C15.866 21 19 17.418 19 13C19 6 12 2 12 2Z" fill="#fff" opacity="0.95"/>
-                    <path d="M12 7C12 7 8.5 10 8.5 14C8.5 16.485 10.015 18.5 12 18.5C13.985 18.5 15.5 16.485 15.5 14C15.5 10 12 7 12 7Z" fill="#f4811f" opacity="0.8"/>
-                  </svg>
-                </div>
-                <span style={{ fontSize: 18, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>Confire</span>
+              {/* logo */}
+              <div>
+                <img src="/brand/confire-bg-transparent-logo-white.svg" alt="Confire" height={30} style={{ height: 30, width: 'auto' }} />
               </div>
 
               {/* success heading */}

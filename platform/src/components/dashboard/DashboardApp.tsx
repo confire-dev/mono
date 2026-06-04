@@ -162,19 +162,19 @@ function AppSidebar({ currentPath }: { currentPath: string }) {
       <Sidebar.Header>
         <a href="/dashboard" onClick={click('/dashboard')}
           style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', padding: '2px 0', overflow: 'hidden' }}>
-          <div style={{
-            width: 26, height: 26, borderRadius: 7, background: '#f4811f',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
-            <Lightning size={13} weight="fill" color="#fff" />
-          </div>
-          {/* hidden when collapsed via CSS data attribute on parent */}
-          <span
+          {/* icon: shown always; full logo: hidden when sidebar collapsed */}
+          <img
+            src="/brand/confire-bg-transparent-logo-orange.svg"
+            alt="Confire"
             className="group-data-[state=collapsed]/sidebar:hidden"
-            style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}
-          >
-            Confire
-          </span>
+            style={{ height: 22, width: 'auto', flexShrink: 0 }}
+          />
+          <img
+            src="/brand/confire-bg-transparent-logo-orange-1.png"
+            alt="Confire"
+            className="group-data-[state=collapsed]/sidebar:block hidden"
+            style={{ height: 22, width: 22, flexShrink: 0, objectFit: 'contain' }}
+          />
         </a>
       </Sidebar.Header>
 
