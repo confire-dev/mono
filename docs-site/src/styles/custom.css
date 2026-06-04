@@ -1,0 +1,49 @@
+/* Confire brand overrides for Starlight */
+
+:root {
+  --sl-color-accent-low:   #4a2400;
+  --sl-color-accent:       #f4811f;
+  --sl-color-accent-high:  #ffd0a0;
+
+  --sl-color-white:        #ffffff;
+  --sl-color-gray-1:       #eaeaea;
+  --sl-color-gray-2:       #c2c2c2;
+  --sl-color-gray-3:       #8b8b8b;
+  --sl-color-gray-4:       #585858;
+  --sl-color-gray-5:       #383838;
+  --sl-color-gray-6:       #272727;
+  --sl-color-black:        #181818;
+
+  --sl-nav-height:         3.5rem;
+}
+
+/* Slightly warmer dark background */
+[data-theme='dark'] {
+  --sl-color-bg:           #16151a;
+  --sl-color-bg-nav:       #1e1c22;
+  --sl-color-bg-sidebar:   #1a1820;
+  --sl-color-bg-inline-code: #2a2730;
+}
+
+/* Keep font stack clean */
+:root {
+  --sl-font: 'Inter', system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* Site header */
+.site-title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Inline code */
+code:not(pre > code) {
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* Nicer aside / callout styling */
+.starlight-aside {
+  border-radius: 6px;
+}

@@ -494,7 +494,7 @@ function OverviewPage({
                             transition: 'background 0.15s, color 0.15s',
                           }}
                         >
-                          {iv === 'monthly' ? '$10 / mo' : '$95 / yr'}
+                          {iv === 'monthly' ? '$10 / mo' : '$90 / yr'}
                         </button>
                       ))}
                     </div>
@@ -879,7 +879,7 @@ function BillingPage({ me, apiKey, workerBase }: {
                   opacity: checkoutLoading === 'dev_annual-annual' ? 0.7 : 1,
                 }}
               >
-                {checkoutLoading === 'dev_annual-annual' ? 'Loading…' : 'Dev Annual — $95 / year'}
+                {checkoutLoading === 'dev_annual-annual' ? 'Loading…' : 'Dev Annual — $90 / year'}
               </button>
             </div>
           </div>

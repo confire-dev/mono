@@ -1,0 +1,50 @@
+---
+title: What is Confire?
+description: Context and tool firewall for AI coding agents.
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components'
+
+Confire sits between your AI coding agent and the outside world, giving you fine-grained control over what tools it can call, what context it sees, and how many tokens it burns.
+
+It works as a **local proxy** — no traffic leaves to Confire servers unless you choose remote features. You keep full control.
+
+## What problems does it solve?
+
+AI coding agents are powerful but undisciplined: they read files you didn't ask about, call tools you didn't intend, and jam thousands of tokens of irrelevant context into every request. Confire fixes that.
+
+<CardGrid>
+  <Card title="Tool Firewall" icon="shield">
+    Block, allow, or require approval for specific MCP tool calls. Your agent can't `rm -rf` anything unless you say so.
+  </Card>
+  <Card title="Context Optimizer" icon="compress">
+    Strips noise from context before it reaches the model. Fewer tokens, faster responses, lower cost — without losing signal.
+  </Card>
+  <Card title="Secret Redaction" icon="lock">
+    Automatically detects and redacts secrets (API keys, tokens, passwords) before they appear in prompts or logs.
+  </Card>
+  <Card title="Prompt-Injection Guard" icon="warning">
+    Scans tool results and file contents for attempts to hijack agent behavior via injected instructions.
+  </Card>
+</CardGrid>
+
+## How it works in one sentence
+
+Confire intercepts MCP messages between your agent and its tools, applies your policy rules, and either lets the message through, modifies it, or blocks it.
+
+## Quick start
+
+```bash
+# 1. Install the CLI
+npm install -g @confire/cli
+
+# 2. Start the proxy
+confire start
+
+# 3. Point your agent at it
+# See the client guides for Claude Code, Cursor, and VS Code →
+```
+
+- [Install the CLI →](/getting-started/install)
+- [Connect your agent →](/getting-started/connect)
+- [Write your first policy →](/getting-started/first-policy)
