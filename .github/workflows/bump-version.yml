@@ -10,6 +10,10 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/**'
 
 permissions:
   contents: write
@@ -116,7 +120,11 @@ jobs:
           mv /tmp/cl.md CHANGELOG.md
 
           VER="${NEXT#v}"
-          sed -i "s/version \"[^\"]*\"/version \"${VER}\"/" homebrew/confire.rb || true
+          PREV_VER="${LAST#v}"
+          sed -i \
+            -e "s/version \"[^\"]*\"/version \"${VER}\"/" \
+            -e "s/confire_v${PREV_VER}_/confire_v${VER}_/g" \
+            homebrew/confire.rb || true
 
       - name: Commit and tag
         if: steps.semver.outputs.skip != 'true'
