@@ -17,6 +17,7 @@ var (
 	buildBinaryName  = "confire"  // overridden to "confire-dev" for dev-env builds
 	buildWorkerURL   = ""         // overridden for non-prod builds; empty = use hardcoded fallback
 	buildPlatformURL = ""         // overridden for non-prod builds; empty = use hardcoded fallback
+	buildGetURL      = ""         // overridden for non-prod builds; empty = use hardcoded fallback
 )
 
 var versionCmd = &cobra.Command{

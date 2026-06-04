@@ -47,7 +47,10 @@ jobs:
             -X '${PKG}.buildVersion=${VERSION}' \
             -X '${PKG}.buildCommit=${COMMIT}' \
             -X '${PKG}.buildDate=${DATE}' \
-            -X '${PKG}.buildBuiltBy=ci-dev'"
+            -X '${PKG}.buildBuiltBy=ci-dev' \
+            -X '${PKG}.buildWorkerURL=https://api.dev.confire.dev' \
+            -X '${PKG}.buildPlatformURL=https://dev.confire.dev' \
+            -X '${PKG}.buildGetURL=https://get.dev.confire.dev'"
 
           mkdir -p dist
 

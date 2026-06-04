@@ -31,9 +31,10 @@ BASE_FLAGS := -X '$(PKG)/cmd.buildVersion=$(VERSION)'  \
               -X '$(PKG)/cmd.buildAuthor=$(AUTHOR)'
 
 # Extra ldflags for confire-dev builds — bakes in dev API endpoints
-DEV_ENV_FLAGS := -X '$(PKG)/cmd.buildBinaryName=$(BINARY_DEV)'     \
-                 -X '$(PKG)/cmd.buildWorkerURL=$(DEV_WORKER_URL)'   \
-                 -X '$(PKG)/cmd.buildPlatformURL=$(DEV_PLATFORM_URL)'
+DEV_ENV_FLAGS := -X '$(PKG)/cmd.buildBinaryName=$(BINARY_DEV)'          \
+                 -X '$(PKG)/cmd.buildWorkerURL=$(DEV_WORKER_URL)'        \
+                 -X '$(PKG)/cmd.buildPlatformURL=$(DEV_PLATFORM_URL)'    \
+                 -X '$(PKG)/cmd.buildGetURL=https://get.dev.confire.dev'
 
 # Release flags: strip symbol table, DWARF debug info, source paths
 REL_FLAGS  := $(BASE_FLAGS) -s -w

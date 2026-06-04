@@ -153,7 +153,7 @@ func runUpdate() error {
 
 func fetchUpdateManifest() (*latestManifest, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://get.confire.dev/latest.json")
+	resp, err := client.Get(getURL() + "/latest.json")
 	if err != nil {
 		return nil, err
 	}

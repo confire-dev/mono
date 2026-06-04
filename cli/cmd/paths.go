@@ -88,3 +88,17 @@ func platformURL() string {
 	}
 	return "https://confire.dev"
 }
+
+// getURL resolves the distribution base URL used for update checks:
+//  1. CONFIRE_GET_URL env var
+//  2. buildGetURL (baked in for non-prod builds)
+//  3. production default
+func getURL() string {
+	if u := os.Getenv("CONFIRE_GET_URL"); u != "" {
+		return u
+	}
+	if buildGetURL != "" {
+		return buildGetURL
+	}
+	return "https://get.confire.dev"
+}
