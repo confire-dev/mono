@@ -1,0 +1,90 @@
+name: Deploy CLI (dev)
+
+# Builds the CLI for all platforms and publishes to get.dev.confire.dev on
+# every push to develop that touches cli/.
+# Version: dev-<shortcommit>  (not a semver tag)
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'cli/**'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and publish CLI to dev
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Build all platforms
+        working-directory: cli
+        run: |
+          VERSION="dev-$(git rev-parse --short HEAD)"
+          COMMIT="$(git rev-parse --short HEAD)"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          PKG="github.com/confire-dev/confire/cmd"
+          LDFLAGS="-s -w \
+            -X '${PKG}.buildVersion=${VERSION}' \
+            -X '${PKG}.buildCommit=${COMMIT}' \
+            -X '${PKG}.buildDate=${DATE}' \
+            -X '${PKG}.buildBuiltBy=ci-dev'"
+
+          mkdir -p dist
+
+          for TARGET in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
+            OS="${TARGET%/*}"
+            ARCH="${TARGET#*/}"
+            echo "Building ${OS}/${ARCH}..."
+            CGO_ENABLED=0 GOOS="${OS}" GOARCH="${ARCH}" \
+              go build -trimpath -ldflags "${LDFLAGS}" \
+              -o "dist/confire" .
+
+            tar -czf "dist/confire_${VERSION}_${OS}_${ARCH}.tar.gz" -C dist confire
+            rm dist/confire
+          done
+
+          cd dist
+          sha256sum confire_*.tar.gz > checksums.txt
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Publish to R2
+        working-directory: cli
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          VERSION="${{ env.VERSION }}"
+          BUCKET="confire-releases"
+
+          # Upload archives and checksums under dev/releases/<version>/
+          for FILE in dist/confire_*.tar.gz dist/checksums.txt; do
+            BASENAME="$(basename "${FILE}")"
+            echo "Uploading dev/releases/${VERSION}/${BASENAME}..."
+            pnpm exec wrangler r2 object put \
+              "${BUCKET}/dev/releases/${VERSION}/${BASENAME}" \
+              --file "${FILE}"
+          done
+
+          # Update dev/latest.json (no-cache)
+          echo "{\"version\":\"${VERSION}\"}" > /tmp/dev-latest.json
+          pnpm exec wrangler r2 object put \
+            "${BUCKET}/dev/latest.json" \
+            --file /tmp/dev-latest.json \
+            --content-type "application/json"
+
+          echo "Published ${VERSION} to get.dev.confire.dev"

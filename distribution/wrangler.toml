@@ -14,6 +14,10 @@ pattern = "get.confire.dev/*"
 zone_name = "confire.dev"
 
 [[routes]]
+pattern = "get.dev.confire.dev/*"
+zone_name = "confire.dev"
+
+[[routes]]
 pattern = "releases.confire.dev/*"
 zone_name = "confire.dev"
 
