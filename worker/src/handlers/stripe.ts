@@ -107,6 +107,7 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
         billingInterval,
         currentPeriodStart: sub['current_period_start'] as number,
         currentPeriodEnd:   sub['current_period_end'] as number,
+        cancelAtPeriodEnd:  !!(sub['cancel_at_period_end']),
       })
       await writeAudit(cfg, null, 'stripe_subscription_updated', {
         event_id:    event.id,

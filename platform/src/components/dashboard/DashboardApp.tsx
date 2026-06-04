@@ -317,7 +317,7 @@ function BigStatCard({ label, value, sub, accent }: { label: string; value: stri
 
 function OverviewPage({
   me, recentCalls, allCallBytes, apiKeys, firewall, canToggle, totalSavedTokens, totalCallsAllTime,
-  revokeKey, toggleFirewallGroup,
+  revokeKey, toggleFirewallGroup, onUpgrade,
 }: any) {
   // context reduction from byte data
   const totalRaw = allCallBytes.reduce((s: number, c: any) => s + c.raw_bytes, 0)
@@ -477,13 +477,16 @@ function OverviewPage({
                   </span>
                 </div>
                 {me.plan === 'free' && (
-                  <a href="/dashboard/billing" style={{
-                    display: 'block', marginTop: 12, padding: '7px 12px', textAlign: 'center',
-                    background: 'rgba(244,129,31,0.1)', border: '1px solid rgba(244,129,31,0.3)',
-                    borderRadius: 6, fontSize: 12, fontWeight: 600, color: '#f4811f', textDecoration: 'none',
-                  }}>
+                  <button
+                    onClick={onUpgrade}
+                    style={{
+                      display: 'block', width: '100%', marginTop: 12, padding: '7px 12px', textAlign: 'center',
+                      background: 'rgba(244,129,31,0.1)', border: '1px solid rgba(244,129,31,0.3)',
+                      borderRadius: 6, fontSize: 12, fontWeight: 600, color: '#f4811f', cursor: 'pointer',
+                    }}
+                  >
                     Upgrade to Dev →
-                  </a>
+                  </button>
                 )}
               </div>
             </Card>
@@ -633,50 +636,91 @@ const DEV_FEATURES = [
   'Early access to new clients',
 ]
 
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+export async function runCheckout(
+  workerBase: string,
+  apiKey: string,
+  planSlug: string,
+  interval: 'monthly' | 'annual',
+  cancelUrl: string,
+): Promise<{ checkoutUrl?: string; redirect?: string; error?: string; message?: string }> {
+  const res = await fetch(`${workerBase}/api/checkout/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      planSlug,
+      interval,
+      successUrl: `${window.location.origin}/billing/success`,
+      cancelUrl,
+    }),
+  })
+  return res.json()
+}
+
 function BillingPage({ me, apiKey, workerBase }: {
   me: MeData | null
   apiKey: string | null
   workerBase: string
 }) {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
-  const [checkoutError, setCheckoutError]     = useState<string | null>(null)
+  const [actionError,     setActionError]     = useState<string | null>(null)
+  const [cancelStep,      setCancelStep]      = useState<'idle' | 'confirm' | 'done'>('idle')
+  const [cancelling,      setCancelling]      = useState(false)
+  const [cancelledUntil,  setCancelledUntil]  = useState<string | null>(null)
 
   async function startCheckout(planSlug: string, interval: 'monthly' | 'annual') {
     if (!apiKey) { window.location.href = '/login'; return }
     const key = `${planSlug}-${interval}`
     setCheckoutLoading(key)
-    setCheckoutError(null)
+    setActionError(null)
     try {
-      const res = await fetch(`${workerBase}/api/checkout/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          planSlug,
-          interval,
-          successUrl: `${window.location.origin}/billing/success`,
-          cancelUrl:  `${window.location.origin}/dashboard/billing`,
-        }),
-      })
-      const data = await res.json() as { checkoutUrl?: string; redirect?: string; error?: string; message?: string }
-      if (!res.ok) {
-        setCheckoutError(data.message ?? data.error ?? 'Checkout failed — please try again.')
-        return
-      }
-      if (data.redirect)        window.location.href = data.redirect
+      const data = await runCheckout(workerBase, apiKey, planSlug, interval, `${window.location.origin}/dashboard/billing`)
+      if (data.redirect)         window.location.href = data.redirect
       else if (data.checkoutUrl) window.location.href = data.checkoutUrl
+      else setActionError(data.message ?? data.error ?? 'Checkout failed — please try again.')
     } catch {
-      setCheckoutError('Network error — please try again.')
+      setActionError('Network error — please try again.')
     } finally {
       setCheckoutLoading(null)
     }
   }
 
-  const isFree   = !me || me.plan === 'free'
-  const isAnnual = me?.plan?.includes('annual') ?? false
-  const usedPct  = me ? Math.min(100, Math.round((me.used / me.effectiveLimit) * 100)) : 0
+  async function confirmCancel() {
+    if (!apiKey) return
+    setCancelling(true)
+    setActionError(null)
+    try {
+      const res  = await fetch(`${workerBase}/api/subscription/cancel`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      })
+      const data = await res.json() as { ok?: boolean; periodEnd?: string; error?: string; message?: string }
+      if (!res.ok || !data.ok) {
+        setActionError(data.message ?? data.error ?? 'Cancel failed — please try again.')
+        setCancelStep('idle')
+        return
+      }
+      setCancelledUntil(data.periodEnd ?? null)
+      setCancelStep('done')
+    } catch {
+      setActionError('Network error — please try again.')
+      setCancelStep('idle')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  const isFree        = !me || me.plan === 'free'
+  const isAnnual      = me?.plan?.includes('annual') ?? false
+  const usedPct       = me ? Math.min(100, Math.round((me.used / me.effectiveLimit) * 100)) : 0
+  const isPendingCancel = me?.cancelAtPeriodEnd || cancelStep === 'done'
+  const periodEndLabel  = cancelledUntil ?? me?.periodEnd ?? null
+  const canCancel       = !isFree && me
+    && (me.subscriptionStatus === 'active' || me.subscriptionStatus === 'trialing')
+    && !isPendingCancel
 
   const rowStyle = (last?: boolean): React.CSSProperties => ({
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -694,12 +738,12 @@ function BillingPage({ me, apiKey, workerBase }: {
         </p>
       </div>
 
-      {checkoutError && (
+      {actionError && (
         <div style={{
           background: '#3b1c1c', border: '1px solid #6b2d2d', borderRadius: 8,
           padding: '12px 16px', fontSize: 13, color: '#f87171',
         }}>
-          {checkoutError}
+          {actionError}
         </div>
       )}
 
@@ -712,13 +756,18 @@ function BillingPage({ me, apiKey, workerBase }: {
               <span style={{ color: 'var(--confire-text-dim)' }}>Plan</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontWeight: 600 }}>{me.planName}</span>
-                {isAnnual && (
-                  <span style={{ fontSize: 11, color: 'var(--confire-text-muted)' }}>annual</span>
-                )}
+                {isAnnual && <span style={{ fontSize: 11, color: 'var(--confire-text-muted)' }}>annual</span>}
                 <PlanBadge plan={me.plan} />
+                {isPendingCancel && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+                    background: 'rgba(251,191,36,0.12)', color: '#fbbf24',
+                    border: '1px solid rgba(251,191,36,0.3)', letterSpacing: '0.06em', textTransform: 'uppercase',
+                  }}>Cancels at period end</span>
+                )}
               </div>
             </div>
-            <div style={rowStyle(true)}>
+            <div style={rowStyle()}>
               <span style={{ color: 'var(--confire-text-dim)' }}>Status</span>
               <span style={{
                 fontWeight: 600,
@@ -729,6 +778,16 @@ function BillingPage({ me, apiKey, workerBase }: {
                 {me.subscriptionStatus === 'none' ? 'free tier' : me.subscriptionStatus}
               </span>
             </div>
+            {periodEndLabel && (
+              <div style={rowStyle(true)}>
+                <span style={{ color: 'var(--confire-text-dim)' }}>
+                  {isPendingCancel ? 'Access until' : isAnnual ? 'Renews' : 'Next billing date'}
+                </span>
+                <span style={{ fontWeight: 600, color: isPendingCancel ? '#fbbf24' : undefined }}>
+                  {fmtDate(periodEndLabel)}
+                </span>
+              </div>
+            )}
           </>
         ) : (
           <div style={{ padding: '14px 20px', fontSize: 13, color: 'var(--confire-text-muted)' }}>Loading…</div>
@@ -805,22 +864,87 @@ function BillingPage({ me, apiKey, workerBase }: {
         </Card>
       )}
 
-      {/* Active subscription info */}
+      {/* Subscription management (paid plans) */}
       {!isFree && me && (
         <Card>
           <CardHeader title="Subscription" />
           <div style={{ padding: '14px 20px' }}>
-            <p style={{ fontSize: 13, color: 'var(--confire-text-dim)', margin: '0 0 12px', lineHeight: 1.6 }}>
-              Your subscription renews {isAnnual ? 'annually' : 'monthly'}.
-              To cancel, change plans, or update your payment method, email{' '}
-              <a href="mailto:billing@confire.dev" style={{ color: '#f4811f', textDecoration: 'none' }}>
-                billing@confire.dev
-              </a>.
-            </p>
-            {me.subscriptionStatus === 'active' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#4ade80' }}>
-                <CheckCircle size={13} weight="fill" />
-                Subscription active
+            {cancelStep === 'done' ? (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13 }}>
+                <Warning size={16} color="#fbbf24" weight="fill" style={{ flexShrink: 0, marginTop: 1 }} />
+                <span style={{ color: 'var(--confire-text-dim)', lineHeight: 1.6 }}>
+                  Your subscription has been cancelled.
+                  {cancelledUntil && (
+                    <> You have full access until <strong style={{ color: 'var(--confire-text)' }}>{fmtDate(cancelledUntil)}</strong>.</>
+                  )}
+                </span>
+              </div>
+            ) : isPendingCancel && periodEndLabel ? (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13 }}>
+                <Warning size={16} color="#fbbf24" weight="fill" style={{ flexShrink: 0, marginTop: 1 }} />
+                <span style={{ color: 'var(--confire-text-dim)', lineHeight: 1.6 }}>
+                  Your subscription is scheduled to cancel. You have full access until{' '}
+                  <strong style={{ color: 'var(--confire-text)' }}>{fmtDate(periodEndLabel)}</strong>.
+                </span>
+              </div>
+            ) : cancelStep === 'confirm' ? (
+              <div>
+                <p style={{ fontSize: 13, color: 'var(--confire-text-dim)', margin: '0 0 14px', lineHeight: 1.6 }}>
+                  Cancel your subscription?{periodEndLabel && (
+                    <> You'll keep full access until <strong style={{ color: 'var(--confire-text)' }}>{fmtDate(periodEndLabel)}</strong>. No refund is issued for the remaining period.</>
+                  )}
+                </p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={confirmCancel}
+                    disabled={cancelling}
+                    style={{
+                      padding: '7px 18px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                      background: '#f87171', color: '#fff', border: 'none', cursor: 'pointer',
+                      opacity: cancelling ? 0.7 : 1,
+                    }}
+                  >
+                    {cancelling ? 'Cancelling…' : 'Yes, cancel subscription'}
+                  </button>
+                  <button
+                    onClick={() => setCancelStep('idle')}
+                    style={{
+                      padding: '7px 18px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                      background: 'transparent', color: 'var(--confire-text-dim)',
+                      border: '1px solid var(--confire-border)', cursor: 'pointer',
+                    }}
+                  >
+                    Keep subscription
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  {me.subscriptionStatus === 'active' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#4ade80', marginBottom: periodEndLabel ? 4 : 0 }}>
+                      <CheckCircle size={13} weight="fill" />
+                      Subscription active
+                    </div>
+                  )}
+                  {periodEndLabel && (
+                    <div style={{ fontSize: 12, color: 'var(--confire-text-muted)' }}>
+                      Renews {fmtDate(periodEndLabel)}
+                    </div>
+                  )}
+                </div>
+                {canCancel && (
+                  <button
+                    onClick={() => setCancelStep('confirm')}
+                    style={{
+                      padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                      background: 'transparent', color: '#f87171',
+                      border: '1px solid rgba(248,113,113,0.3)', cursor: 'pointer',
+                    }}
+                  >
+                    Cancel subscription
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -885,6 +1009,18 @@ function Dashboard() {
 
   const canToggle = !!(me?.features?.firewallGroupToggles)
 
+  async function upgradeToDevMonthly() {
+    if (!apiKey) { window.location.href = '/login'; return }
+    try {
+      const data = await runCheckout(workerBase, apiKey, 'dev', 'monthly', `${window.location.origin}/dashboard/billing`)
+      if (data.redirect)         window.location.href = data.redirect
+      else if (data.checkoutUrl) window.location.href = data.checkoutUrl
+      else navigate('/dashboard/billing')
+    } catch {
+      navigate('/dashboard/billing')
+    }
+  }
+
   // page title for topbar
   const pageLabel: Record<string, string> = {
     '/dashboard': 'Overview',
@@ -937,6 +1073,7 @@ function Dashboard() {
                 apiKeys={apiKeys} firewall={firewall} canToggle={canToggle}
                 totalSavedTokens={totalSavedTokens} totalCallsAllTime={totalCallsAllTime}
                 revokeKey={revokeKey} toggleFirewallGroup={toggleFirewallGroup}
+                onUpgrade={upgradeToDevMonthly}
               />
             )}
             {currentPath.startsWith('/dashboard/activity') && (

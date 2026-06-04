@@ -39,7 +39,7 @@ export async function authenticate(request: Request, env: Env): Promise<AuthResu
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
     const devUser: Profile = {
       id: 'dev', email: 'dev@local', plan: 'free', plan_id: 'free',
-      subscription_status: 'none', is_banned: false,
+      subscription_status: 'none', cancel_at_period_end: false, is_banned: false,
     }
     return { ok: true, user: devUser }
   }
