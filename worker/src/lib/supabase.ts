@@ -29,6 +29,7 @@ export interface Profile {
   stripe_subscription_id?: string
   subscription_current_period_start?: string
   subscription_current_period_end?: string
+  cancel_at_period_end: boolean
   is_banned: boolean
 }
 
@@ -418,6 +419,7 @@ export async function handleSubscriptionUpdated(
     billingInterval: 'monthly' | 'annual'
     currentPeriodStart: number
     currentPeriodEnd: number
+    cancelAtPeriodEnd?: boolean
   }
 ): Promise<void> {
   const status = mapStripeStatus(event.status)
@@ -431,6 +433,7 @@ export async function handleSubscriptionUpdated(
       subscription_status:               status,
       subscription_current_period_start: new Date(event.currentPeriodStart * 1000).toISOString(),
       subscription_current_period_end:   new Date(event.currentPeriodEnd * 1000).toISOString(),
+      cancel_at_period_end:              event.cancelAtPeriodEnd ?? false,
       updated_at:                        new Date().toISOString(),
     })
 }

@@ -29,6 +29,9 @@ export interface MeData {
   plan: Plan
   planName: string
   subscriptionStatus: string
+  billingInterval: 'monthly' | 'annual' | null
+  periodEnd: string | null
+  cancelAtPeriodEnd: boolean
   used: number
   limit: number
   purchasedCredits: number
@@ -71,6 +74,9 @@ async function fetchMe(workerBase: string, token: string): Promise<MeData> {
   if (!res.ok) throw new Error('Failed to load account')
   const d = await res.json() as {
     email: string; name?: string; plan: Plan; subscription_status: string;
+    billing_interval: 'monthly' | 'annual' | null;
+    subscription_current_period_end: string | null;
+    cancel_at_period_end: boolean;
     used: number; limit: number; purchasedCredits: number; effectiveLimit: number;
     limits: PlanLimits; features: PlanFeatures
   }
@@ -80,6 +86,9 @@ async function fetchMe(workerBase: string, token: string): Promise<MeData> {
     plan:               d.plan,
     planName:           PLAN_NAMES[d.plan] ?? d.plan,
     subscriptionStatus: d.subscription_status,
+    billingInterval:    d.billing_interval ?? null,
+    periodEnd:          d.subscription_current_period_end ?? null,
+    cancelAtPeriodEnd:  d.cancel_at_period_end ?? false,
     used:               d.used,
     limit:              d.limit,
     purchasedCredits:   d.purchasedCredits,

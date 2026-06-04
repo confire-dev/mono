@@ -93,26 +93,38 @@ export interface BentoItem {
   dark?: boolean
 }
 
+// Responsive col-span classes for BentoGrid items.
+// Mobile (1-col): no span class → each item fills the single column.
+// sm (2-col): cap at 2 so span-2 items go full-width.
+// lg (4-col): use the declared span.
+const BENTO_COL_SPAN: Record<number, string> = {
+  1: '',
+  2: 'sm:col-span-2',
+  3: 'sm:col-span-2 lg:col-span-3',
+  4: 'sm:col-span-2 lg:col-span-4',
+}
+
 export function BentoGrid({ items }: { items: BentoItem[] }) {
   return (
     <div className="relative grid grid-cols-1 border border-confire-border sm:grid-cols-2 lg:grid-cols-4">
-      {items.map((item, i) => (
-        <div
-          key={i}
-          className={cn(
-            '-m-px min-h-[180px] overflow-hidden border border-confire-border p-8',
-            item.accent && 'bg-confire-accent',
-            item.dark && 'bg-confire-code',
-            !item.accent && !item.dark && 'bg-confire-card',
-          )}
-          style={{
-            gridColumn: `span ${Math.min(item.colSpan ?? 1, 4)}`,
-            gridRow: `span ${item.rowSpan ?? 1}`,
-          }}
-        >
-          {item.content}
-        </div>
-      ))}
+      {items.map((item, i) => {
+        const colSpan = Math.min(item.colSpan ?? 1, 4)
+        return (
+          <div
+            key={i}
+            className={cn(
+              '-m-px min-h-[180px] overflow-hidden border border-confire-border p-8',
+              item.accent && 'bg-confire-accent',
+              item.dark && 'bg-confire-code',
+              !item.accent && !item.dark && 'bg-confire-card',
+              BENTO_COL_SPAN[colSpan],
+            )}
+            style={item.rowSpan && item.rowSpan > 1 ? { gridRow: `span ${item.rowSpan}` } : undefined}
+          >
+            {item.content}
+          </div>
+        )
+      })}
     </div>
   )
 }

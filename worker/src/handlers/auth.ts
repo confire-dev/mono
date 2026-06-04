@@ -113,15 +113,18 @@ export async function handleMe(request: Request, env: Env): Promise<Response> {
   const planLimit = plan.limits.cloudOptimizationsMonthly
 
   return Response.json({
-    email:               user.email,
-    plan:                plan.id,
-    planId:              plan.id,
-    subscription_status: user.subscription_status,
-    used:                usage.cloudOptimizationsUsed,
-    limit:               planLimit,
+    email:                           user.email,
+    plan:                            plan.id,
+    planId:                          plan.id,
+    subscription_status:             user.subscription_status,
+    billing_interval:                user.billing_interval ?? null,
+    subscription_current_period_end: user.subscription_current_period_end ?? null,
+    cancel_at_period_end:            user.cancel_at_period_end ?? false,
+    used:                            usage.cloudOptimizationsUsed,
+    limit:                           planLimit,
     purchasedCredits,
-    effectiveLimit:      planLimit + purchasedCredits,
-    limits:              plan.limits,
-    features:            plan.features,
+    effectiveLimit:                  planLimit + purchasedCredits,
+    limits:                          plan.limits,
+    features:                        plan.features,
   })
 }

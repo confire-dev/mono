@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 32" fill="none">
+  <!-- Shield icon -->
+  <path d="M8 4L16 2L24 4V14C24 19.5 20 24.5 16 26C12 24.5 8 19.5 8 14V4Z" fill="#f4811f"/>
+  <path d="M12 13L15 16L21 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Wordmark -->
+  <text x="32" y="22" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="700" fill="#1a1820" letter-spacing="-0.02em">confire</text>
+</svg>

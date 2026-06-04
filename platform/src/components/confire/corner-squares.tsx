@@ -33,13 +33,13 @@ export function WithCorners({ children, className, cols = 1, rows = 1 }: WithCor
 
   for (let c = 1; c < cols; c++) {
     const left = `calc(${(c / cols) * 100}% - ${CORNER_OFFSET}px)`
-    marks.push(<CornerSquare key={`tc${c}`} style={{ top: -CORNER_OFFSET, left }} />)
-    marks.push(<CornerSquare key={`bc${c}`} style={{ bottom: -CORNER_OFFSET, left }} />)
+    marks.push(<CornerSquare key={`tc${c}`} className="hidden sm:block" style={{ top: -CORNER_OFFSET, left }} />)
+    marks.push(<CornerSquare key={`bc${c}`} className="hidden sm:block" style={{ bottom: -CORNER_OFFSET, left }} />)
   }
   for (let r = 1; r < rows; r++) {
     const top = `calc(${(r / rows) * 100}% - ${CORNER_OFFSET}px)`
-    marks.push(<CornerSquare key={`lr${r}`} style={{ top, left: -CORNER_OFFSET }} />)
-    marks.push(<CornerSquare key={`rr${r}`} style={{ top, right: -CORNER_OFFSET }} />)
+    marks.push(<CornerSquare key={`lr${r}`} className="hidden sm:block" style={{ top, left: -CORNER_OFFSET }} />)
+    marks.push(<CornerSquare key={`rr${r}`} className="hidden sm:block" style={{ top, right: -CORNER_OFFSET }} />)
   }
 
   return (
