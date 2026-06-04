@@ -319,6 +319,8 @@ function OverviewPage({
   me, recentCalls, allCallBytes, apiKeys, firewall, canToggle, totalSavedTokens, totalCallsAllTime,
   revokeKey, toggleFirewallGroup, onUpgrade,
 }: any) {
+  const [upgradeInterval, setUpgradeInterval] = useState<'monthly' | 'annual'>('monthly')
+
   // context reduction from byte data
   const totalRaw = allCallBytes.reduce((s: number, c: any) => s + c.raw_bytes, 0)
   const totalOpt = allCallBytes.reduce((s: number, c: any) => s + c.optimized_bytes, 0)
@@ -477,16 +479,36 @@ function OverviewPage({
                   </span>
                 </div>
                 {me.plan === 'free' && (
-                  <button
-                    onClick={onUpgrade}
-                    style={{
-                      display: 'block', width: '100%', marginTop: 12, padding: '7px 12px', textAlign: 'center',
-                      background: 'rgba(244,129,31,0.1)', border: '1px solid rgba(244,129,31,0.3)',
-                      borderRadius: 6, fontSize: 12, fontWeight: 600, color: '#f4811f', cursor: 'pointer',
-                    }}
-                  >
-                    Upgrade to Dev →
-                  </button>
+                  <div style={{ marginTop: 12 }}>
+                    {/* interval toggle */}
+                    <div style={{ display: 'flex', gap: 2, marginBottom: 8, background: 'var(--confire-border)', borderRadius: 6, padding: 2 }}>
+                      {(['monthly', 'annual'] as const).map(iv => (
+                        <button
+                          key={iv}
+                          onClick={() => setUpgradeInterval(iv)}
+                          style={{
+                            flex: 1, padding: '4px 0', borderRadius: 4, border: 'none', cursor: 'pointer',
+                            fontSize: 11, fontWeight: 600,
+                            background: upgradeInterval === iv ? 'var(--confire-bg-card)' : 'transparent',
+                            color: upgradeInterval === iv ? '#f4811f' : 'var(--confire-text-muted)',
+                            transition: 'background 0.15s, color 0.15s',
+                          }}
+                        >
+                          {iv === 'monthly' ? '$10 / mo' : '$95 / yr'}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => onUpgrade(upgradeInterval)}
+                      style={{
+                        display: 'block', width: '100%', padding: '7px 12px', textAlign: 'center',
+                        background: 'rgba(244,129,31,0.1)', border: '1px solid rgba(244,129,31,0.3)',
+                        borderRadius: 6, fontSize: 12, fontWeight: 600, color: '#f4811f', cursor: 'pointer',
+                      }}
+                    >
+                      Upgrade to Dev {upgradeInterval === 'annual' ? '(save 20%) →' : '→'}
+                    </button>
+                  </div>
                 )}
               </div>
             </Card>
@@ -1009,10 +1031,11 @@ function Dashboard() {
 
   const canToggle = !!(me?.features?.firewallGroupToggles)
 
-  async function upgradeToDevMonthly() {
+  async function handleUpgrade(interval: 'monthly' | 'annual' = 'monthly') {
     if (!apiKey) { window.location.href = '/login'; return }
+    const planSlug = interval === 'annual' ? 'dev_annual' : 'dev'
     try {
-      const data = await runCheckout(workerBase, apiKey, 'dev', 'monthly', `${window.location.origin}/dashboard/billing`)
+      const data = await runCheckout(workerBase, apiKey, planSlug, interval, `${window.location.origin}/dashboard/billing`)
       if (data.redirect)         window.location.href = data.redirect
       else if (data.checkoutUrl) window.location.href = data.checkoutUrl
       else navigate('/dashboard/billing')
@@ -1073,7 +1096,7 @@ function Dashboard() {
                 apiKeys={apiKeys} firewall={firewall} canToggle={canToggle}
                 totalSavedTokens={totalSavedTokens} totalCallsAllTime={totalCallsAllTime}
                 revokeKey={revokeKey} toggleFirewallGroup={toggleFirewallGroup}
-                onUpgrade={upgradeToDevMonthly}
+                onUpgrade={handleUpgrade}
               />
             )}
             {currentPath.startsWith('/dashboard/activity') && (
