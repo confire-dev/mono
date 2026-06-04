@@ -1,3 +1,12 @@
+## v0.11.0 — 2026-06-04
+
+### Fixes
+- fix(ci): add --remote flag to wrangler R2 uploads (5dba43c)
+- fix(ci): add buildBinaryName=confire-dev to dev CLI build (22a7c3c)
+
+
+---
+
 ## v0.10.0 — 2026-06-04
 
 ### Fixes
