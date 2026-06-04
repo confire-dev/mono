@@ -5,6 +5,7 @@ name: Deploy CLI (dev)
 # Version: dev-<shortcommit>
 
 on:
+  workflow_dispatch:
   push:
     branches: [develop]
     paths:
