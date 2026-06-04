@@ -1,3 +1,16 @@
+## v0.10.0 — 2026-06-04
+
+### Fixes
+- fix(release): use tar.gz format, fix ldflags pkg path, add buildBuiltBy, fix installer URL (760441b)
+- fix(platform): keep assets.directory in wrangler.json, only remove reserved binding name (0dd5661)
+- fix(platform): strip reserved ASSETS binding from generated wrangler.json after build (8b822aa)
+- fix(platform): use pages_build_output_dir, switch deploy to wrangler pages deploy (9c2b9d3)
+- fix(worker): restrict CORS to own origins, disable unauthenticated admin sync route (13778d7)
+- fix(platform): switch to Cloudflare adapter for Workers compatibility (d5235b5)
+
+
+---
+
 ## v0.9.4 — 2026-06-03
 
 
