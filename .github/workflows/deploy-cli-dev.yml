@@ -89,8 +89,18 @@ jobs:
               --file "${FILE}"
           done
 
+          # Install script with dev URLs pre-baked
+          sed \
+            -e 's|https://get.confire.dev|https://get.dev.confire.dev|g' \
+            -e 's|https://releases.confire.dev|https://get.dev.confire.dev|g' \
+            ../scripts/install.sh > /tmp/dev-install.sh
+          pnpm exec wrangler r2 object put --remote \
+            "${BUCKET}/dev/install.sh" \
+            --file /tmp/dev-install.sh \
+            --content-type "text/x-shellscript"
+
           echo "{\"version\":\"${VERSION}\"}" > /tmp/dev-latest.json
-          pnpm exec wrangler r2 object put \
+          pnpm exec wrangler r2 object put --remote \
             "${BUCKET}/dev/latest.json" \
             --file /tmp/dev-latest.json \
             --content-type "application/json"
