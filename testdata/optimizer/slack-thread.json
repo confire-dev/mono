@@ -1,0 +1,124 @@
+{
+  "ok": true,
+  "messages": [
+    {
+      "client_msg_id": "aaaa-1111-bbbb-2222",
+      "type": "message",
+      "text": "Hey team — OAuth PR is up for review! PLAT#4521. Would appreciate a security review from @bob-security before we merge.",
+      "user": "U001ALICE",
+      "ts": "1736844000.000100",
+      "team": "T001ACME",
+      "blocks": [
+        { "type": "rich_text", "block_id": "blk1", "elements": [{ "type": "rich_text_section", "elements": [{ "type": "text", "text": "Hey team — OAuth PR is up for review! PLAT#4521. Would appreciate a security review from " }, { "type": "user", "user_id": "U002BOB" }, { "type": "text", "text": " before we merge." }] }] }
+      ],
+      "reactions": [
+        { "name": "eyes", "users": ["U002BOB", "U003CAROL"], "count": 2 },
+        { "name": "white_check_mark", "users": ["U004DAN"], "count": 1 }
+      ],
+      "reply_count": 8,
+      "reply_users_count": 4,
+      "latest_reply": "1736880000.000900",
+      "reply_users": ["U002BOB", "U003CAROL", "U004DAN", "U005EVE"],
+      "subscribed": false,
+      "last_read": "0000000000.000000"
+    },
+    {
+      "client_msg_id": "cccc-3333-dddd-4444",
+      "type": "message",
+      "text": "On it! Will review this afternoon. Quick question: are we storing the PKCE code verifier server-side or client-side?",
+      "user": "U002BOB",
+      "ts": "1736847600.000200",
+      "team": "T001ACME",
+      "blocks": [
+        { "type": "rich_text", "block_id": "blk2", "elements": [{ "type": "rich_text_section", "elements": [{ "type": "text", "text": "On it! Will review this afternoon. Quick question: are we storing the PKCE code verifier server-side or client-side?" }] }] }
+      ],
+      "reactions": [{ "name": "thumbsup", "users": ["U001ALICE"], "count": 1 }]
+    },
+    {
+      "client_msg_id": "eeee-5555-ffff-6666",
+      "type": "message",
+      "text": "Client-side in sessionStorage — it's generated fresh per auth attempt and deleted after exchange. Server never sees the verifier, only the code challenge (which is public anyway).",
+      "user": "U001ALICE",
+      "ts": "1736849400.000300",
+      "team": "T001ACME",
+      "blocks": [
+        { "type": "rich_text", "block_id": "blk3", "elements": [{ "type": "rich_text_section", "elements": [{ "type": "text", "text": "Client-side in sessionStorage — it's generated fresh per auth attempt and deleted after exchange. Server never sees the verifier, only the code challenge (which is public anyway)." }] }] }
+      ]
+    },
+    {
+      "client_msg_id": "gggg-7777-hhhh-8888",
+      "type": "message",
+      "text": "Smart. sessionStorage is scoped to the tab/window so it can't leak across tabs. Good call. \n\nOne concern: the token refresh mutex — if the first refresh fails, do queued requests get unblocked with an error or do they retry?",
+      "user": "U002BOB",
+      "ts": "1736851200.000400",
+      "team": "T001ACME",
+      "blocks": [
+        { "type": "rich_text", "block_id": "blk4", "elements": [{ "type": "rich_text_section", "elements": [{ "type": "text", "text": "Smart. sessionStorage is scoped to the tab/window so it can’t leak across tabs. Good call. " }, { "type": "text", "text": "\n\n" }, { "type": "text", "text": "One concern: the token refresh mutex — if the first refresh fails, do queued requests get unblocked with an error or do they retry?" }] }] }
+      ]
+    },
+    {
+      "client_msg_id": "iiii-9999-jjjj-0000",
+      "type": "message",
+      "text": "They get rejected with the error and the caller decides whether to retry (usually means redirect to login). We don't retry internally to avoid cascading failures.",
+      "user": "U001ALICE",
+      "ts": "1736852100.000500",
+      "team": "T001ACME",
+      "blocks": [
+        { "type": "rich_text", "block_id": "blk5", "elements": [{ "type": "rich_text_section", "elements": [{ "type": "text", "text": "They get rejected with the error and the caller decides whether to retry (usually means redirect to login). We don’t retry internally to avoid cascading failures." }] }] }
+      ]
+    },
+    {
+      "client_msg_id": "kkkk-1111-llll-2222",
+      "type": "message",
+      "text": "Perfect. That's the right pattern. Added review comments for the minor things (mostly nits). LGTM overall :white_check_mark:",
+      "user": "U002BOB",
+      "ts": "1736860800.000600",
+      "team": "T001ACME",
+      "blocks": [
+        { "type": "rich_text", "block_id": "blk6", "elements": [{ "type": "rich_text_section", "elements": [{ "type": "text", "text": "Perfect. That’s the right pattern. Added review comments for the minor things (mostly nits). LGTM overall :white_check_mark:" }] }] }
+      ],
+      "reactions": [{ "name": "rocket", "users": ["U001ALICE", "U003CAROL", "U004DAN"], "count": 3 }]
+    },
+    {
+      "client_msg_id": "mmmm-3333-nnnn-4444",
+      "type": "message",
+      "text": "CI is green. Addressed bob's nits. @carol-pm this unblocks the SSO work in PLAT-2850.",
+      "user": "U001ALICE",
+      "ts": "1736866200.000700",
+      "team": "T001ACME",
+      "blocks": [
+        { "type": "rich_text", "block_id": "blk7", "elements": [{ "type": "rich_text_section", "elements": [{ "type": "text", "text": "CI is green. Addressed bob’s nits. " }, { "type": "user", "user_id": "U003CAROL" }, { "type": "text", "text": " this unblocks the SSO work in PLAT-2850." }] }] }
+      ]
+    },
+    {
+      "client_msg_id": "oooo-5555-pppp-6666",
+      "type": "message",
+      "text": "Great! I'll merge once @bob-security approves.",
+      "user": "U003CAROL",
+      "ts": "1736868000.000800",
+      "team": "T001ACME",
+      "blocks": [
+        { "type": "rich_text", "block_id": "blk8", "elements": [{ "type": "rich_text_section", "elements": [{ "type": "text", "text": "Great! I’ll merge once " }, { "type": "user", "user_id": "U002BOB" }, { "type": "text", "text": " approves." }] }] }
+      ]
+    },
+    {
+      "client_msg_id": "qqqq-7777-rrrr-8888",
+      "type": "message",
+      "text": "Approved! :white_check_mark: Nice clean implementation.",
+      "user": "U002BOB",
+      "ts": "1736870400.000900",
+      "team": "T001ACME",
+      "blocks": [
+        { "type": "rich_text", "block_id": "blk9", "elements": [{ "type": "rich_text_section", "elements": [{ "type": "text", "text": "Approved! :white_check_mark: Nice clean implementation." }] }] }
+      ],
+      "reactions": [{ "name": "tada", "users": ["U001ALICE", "U003CAROL", "U004DAN", "U005EVE"], "count": 4 }]
+    }
+  ],
+  "has_more": false,
+  "pin_count": 0,
+  "channel_actions_ts": null,
+  "channel_actions_count": 0,
+  "response_metadata": {
+    "next_cursor": ""
+  }
+}

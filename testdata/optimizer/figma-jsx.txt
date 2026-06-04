@@ -1,0 +1,298 @@
+const imgLine1 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+const imgLine2 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+const imgDivider1 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAABkCAYAAAAhbVOBAAAANElEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+const imgLine3 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVQI12NgYGD4DwABBAEAwaHEbgAAAABJRU5ErkJggg==";
+
+export default function PricingPage() {
+  return (
+    <div
+      data-node-id="2:1"
+      style={{
+        backgroundColor: "var(--semantic-bg-surface-default, #0a0a0f)",
+        fontFamily: "var(--font-family-sans, 'Inter', system-ui, sans-serif)",
+        minHeight: "100svh",
+        overflowX: "hidden",
+        color: "var(--semantic-text-primary, #f0f0f5)",
+      }}
+    >
+      {/* Announcement banner */}
+      <div
+        data-node-id="2:2"
+        style={{
+          backgroundColor: "var(--semantic-bg-accent-subtle, #1a1a2e)",
+          borderBottom: "1px solid var(--semantic-border-subtle, #2a2a3e)",
+          padding: "var(--spacing-3, 12px) var(--spacing-6, 24px)",
+          textAlign: "center",
+          fontSize: "var(--text-sm, 14px)",
+          color: "var(--semantic-text-secondary, #a0a0b8)",
+        }}
+      >
+        <span data-node-id="2:3">🎉 Early access pricing — </span>
+        <a
+          data-node-id="2:4"
+          href="#"
+          style={{ color: "var(--semantic-color-accent, #f4811f)", textDecoration: "underline" }}
+        >
+          lock in your rate before launch
+        </a>
+      </div>
+
+      {/* Hero */}
+      <section
+        data-node-id="2:10"
+        style={{
+          padding: "var(--spacing-20, 80px) var(--spacing-6, 24px) var(--spacing-16, 64px)",
+          textAlign: "center",
+          maxWidth: "var(--container-md, 720px)",
+          margin: "0 auto",
+        }}
+      >
+        <h1
+          data-node-id="2:11"
+          style={{
+            fontSize: "var(--text-5xl, 52px)",
+            fontWeight: "var(--font-weight-bold, 700)",
+            lineHeight: "var(--leading-tight, 1.1)",
+            letterSpacing: "var(--tracking-tight, -0.02em)",
+            color: "var(--semantic-text-primary, #f0f0f5)",
+            margin: 0,
+          }}
+        >
+          Simple, transparent pricing
+        </h1>
+        <p
+          data-node-id="2:12"
+          style={{
+            marginTop: "var(--spacing-4, 16px)",
+            fontSize: "var(--text-lg, 18px)",
+            color: "var(--semantic-text-secondary, #a0a0b8)",
+            lineHeight: "var(--leading-relaxed, 1.6)",
+          }}
+        >
+          Start free, upgrade when you need more. No surprise bills.
+        </p>
+        <img
+          data-node-id="2:13"
+          src={imgLine1}
+          style={{ display: "block", width: "var(--container-xs, 320px)", margin: "var(--spacing-8, 32px) auto 0", height: "1px" }}
+          alt=""
+        />
+      </section>
+
+      {/* Billing toggle */}
+      <div
+        data-node-id="2:20"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "var(--spacing-3, 12px)",
+          marginBottom: "var(--spacing-10, 40px)",
+        }}
+      >
+        <div
+          data-node-id="2:21"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--spacing-1, 4px)",
+            backgroundColor: "var(--semantic-bg-surface-raised, #16161e)",
+            border: "1px solid var(--semantic-border-default, #2a2a3e)",
+            borderRadius: "var(--radius-full, 9999px)",
+            padding: "var(--spacing-1, 4px)",
+          }}
+        >
+          <button
+            data-node-id="2:22"
+            style={{
+              borderRadius: "var(--radius-full, 9999px)",
+              padding: "var(--spacing-1-5, 6px) var(--spacing-4, 16px)",
+              fontSize: "var(--text-sm, 14px)",
+              fontWeight: "var(--font-weight-medium, 500)",
+              backgroundColor: "var(--semantic-bg-surface-default, #0a0a0f)",
+              color: "var(--semantic-text-primary, #f0f0f5)",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Monthly
+          </button>
+          <button
+            data-node-id="2:23"
+            style={{
+              borderRadius: "var(--radius-full, 9999px)",
+              padding: "var(--spacing-1-5, 6px) var(--spacing-4, 16px)",
+              fontSize: "var(--text-sm, 14px)",
+              fontWeight: "var(--font-weight-medium, 500)",
+              color: "var(--semantic-text-tertiary, #606078)",
+              border: "none",
+              cursor: "pointer",
+              backgroundColor: "transparent",
+            }}
+          >
+            Annual <span style={{ fontSize: "var(--text-xs, 12px)", color: "var(--semantic-color-success, #22c55e)", fontWeight: "var(--font-weight-semibold, 600)" }}>Save ~20%</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Pricing cards grid */}
+      <div
+        data-node-id="2:30"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: "var(--spacing-6, 24px)",
+          maxWidth: "var(--container-xl, 1200px)",
+          margin: "0 auto",
+          padding: "0 var(--spacing-6, 24px)",
+        }}
+      >
+
+        {/* Free card */}
+        <div
+          data-node-id="2:40"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--spacing-4, 16px)",
+            borderRadius: "var(--radius-lg, 12px)",
+            border: "1px solid var(--semantic-border-default, #2a2a3e)",
+            backgroundColor: "var(--semantic-bg-surface-raised, #16161e)",
+            padding: "var(--spacing-6, 24px)",
+          }}
+        >
+          <div data-node-id="2:41">
+            <p data-node-id="2:42" style={{ fontSize: "var(--text-sm, 14px)", fontWeight: "var(--font-weight-medium, 500)", color: "var(--semantic-text-tertiary, #606078)", margin: 0 }}>Free</p>
+            <p data-node-id="2:43" style={{ fontSize: "var(--text-4xl, 40px)", fontWeight: "var(--font-weight-bold, 700)", color: "var(--semantic-text-primary, #f0f0f5)", margin: "var(--spacing-1, 4px) 0 0" }}>$0</p>
+            <p data-node-id="2:44" style={{ fontSize: "var(--text-sm, 14px)", color: "var(--semantic-text-tertiary, #606078)", margin: 0 }}>/month</p>
+          </div>
+          <img data-node-id="2:45" src={imgLine2} style={{ width: "100%", height: "1px" }} alt="" />
+          <ul data-node-id="2:46" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "var(--spacing-2, 8px)", fontSize: "var(--text-sm, 14px)", color: "var(--semantic-text-secondary, #a0a0b8)" }}>
+            <li data-node-id="2:47">✓ Claude Code hook</li>
+            <li data-node-id="2:48">✓ Local CLI</li>
+            <li data-node-id="2:49">✓ 4 local optimizers</li>
+            <li data-node-id="2:50">✓ 500 remote requests/mo</li>
+            <li data-node-id="2:51">✓ Basic token savings stats</li>
+          </ul>
+          <a data-node-id="2:52" href="/login?plan=free" style={{ marginTop: "auto", display: "inline-flex", height: "var(--size-10, 40px)", alignItems: "center", justifyContent: "center", borderRadius: "var(--radius-full, 9999px)", border: "1px solid var(--semantic-border-default, #2a2a3e)", padding: "0 var(--spacing-4, 16px)", fontSize: "var(--text-sm, 14px)", fontWeight: "var(--font-weight-semibold, 600)", color: "var(--semantic-text-primary, #f0f0f5)", textDecoration: "none" }}>
+            Get started free
+          </a>
+        </div>
+
+        {/* Dev card — most popular */}
+        <div
+          data-node-id="2:60"
+          style={{
+            position: "relative",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--spacing-4, 16px)",
+            borderRadius: "var(--radius-lg, 12px)",
+            border: "2px solid var(--semantic-color-accent, #f4811f)",
+            backgroundColor: "var(--semantic-bg-surface-raised, #16161e)",
+            padding: "var(--spacing-6, 24px)",
+          }}
+        >
+          <span data-node-id="2:61" style={{ position: "absolute", top: "calc(var(--spacing-3, 12px) * -1)", left: "50%", transform: "translateX(-50%)", borderRadius: "var(--radius-full, 9999px)", backgroundColor: "var(--semantic-color-accent, #f4811f)", padding: "var(--spacing-0-5, 2px) var(--spacing-3, 12px)", fontSize: "var(--text-xs, 12px)", fontWeight: "var(--font-weight-semibold, 600)", color: "white", whiteSpace: "nowrap" }}>Most popular</span>
+          <div data-node-id="2:62">
+            <p data-node-id="2:63" style={{ fontSize: "var(--text-sm, 14px)", fontWeight: "var(--font-weight-medium, 500)", color: "var(--semantic-text-tertiary, #606078)", margin: 0 }}>Dev</p>
+            <p data-node-id="2:64" style={{ fontSize: "var(--text-4xl, 40px)", fontWeight: "var(--font-weight-bold, 700)", color: "var(--semantic-text-primary, #f0f0f5)", margin: "var(--spacing-1, 4px) 0 0" }}>$10</p>
+            <p data-node-id="2:65" style={{ fontSize: "var(--text-sm, 14px)", color: "var(--semantic-text-tertiary, #606078)", margin: 0 }}>/month</p>
+          </div>
+          <img data-node-id="2:66" src={imgLine3} style={{ width: "100%", height: "1px" }} alt="" />
+          <ul data-node-id="2:67" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "var(--spacing-2, 8px)", fontSize: "var(--text-sm, 14px)", color: "var(--semantic-text-secondary, #a0a0b8)" }}>
+            <li data-node-id="2:68">✓ Everything in Free</li>
+            <li data-node-id="2:69">✓ 5,000 remote requests/mo</li>
+            <li data-node-id="2:70">✓ 13 source-specific optimizers</li>
+            <li data-node-id="2:71">✓ Remote optimizer updates</li>
+            <li data-node-id="2:72">✓ Optimization history</li>
+          </ul>
+          <a data-node-id="2:73" href="/login?plan=dev" style={{ marginTop: "auto", display: "inline-flex", height: "var(--size-10, 40px)", alignItems: "center", justifyContent: "center", borderRadius: "var(--radius-full, 9999px)", backgroundColor: "var(--semantic-color-accent, #f4811f)", padding: "0 var(--spacing-4, 16px)", fontSize: "var(--text-sm, 14px)", fontWeight: "var(--font-weight-semibold, 600)", color: "white", textDecoration: "none" }}>
+            Start Dev plan
+          </a>
+        </div>
+
+        {/* Pro card */}
+        <div
+          data-node-id="2:80"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--spacing-4, 16px)",
+            borderRadius: "var(--radius-lg, 12px)",
+            border: "1px solid var(--semantic-border-default, #2a2a3e)",
+            backgroundColor: "var(--semantic-bg-surface-raised, #16161e)",
+            padding: "var(--spacing-6, 24px)",
+          }}
+        >
+          <div data-node-id="2:81" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--spacing-2, 8px)" }}>
+            <p data-node-id="2:82" style={{ fontSize: "var(--text-sm, 14px)", fontWeight: "var(--font-weight-medium, 500)", color: "var(--semantic-text-tertiary, #606078)", margin: 0 }}>Pro</p>
+            <span data-node-id="2:83" style={{ borderRadius: "var(--radius-full, 9999px)", backgroundColor: "var(--semantic-bg-surface-default, #0a0a0f)", padding: "var(--spacing-0-5, 2px) var(--spacing-2, 8px)", fontSize: "var(--text-xs, 12px)", fontWeight: "var(--font-weight-medium, 500)", color: "var(--semantic-text-tertiary, #606078)", whiteSpace: "nowrap" }}>Heavy sessions</span>
+          </div>
+          <div data-node-id="2:84">
+            <p data-node-id="2:85" style={{ fontSize: "var(--text-4xl, 40px)", fontWeight: "var(--font-weight-bold, 700)", color: "var(--semantic-text-primary, #f0f0f5)", margin: "var(--spacing-1, 4px) 0 0" }}>$20</p>
+            <p data-node-id="2:86" style={{ fontSize: "var(--text-sm, 14px)", color: "var(--semantic-text-tertiary, #606078)", margin: 0 }}>/month</p>
+          </div>
+          <img data-node-id="2:87" src={imgLine1} style={{ width: "100%", height: "1px" }} alt="" />
+          <ul data-node-id="2:88" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "var(--spacing-2, 8px)", fontSize: "var(--text-sm, 14px)", color: "var(--semantic-text-secondary, #a0a0b8)" }}>
+            <li data-node-id="2:89">✓ Everything in Dev</li>
+            <li data-node-id="2:90">✓ Unlimited fair-use remote requests</li>
+            <li data-node-id="2:91">✓ Session Memory Guard</li>
+            <li data-node-id="2:92">✓ PreCompact context optimizer</li>
+            <li data-node-id="2:93">✓ Priority optimizer updates</li>
+          </ul>
+          <a data-node-id="2:94" href="/login?plan=pro" style={{ marginTop: "auto", display: "inline-flex", height: "var(--size-10, 40px)", alignItems: "center", justifyContent: "center", borderRadius: "var(--radius-full, 9999px)", backgroundColor: "var(--semantic-color-accent, #f4811f)", padding: "0 var(--spacing-4, 16px)", fontSize: "var(--text-sm, 14px)", fontWeight: "var(--font-weight-semibold, 600)", color: "white", textDecoration: "none" }}>
+            Go Pro
+          </a>
+        </div>
+
+        {/* Enterprise card */}
+        <div
+          data-node-id="2:100"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--spacing-4, 16px)",
+            borderRadius: "var(--radius-lg, 12px)",
+            border: "1px solid var(--semantic-border-default, #2a2a3e)",
+            backgroundColor: "var(--semantic-bg-surface-raised, #16161e)",
+            padding: "var(--spacing-6, 24px)",
+          }}
+        >
+          <div data-node-id="2:101">
+            <p data-node-id="2:102" style={{ fontSize: "var(--text-sm, 14px)", fontWeight: "var(--font-weight-medium, 500)", color: "var(--semantic-text-tertiary, #606078)", margin: 0 }}>Enterprise</p>
+            <p data-node-id="2:103" style={{ fontSize: "var(--text-4xl, 40px)", fontWeight: "var(--font-weight-bold, 700)", color: "var(--semantic-text-primary, #f0f0f5)", margin: "var(--spacing-1, 4px) 0 0" }}>Custom</p>
+            <p data-node-id="2:104" style={{ fontSize: "var(--text-sm, 14px)", color: "transparent", margin: 0 }}>&nbsp;</p>
+          </div>
+          <img data-node-id="2:105" src={imgDivider1} style={{ width: "100%", height: "1px" }} alt="" />
+          <ul data-node-id="2:106" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "var(--spacing-2, 8px)", fontSize: "var(--text-sm, 14px)", color: "var(--semantic-text-secondary, #a0a0b8)" }}>
+            <li data-node-id="2:107">✓ Self-hosted deployment</li>
+            <li data-node-id="2:108">✓ Team policy controls</li>
+            <li data-node-id="2:109">✓ Custom optimizers</li>
+            <li data-node-id="2:110">✓ SSO / SAML</li>
+            <li data-node-id="2:111">✓ Priority support</li>
+          </ul>
+          <a data-node-id="2:112" href="mailto:hello@confire.dev" style={{ marginTop: "auto", display: "inline-flex", height: "var(--size-10, 40px)", alignItems: "center", justifyContent: "center", borderRadius: "var(--radius-full, 9999px)", border: "1px solid var(--semantic-border-default, #2a2a3e)", padding: "0 var(--spacing-4, 16px)", fontSize: "var(--text-sm, 14px)", fontWeight: "var(--font-weight-semibold, 600)", color: "var(--semantic-text-primary, #f0f0f5)", textDecoration: "none" }}>
+            Contact us
+          </a>
+        </div>
+
+      </div>
+
+      {/* Footer note */}
+      <p
+        data-node-id="2:120"
+        style={{
+          textAlign: "center",
+          fontSize: "var(--text-xs, 12px)",
+          color: "var(--semantic-text-tertiary, #606078)",
+          marginTop: "var(--spacing-12, 48px)",
+          padding: "0 var(--spacing-6, 24px) var(--spacing-16, 64px)",
+        }}
+      >
+        *Unlimited fair-use — monthly token cap and per-minute rate limits apply.
+      </p>
+      <img data-node-id="2:121" src={imgLine2} style={{ display: "block", width: "100%" }} alt="" />
+    </div>
+  )
+}

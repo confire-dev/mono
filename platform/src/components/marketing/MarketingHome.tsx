@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { createBrowserClient } from '@/lib/supabase'
 import {
   BodySm,
   BentoGrid,
@@ -803,6 +804,59 @@ const PLANS = [
 ]
 
 function Pricing() {
+  const [ctaLoading, setCtaLoading] = useState<string | null>(null)
+
+  async function handlePlanCta(planSlug: string) {
+    if (planSlug === 'free') {
+      window.location.href = '/login'
+      return
+    }
+    if (planSlug === 'team') {
+      window.location.href = 'mailto:team@confire.dev'
+      return
+    }
+
+    setCtaLoading(planSlug)
+    try {
+      const supabase = createBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        window.location.href = `/login?plan=${encodeURIComponent(planSlug)}`
+        return
+      }
+
+      const workerBase = (import.meta as any).env?.PUBLIC_WORKER_URL ?? ''
+      const res = await fetch(`${workerBase}/api/checkout/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          planSlug,
+          interval: 'monthly',
+          successUrl: `${window.location.origin}/billing/success`,
+          cancelUrl:  `${window.location.origin}/pricing`,
+        }),
+      })
+      const data = await res.json() as { checkoutUrl?: string; redirect?: string }
+      if (data.redirect)    window.location.href = data.redirect
+      else if (data.checkoutUrl) window.location.href = data.checkoutUrl
+    } finally {
+      setCtaLoading(null)
+    }
+  }
+
+  const plansWithHandlers = PLANS.map(plan => {
+    const slug = plan.name === 'Dev' ? 'dev' : plan.name === 'Team' ? 'team' : 'free'
+    return {
+      ...plan,
+      cta: ctaLoading === slug ? 'Loading…' : plan.cta,
+      onCta: () => handlePlanCta(slug),
+    }
+  })
+
   return (
     <Section>
       <Container>
@@ -810,7 +864,7 @@ function Pricing() {
           title="Start free. Upgrade when your agent is connected to real tools."
         />
 
-        <PricingSection plans={PLANS} />
+        <PricingSection plans={plansWithHandlers} />
 
         <p className="mt-6 text-center text-xs text-confire-border-strong">
           Claude Code supports full hook-based firewall mode. Cursor and VS Code support

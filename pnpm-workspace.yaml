@@ -3,3 +3,4 @@ packages:
   - 'platform'
   - 'benchmark'
   - 'distribution'
+  - 'docs-site'

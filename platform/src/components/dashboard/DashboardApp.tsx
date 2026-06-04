@@ -13,7 +13,7 @@ import {
   ArrowSquareOut, CheckCircle, Warning, ArrowRight,
 } from '@phosphor-icons/react'
 import { useAuth } from '@/hooks/use-auth'
-import { useDashboard } from '@/hooks/use-dashboard'
+import { useDashboard, type MeData } from '@/hooks/use-dashboard'
 import { formatTokenCount } from '@/lib/types'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
@@ -317,8 +317,10 @@ function BigStatCard({ label, value, sub, accent }: { label: string; value: stri
 
 function OverviewPage({
   me, recentCalls, allCallBytes, apiKeys, firewall, canToggle, totalSavedTokens, totalCallsAllTime,
-  revokeKey, toggleFirewallGroup,
+  revokeKey, toggleFirewallGroup, onUpgrade,
 }: any) {
+  const [upgradeInterval, setUpgradeInterval] = useState<'monthly' | 'annual'>('monthly')
+
   // context reduction from byte data
   const totalRaw = allCallBytes.reduce((s: number, c: any) => s + c.raw_bytes, 0)
   const totalOpt = allCallBytes.reduce((s: number, c: any) => s + c.optimized_bytes, 0)
@@ -477,13 +479,36 @@ function OverviewPage({
                   </span>
                 </div>
                 {me.plan === 'free' && (
-                  <a href="/dashboard/billing" style={{
-                    display: 'block', marginTop: 12, padding: '7px 12px', textAlign: 'center',
-                    background: 'rgba(244,129,31,0.1)', border: '1px solid rgba(244,129,31,0.3)',
-                    borderRadius: 6, fontSize: 12, fontWeight: 600, color: '#f4811f', textDecoration: 'none',
-                  }}>
-                    Upgrade to Dev →
-                  </a>
+                  <div style={{ marginTop: 12 }}>
+                    {/* interval toggle */}
+                    <div style={{ display: 'flex', gap: 2, marginBottom: 8, background: 'var(--confire-border)', borderRadius: 6, padding: 2 }}>
+                      {(['monthly', 'annual'] as const).map(iv => (
+                        <button
+                          key={iv}
+                          onClick={() => setUpgradeInterval(iv)}
+                          style={{
+                            flex: 1, padding: '4px 0', borderRadius: 4, border: 'none', cursor: 'pointer',
+                            fontSize: 11, fontWeight: 600,
+                            background: upgradeInterval === iv ? 'var(--confire-bg-card)' : 'transparent',
+                            color: upgradeInterval === iv ? '#f4811f' : 'var(--confire-text-muted)',
+                            transition: 'background 0.15s, color 0.15s',
+                          }}
+                        >
+                          {iv === 'monthly' ? '$10 / mo' : '$90 / yr'}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => onUpgrade(upgradeInterval)}
+                      style={{
+                        display: 'block', width: '100%', padding: '7px 12px', textAlign: 'center',
+                        background: 'rgba(244,129,31,0.1)', border: '1px solid rgba(244,129,31,0.3)',
+                        borderRadius: 6, fontSize: 12, fontWeight: 600, color: '#f4811f', cursor: 'pointer',
+                      }}
+                    >
+                      Upgrade to Dev {upgradeInterval === 'annual' ? '(save 20%) →' : '→'}
+                    </button>
+                  </div>
                 )}
               </div>
             </Card>
@@ -621,6 +646,336 @@ function Dashboard404({ path }: { path: string }) {
   )
 }
 
+// ── billing page ─────────────────────────────────────────────────────────────
+
+const DEV_FEATURES = [
+  '5,000 remote optimizations/month',
+  'Custom dashboard guardrails',
+  'Remote policy sync to local CLI',
+  'Optimization history',
+  'Larger input payloads',
+  'Tool-use guidance',
+  'Early access to new clients',
+]
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+export async function runCheckout(
+  workerBase: string,
+  apiKey: string,
+  planSlug: string,
+  interval: 'monthly' | 'annual',
+  cancelUrl: string,
+): Promise<{ checkoutUrl?: string; redirect?: string; error?: string; message?: string }> {
+  const res = await fetch(`${workerBase}/api/checkout/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      planSlug,
+      interval,
+      successUrl: `${window.location.origin}/billing/success`,
+      cancelUrl,
+    }),
+  })
+  return res.json()
+}
+
+function BillingPage({ me, apiKey, workerBase }: {
+  me: MeData | null
+  apiKey: string | null
+  workerBase: string
+}) {
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+  const [actionError,     setActionError]     = useState<string | null>(null)
+  const [cancelStep,      setCancelStep]      = useState<'idle' | 'confirm' | 'done'>('idle')
+  const [cancelling,      setCancelling]      = useState(false)
+  const [cancelledUntil,  setCancelledUntil]  = useState<string | null>(null)
+
+  async function startCheckout(planSlug: string, interval: 'monthly' | 'annual') {
+    if (!apiKey) { window.location.href = '/login'; return }
+    const key = `${planSlug}-${interval}`
+    setCheckoutLoading(key)
+    setActionError(null)
+    try {
+      const data = await runCheckout(workerBase, apiKey, planSlug, interval, `${window.location.origin}/dashboard/billing`)
+      if (data.redirect)         window.location.href = data.redirect
+      else if (data.checkoutUrl) window.location.href = data.checkoutUrl
+      else setActionError(data.message ?? data.error ?? 'Checkout failed — please try again.')
+    } catch {
+      setActionError('Network error — please try again.')
+    } finally {
+      setCheckoutLoading(null)
+    }
+  }
+
+  async function confirmCancel() {
+    if (!apiKey) return
+    setCancelling(true)
+    setActionError(null)
+    try {
+      const res  = await fetch(`${workerBase}/api/subscription/cancel`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      })
+      const data = await res.json() as { ok?: boolean; periodEnd?: string; error?: string; message?: string }
+      if (!res.ok || !data.ok) {
+        setActionError(data.message ?? data.error ?? 'Cancel failed — please try again.')
+        setCancelStep('idle')
+        return
+      }
+      setCancelledUntil(data.periodEnd ?? null)
+      setCancelStep('done')
+    } catch {
+      setActionError('Network error — please try again.')
+      setCancelStep('idle')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  const isFree        = !me || me.plan === 'free'
+  const isAnnual      = me?.plan?.includes('annual') ?? false
+  const usedPct       = me ? Math.min(100, Math.round((me.used / me.effectiveLimit) * 100)) : 0
+  const isPendingCancel = me?.cancelAtPeriodEnd || cancelStep === 'done'
+  const periodEndLabel  = cancelledUntil ?? me?.periodEnd ?? null
+  const canCancel       = !isFree && me
+    && (me.subscriptionStatus === 'active' || me.subscriptionStatus === 'trialing')
+    && !isPendingCancel
+
+  const rowStyle = (last?: boolean): React.CSSProperties => ({
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '10px 20px',
+    borderBottom: last ? undefined : '1px solid var(--confire-border)',
+    fontSize: 13,
+  })
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, marginBottom: 4 }}>Billing</h1>
+        <p style={{ fontSize: 13, color: 'var(--confire-text-dim)', margin: 0 }}>
+          Plan, usage, and upgrade options
+        </p>
+      </div>
+
+      {actionError && (
+        <div style={{
+          background: '#3b1c1c', border: '1px solid #6b2d2d', borderRadius: 8,
+          padding: '12px 16px', fontSize: 13, color: '#f87171',
+        }}>
+          {actionError}
+        </div>
+      )}
+
+      {/* Current plan */}
+      <Card>
+        <CardHeader title="Current plan" />
+        {me ? (
+          <>
+            <div style={rowStyle()}>
+              <span style={{ color: 'var(--confire-text-dim)' }}>Plan</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontWeight: 600 }}>{me.planName}</span>
+                {isAnnual && <span style={{ fontSize: 11, color: 'var(--confire-text-muted)' }}>annual</span>}
+                <PlanBadge plan={me.plan} />
+                {isPendingCancel && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+                    background: 'rgba(251,191,36,0.12)', color: '#fbbf24',
+                    border: '1px solid rgba(251,191,36,0.3)', letterSpacing: '0.06em', textTransform: 'uppercase',
+                  }}>Cancels at period end</span>
+                )}
+              </div>
+            </div>
+            <div style={rowStyle()}>
+              <span style={{ color: 'var(--confire-text-dim)' }}>Status</span>
+              <span style={{
+                fontWeight: 600,
+                color: me.subscriptionStatus === 'active'   ? '#4ade80' :
+                       me.subscriptionStatus === 'trialing' ? '#60a5fa' :
+                       'var(--confire-text-muted)',
+              }}>
+                {me.subscriptionStatus === 'none' ? 'free tier' : me.subscriptionStatus}
+              </span>
+            </div>
+            {periodEndLabel && (
+              <div style={rowStyle(true)}>
+                <span style={{ color: 'var(--confire-text-dim)' }}>
+                  {isPendingCancel ? 'Access until' : isAnnual ? 'Renews' : 'Next billing date'}
+                </span>
+                <span style={{ fontWeight: 600, color: isPendingCancel ? '#fbbf24' : undefined }}>
+                  {fmtDate(periodEndLabel)}
+                </span>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ padding: '14px 20px', fontSize: 13, color: 'var(--confire-text-muted)' }}>Loading…</div>
+        )}
+      </Card>
+
+      {/* Usage */}
+      {me && (
+        <Card>
+          <CardHeader title="Usage this period" />
+          <div style={{ padding: '14px 20px 18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
+              <span style={{ color: 'var(--confire-text-dim)' }}>Remote optimizations</span>
+              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                {me.used.toLocaleString()} / {me.effectiveLimit.toLocaleString()}
+              </span>
+            </div>
+            <div style={{ height: 6, background: 'var(--confire-border)', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{
+                height: '100%', width: `${usedPct}%`,
+                background: usedPct >= 80 ? '#f87171' : '#f4811f',
+                borderRadius: 3, transition: 'width 0.3s',
+              }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--confire-text-muted)' }}>
+              <span>{usedPct}% used</span>
+              {me.purchasedCredits > 0 && (
+                <span>+{me.purchasedCredits.toLocaleString()} purchased credits</span>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Upgrade (free plan) */}
+      {isFree && (
+        <Card>
+          <CardHeader title="Upgrade to Dev — $10 / month" />
+          <div style={{ padding: '16px 20px 20px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px', marginBottom: 18 }}>
+              {DEV_FEATURES.map(f => (
+                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--confire-text-dim)' }}>
+                  <CheckCircle size={13} color="#4ade80" weight="fill" />
+                  {f}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => startCheckout('dev', 'monthly')}
+                disabled={!!checkoutLoading}
+                style={{
+                  padding: '9px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                  background: '#f4811f', color: '#fff', border: 'none', cursor: 'pointer',
+                  opacity: checkoutLoading === 'dev-monthly' ? 0.7 : 1,
+                }}
+              >
+                {checkoutLoading === 'dev-monthly' ? 'Loading…' : 'Dev — $10 / month'}
+              </button>
+              <button
+                onClick={() => startCheckout('dev_annual', 'annual')}
+                disabled={!!checkoutLoading}
+                style={{
+                  padding: '9px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                  background: 'transparent', color: '#f4811f',
+                  border: '1px solid rgba(244,129,31,0.4)', cursor: 'pointer',
+                  opacity: checkoutLoading === 'dev_annual-annual' ? 0.7 : 1,
+                }}
+              >
+                {checkoutLoading === 'dev_annual-annual' ? 'Loading…' : 'Dev Annual — $90 / year'}
+              </button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Subscription management (paid plans) */}
+      {!isFree && me && (
+        <Card>
+          <CardHeader title="Subscription" />
+          <div style={{ padding: '14px 20px' }}>
+            {cancelStep === 'done' ? (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13 }}>
+                <Warning size={16} color="#fbbf24" weight="fill" style={{ flexShrink: 0, marginTop: 1 }} />
+                <span style={{ color: 'var(--confire-text-dim)', lineHeight: 1.6 }}>
+                  Your subscription has been cancelled.
+                  {cancelledUntil && (
+                    <> You have full access until <strong style={{ color: 'var(--confire-text)' }}>{fmtDate(cancelledUntil)}</strong>.</>
+                  )}
+                </span>
+              </div>
+            ) : isPendingCancel && periodEndLabel ? (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13 }}>
+                <Warning size={16} color="#fbbf24" weight="fill" style={{ flexShrink: 0, marginTop: 1 }} />
+                <span style={{ color: 'var(--confire-text-dim)', lineHeight: 1.6 }}>
+                  Your subscription is scheduled to cancel. You have full access until{' '}
+                  <strong style={{ color: 'var(--confire-text)' }}>{fmtDate(periodEndLabel)}</strong>.
+                </span>
+              </div>
+            ) : cancelStep === 'confirm' ? (
+              <div>
+                <p style={{ fontSize: 13, color: 'var(--confire-text-dim)', margin: '0 0 14px', lineHeight: 1.6 }}>
+                  Cancel your subscription?{periodEndLabel && (
+                    <> You'll keep full access until <strong style={{ color: 'var(--confire-text)' }}>{fmtDate(periodEndLabel)}</strong>. No refund is issued for the remaining period.</>
+                  )}
+                </p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={confirmCancel}
+                    disabled={cancelling}
+                    style={{
+                      padding: '7px 18px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                      background: '#f87171', color: '#fff', border: 'none', cursor: 'pointer',
+                      opacity: cancelling ? 0.7 : 1,
+                    }}
+                  >
+                    {cancelling ? 'Cancelling…' : 'Yes, cancel subscription'}
+                  </button>
+                  <button
+                    onClick={() => setCancelStep('idle')}
+                    style={{
+                      padding: '7px 18px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                      background: 'transparent', color: 'var(--confire-text-dim)',
+                      border: '1px solid var(--confire-border)', cursor: 'pointer',
+                    }}
+                  >
+                    Keep subscription
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  {me.subscriptionStatus === 'active' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#4ade80', marginBottom: periodEndLabel ? 4 : 0 }}>
+                      <CheckCircle size={13} weight="fill" />
+                      Subscription active
+                    </div>
+                  )}
+                  {periodEndLabel && (
+                    <div style={{ fontSize: 12, color: 'var(--confire-text-muted)' }}>
+                      Renews {fmtDate(periodEndLabel)}
+                    </div>
+                  )}
+                </div>
+                {canCancel && (
+                  <button
+                    onClick={() => setCancelStep('confirm')}
+                    style={{
+                      padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                      background: 'transparent', color: '#f87171',
+                      border: '1px solid rgba(248,113,113,0.3)', cursor: 'pointer',
+                    }}
+                  >
+                    Cancel subscription
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+    </div>
+  )
+}
+
 // ── stub pages ────────────────────────────────────────────────────────────────
 
 function StubPage({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon: React.ElementType }) {
@@ -676,6 +1031,19 @@ function Dashboard() {
 
   const canToggle = !!(me?.features?.firewallGroupToggles)
 
+  async function handleUpgrade(interval: 'monthly' | 'annual' = 'monthly') {
+    if (!apiKey) { window.location.href = '/login'; return }
+    const planSlug = interval === 'annual' ? 'dev_annual' : 'dev'
+    try {
+      const data = await runCheckout(workerBase, apiKey, planSlug, interval, `${window.location.origin}/dashboard/billing`)
+      if (data.redirect)         window.location.href = data.redirect
+      else if (data.checkoutUrl) window.location.href = data.checkoutUrl
+      else navigate('/dashboard/billing')
+    } catch {
+      navigate('/dashboard/billing')
+    }
+  }
+
   // page title for topbar
   const pageLabel: Record<string, string> = {
     '/dashboard': 'Overview',
@@ -728,6 +1096,7 @@ function Dashboard() {
                 apiKeys={apiKeys} firewall={firewall} canToggle={canToggle}
                 totalSavedTokens={totalSavedTokens} totalCallsAllTime={totalCallsAllTime}
                 revokeKey={revokeKey} toggleFirewallGroup={toggleFirewallGroup}
+                onUpgrade={handleUpgrade}
               />
             )}
             {currentPath.startsWith('/dashboard/activity') && (
@@ -743,7 +1112,7 @@ function Dashboard() {
               <StubPage title="Setup" subtitle="Install, configure, and verify Confire on your machine" icon={Terminal} />
             )}
             {currentPath.startsWith('/dashboard/billing') && (
-              <StubPage title="Billing" subtitle="Plan, usage, and upgrade options" icon={CreditCard} />
+              <BillingPage me={me} apiKey={apiKey} workerBase={workerBase} />
             )}
             {currentPath.startsWith('/dashboard/settings') && (
               <StubPage title="Settings" subtitle="Account preferences, telemetry, and API keys" icon={GearSix} />

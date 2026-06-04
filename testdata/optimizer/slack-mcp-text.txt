@@ -1,0 +1,54 @@
+=== THREAD in #platform-dev ===
+Started by: Alice Dev (U001ALICE)
+
+From: Alice Dev (U001ALICE)
+Message TS: 1736844000.000100
+Reactions: eyes (2), white_check_mark (1)
+Replies: 8
+
+Hey team — OAuth PR is up for review! PLAT#4521. Would appreciate a security review from <@U002BOB|bob-security> before we merge.
+
+--- Reply by Bob Security (U002BOB)
+Message TS: 1736847600.000200
+Reactions: thumbsup (1)
+
+On it! Will review this afternoon. Quick question: are we storing the PKCE code verifier server-side or client-side?
+
+--- Reply by Alice Dev (U001ALICE)
+Message TS: 1736849400.000300
+
+Client-side in sessionStorage — it's generated fresh per auth attempt and deleted after exchange. Server never sees the verifier, only the code challenge (which is public anyway).
+
+--- Reply by Bob Security (U002BOB)
+Message TS: 1736851200.000400
+
+Smart. sessionStorage is scoped to the tab/window so it can't leak across tabs. Good call.
+
+One concern: the token refresh mutex — if the first refresh fails, do queued requests get unblocked with an error or do they retry?
+
+--- Reply by Alice Dev (U001ALICE)
+Message TS: 1736852100.000500
+
+They get rejected with the error and the caller decides whether to retry (usually means redirect to login). We don't retry internally to avoid cascading failures.
+
+--- Reply by Bob Security (U002BOB)
+Message TS: 1736860800.000600
+Reactions: rocket (3)
+
+Perfect. That's the right pattern. Added review comments for the minor things (mostly nits). LGTM overall :white_check_mark:
+
+--- Reply by Alice Dev (U001ALICE)
+Message TS: 1736866200.000700
+
+CI is green. Addressed bob's nits. <@U003CAROL|carol-pm> this unblocks the SSO work in PLAT-2850.
+
+--- Reply by Carol PM (U003CAROL)
+Message TS: 1736868000.000800
+
+Great! I'll merge once <@U002BOB|bob-security> approves.
+
+--- Reply by Bob Security (U002BOB)
+Message TS: 1736870400.000900
+Reactions: tada (4)
+
+Approved! :white_check_mark: Nice clean implementation.

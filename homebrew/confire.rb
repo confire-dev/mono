@@ -13,7 +13,7 @@
 class Confire < Formula
   desc "Deterministic client-side policy evaluation for AI systems"
   homepage "https://confire.dev"
-  version "0.9.4"
+  version "0.12.0"
   license :cannot_represent
 
   on_macos do
