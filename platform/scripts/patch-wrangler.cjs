@@ -12,6 +12,10 @@ if (!fs.existsSync(wranglerPath)) {
 }
 
 const config = JSON.parse(fs.readFileSync(wranglerPath, 'utf8'))
-delete config.assets
+if (config.assets?.binding) {
+  delete config.assets.binding
+  console.log('patch-wrangler: removed reserved ASSETS binding name (kept directory for Pages)')
+} else {
+  console.log('patch-wrangler: no ASSETS binding found, nothing to patch')
+}
 fs.writeFileSync(wranglerPath, JSON.stringify(config, null, 2))
-console.log('patch-wrangler: removed reserved ASSETS binding for Pages compatibility')
