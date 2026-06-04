@@ -1,6 +1,10 @@
-// Removes the ASSETS binding from the Astro-generated dist/server/wrangler.json.
-// Cloudflare Pages reserves the name "ASSETS" and provides it automatically at
-// runtime — declaring it explicitly causes a deploy error.
+// Removes the ASSETS binding name from the Astro-generated dist/server/wrangler.json.
+// Cloudflare Pages reserves "ASSETS" and injects it automatically at runtime.
+// The @astrojs/cloudflare adapter unconditionally adds { binding: 'ASSETS' } in
+// cloudflareConfigCustomizer() (packages/integrations/cloudflare/src/wrangler.ts:54-59)
+// without checking for Pages projects (pages_build_output_dir). This is a known
+// upstream bug — remove this script once the adapter fix is released and the
+// package is updated.
 const fs = require('fs')
 const path = require('path')
 
