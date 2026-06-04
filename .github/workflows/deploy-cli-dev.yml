@@ -83,7 +83,7 @@ jobs:
           for FILE in "${DIST}"/confire_*.tar.gz "${DIST}/checksums.txt"; do
             BASENAME="$(basename "${FILE}")"
             echo "Uploading dev/releases/${VERSION}/${BASENAME}..."
-            pnpm exec wrangler r2 object put \
+            pnpm exec wrangler r2 object put --remote \
               "${BUCKET}/dev/releases/${VERSION}/${BASENAME}" \
               --file "${FILE}"
           done
