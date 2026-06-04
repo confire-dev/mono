@@ -1,0 +1,176 @@
+{
+  "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+  "id": "10042",
+  "self": "https://acme.atlassian.net/rest/api/3/issue/10042",
+  "key": "PLAT-2891",
+  "renderedFields": {
+    "description": "<p>Implement OAuth 2.0 PKCE authentication flow for the platform.</p>",
+    "created": "3 days ago",
+    "updated": "1 hour ago"
+  },
+  "names": {
+    "summary": "Summary",
+    "issuetype": "Issue Type",
+    "assignee": "Assignee",
+    "reporter": "Reporter"
+  },
+  "schema": {
+    "summary": { "type": "string", "system": "summary" },
+    "description": { "type": "doc", "system": "description" }
+  },
+  "operations": {
+    "linkGroups": [
+      { "id": "view", "links": [{ "id": "viewissue", "label": "View issue", "href": "/browse/PLAT-2891", "iconClass": "aui-icon" }] }
+    ]
+  },
+  "editmeta": {
+    "fields": {
+      "summary": { "required": true, "allowedValues": [], "operations": ["set"] },
+      "description": { "required": false, "allowedValues": [], "operations": ["set"] }
+    }
+  },
+  "fields": {
+    "summary": "feat: implement OAuth 2.0 PKCE authentication",
+    "issuetype": {
+      "self": "https://acme.atlassian.net/rest/api/3/issuetype/10001",
+      "id": "10001",
+      "description": "A problem which impairs or prevents the functions of the product.",
+      "iconUrl": "https://acme.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10303",
+      "name": "Story",
+      "subtask": false,
+      "avatarId": 10303,
+      "hierarchyLevel": 0
+    },
+    "project": {
+      "self": "https://acme.atlassian.net/rest/api/3/project/10000",
+      "id": "10000",
+      "key": "PLAT",
+      "name": "Platform",
+      "projectTypeKey": "software",
+      "simplified": false,
+      "avatarUrls": {
+        "48x48": "https://acme.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10000?size=xlarge",
+        "24x24": "https://acme.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10000?size=small",
+        "16x16": "https://acme.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10000?size=xsmall",
+        "32x32": "https://acme.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10000?size=medium"
+      }
+    },
+    "resolution": null,
+    "watches": {
+      "self": "https://acme.atlassian.net/rest/api/3/issue/PLAT-2891/watchers",
+      "watchCount": 3,
+      "isWatching": false
+    },
+    "priority": {
+      "self": "https://acme.atlassian.net/rest/api/3/priority/2",
+      "iconUrl": "https://acme.atlassian.net/images/icons/priorities/high.svg",
+      "name": "High",
+      "id": "2"
+    },
+    "labels": ["auth", "security", "sprint-34"],
+    "assignee": {
+      "self": "https://acme.atlassian.net/rest/api/3/user?accountId=abc123",
+      "accountId": "abc123",
+      "emailAddress": "alice@acme.io",
+      "avatarUrls": {
+        "48x48": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/abc123/48",
+        "24x24": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/abc123/24",
+        "16x16": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/abc123/16",
+        "32x32": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/abc123/32"
+      },
+      "displayName": "Alice Dev",
+      "active": true,
+      "timeZone": "America/Los_Angeles",
+      "accountType": "atlassian"
+    },
+    "status": {
+      "self": "https://acme.atlassian.net/rest/api/3/status/10000",
+      "description": "This issue is being actively worked on at the moment by the assignee.",
+      "iconUrl": "https://acme.atlassian.net/images/icons/statuses/inprogress.png",
+      "name": "In Progress",
+      "id": "10000",
+      "statusCategory": {
+        "self": "https://acme.atlassian.net/rest/api/3/statuscategory/4",
+        "id": 4,
+        "key": "indeterminate",
+        "colorName": "yellow",
+        "name": "In Progress"
+      }
+    },
+    "reporter": {
+      "self": "https://acme.atlassian.net/rest/api/3/user?accountId=def456",
+      "accountId": "def456",
+      "emailAddress": "pm@acme.io",
+      "avatarUrls": {
+        "48x48": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/def456/48",
+        "24x24": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/def456/24"
+      },
+      "displayName": "PM Carol",
+      "active": true,
+      "timeZone": "America/New_York",
+      "accountType": "atlassian"
+    },
+    "created": "2025-01-11T10:00:00.000+0000",
+    "updated": "2025-01-14T14:30:00.000+0000",
+    "description": {
+      "version": 1,
+      "type": "doc",
+      "content": [
+        { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "Context" }] },
+        { "type": "paragraph", "content": [{ "type": "text", "text": "We need to implement OAuth 2.0 with PKCE for the platform's authentication flow. This will replace the current session-cookie approach for third-party integrations." }] },
+        { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "Acceptance Criteria" }] },
+        { "type": "bulletList", "content": [
+          { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "OAuth 2.0 authorization code flow with PKCE implemented" }] }] },
+          { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Token refresh works automatically before expiry" }] }] },
+          { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Revocation endpoint called on logout" }] }] },
+          { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "All new code covered by unit tests (>80% coverage)" }] }] }
+        ]},
+        { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "Technical Notes" }] },
+        { "type": "paragraph", "content": [{ "type": "text", "text": "Use the " }, { "type": "text", "text": "pkce-challenge", "marks": [{ "type": "code" }] }, { "type": "text", "text": " library for code verifier generation. Store tokens in httpOnly cookies, not localStorage." }] }
+      ]
+    },
+    "comment": {
+      "comments": [
+        {
+          "self": "https://acme.atlassian.net/rest/api/3/issue/PLAT-2891/comment/10001",
+          "id": "10001",
+          "author": { "self": "https://acme.atlassian.net/rest/api/3/user?accountId=abc123", "accountId": "abc123", "emailAddress": "alice@acme.io", "avatarUrls": { "48x48": "https://example.com/alice.png" }, "displayName": "Alice Dev", "active": true, "accountType": "atlassian" },
+          "body": { "version": 1, "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Started implementation. The PKCE flow is working in dev. Token refresh needs more testing — the silent refresh race condition is tricky." }] }] },
+          "updateAuthor": { "accountId": "abc123", "displayName": "Alice Dev" },
+          "created": "2025-01-12T09:00:00.000+0000",
+          "updated": "2025-01-12T09:00:00.000+0000",
+          "jsdPublic": true
+        },
+        {
+          "self": "https://acme.atlassian.net/rest/api/3/issue/PLAT-2891/comment/10002",
+          "id": "10002",
+          "author": { "self": "https://acme.atlassian.net/rest/api/3/user?accountId=ghi789", "accountId": "ghi789", "emailAddress": "bob@acme.io", "avatarUrls": { "48x48": "https://example.com/bob.png" }, "displayName": "Bob Security", "active": true, "accountType": "atlassian" },
+          "body": { "version": 1, "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "For the race condition: use a mutex / lock on the refresh call so concurrent requests queue up behind one refresh attempt. I can share a reference implementation if helpful." }] }] },
+          "updateAuthor": { "accountId": "ghi789", "displayName": "Bob Security" },
+          "created": "2025-01-12T11:30:00.000+0000",
+          "updated": "2025-01-12T11:30:00.000+0000",
+          "jsdPublic": true
+        },
+        {
+          "self": "https://acme.atlassian.net/rest/api/3/issue/PLAT-2891/comment/10003",
+          "id": "10003",
+          "author": { "accountId": "abc123", "displayName": "Alice Dev" },
+          "body": { "version": 1, "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Mutex approach worked. PR is up: PLAT#4521. All tests passing locally, CI running." }] }] },
+          "created": "2025-01-14T08:00:00.000+0000",
+          "updated": "2025-01-14T08:00:00.000+0000",
+          "jsdPublic": true
+        }
+      ],
+      "maxResults": 3,
+      "total": 3,
+      "startAt": 0
+    },
+    "worklog": { "startAt": 0, "maxResults": 0, "total": 0, "worklogs": [] },
+    "timetracking": {},
+    "attachment": [],
+    "subtasks": [],
+    "versions": [],
+    "fixVersions": [],
+    "components": [{ "self": "https://acme.atlassian.net/rest/api/3/component/10001", "id": "10001", "name": "Auth" }]
+  }
+}

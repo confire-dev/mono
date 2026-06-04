@@ -54,7 +54,8 @@ describe('attack detection', () => {
   const attacks = loadAttacks()
 
   for (const attack of attacks) {
-    it(attack.id, () => {
+    const runner = attack.skip_until ? it.skip : it
+    runner(attack.id, () => {
       const result = classify(attack.payload)
       if (attack.should_catch) {
         expect(result.risk, `missed ${attack.id}: ${attack.description}`).not.toBe('NONE')
