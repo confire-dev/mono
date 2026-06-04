@@ -1,9 +1,7 @@
 name = "confire-platform-dev"
+pages_build_output_dir = "./dist"
 compatibility_date = "2025-05-01"
 compatibility_flags = ["nodejs_compat"]
-
-[assets]
-directory = "./dist"
 
 [vars]
 PUBLIC_WORKER_URL = "https://api.dev.confire.dev"
