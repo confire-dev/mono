@@ -5,6 +5,7 @@ name: Deploy CLI (dev)
 # Version: dev-<shortcommit>
 
 on:
+  workflow_dispatch:
   push:
     branches: [develop]
     paths:
@@ -47,7 +48,11 @@ jobs:
             -X '${PKG}.buildVersion=${VERSION}' \
             -X '${PKG}.buildCommit=${COMMIT}' \
             -X '${PKG}.buildDate=${DATE}' \
-            -X '${PKG}.buildBuiltBy=ci-dev'"
+            -X '${PKG}.buildBuiltBy=ci-dev' \
+            -X '${PKG}.buildWorkerURL=https://api.dev.confire.dev' \
+            -X '${PKG}.buildPlatformURL=https://dev.confire.dev' \
+            -X '${PKG}.buildGetURL=https://get.dev.confire.dev' \
+            -X '${PKG}.buildBinaryName=confire-dev'"
 
           mkdir -p dist
 
@@ -79,7 +84,7 @@ jobs:
           for FILE in "${DIST}"/confire_*.tar.gz "${DIST}/checksums.txt"; do
             BASENAME="$(basename "${FILE}")"
             echo "Uploading dev/releases/${VERSION}/${BASENAME}..."
-            pnpm exec wrangler r2 object put \
+            pnpm exec wrangler r2 object put --remote \
               "${BUCKET}/dev/releases/${VERSION}/${BASENAME}" \
               --file "${FILE}"
           done
