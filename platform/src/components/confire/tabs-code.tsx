@@ -46,12 +46,16 @@ export function CodeBlock({
           </div>
         )}
 
-        <div className="relative flex-1 overflow-y-auto">
+        {/* force-dark: override shiki dual-theme to always use dark colors */}
+        <div
+          className="relative flex-1 overflow-y-auto [&_code_span]:![color:var(--shiki-dark)] [&_pre]:!bg-transparent"
+          data-theme="dark"
+        >
           <CodeHighlighted
             code={code}
             language={lang}
             showCopyButton
-            className="h-full !rounded-none !border-0 !bg-transparent"
+            className="!rounded-none !border-0 !bg-transparent"
           />
         </div>
       </div>
