@@ -8,7 +8,7 @@ function highlightLine(line: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
   return esc
-    .replace(/(\/\/[^\n]*)/g, '<span style="color:var(--confire-code-comment)">$1</span>')
+    .replace(/(?<![:/])(\/\/[^\n]*)/g, '<span style="color:var(--confire-code-comment)">$1</span>')
     .replace(
       /("(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`|'(?:[^'\\]|\\.)*')/g,
       '<span style="color:var(--confire-code-string)">$1</span>',
