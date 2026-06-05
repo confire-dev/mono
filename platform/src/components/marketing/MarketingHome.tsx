@@ -725,16 +725,19 @@ function Setup() {
             {
               title: 'Install the CLI',
               description: 'One command. macOS and Linux supported at launch.',
+              lang: 'bash',
               code: installCode,
             },
             {
               title: 'Connect your agents',
               description: 'Log in and hook Confire into each supported client.',
+              lang: 'bash',
               code: connectCode,
             },
             {
               title: 'Test a policy',
               description: 'Verify that firewall rules are active.',
+              lang: 'bash',
               code: testCode,
             },
           ]}
