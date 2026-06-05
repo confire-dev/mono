@@ -24,7 +24,7 @@ func init() {
 
 func runStart() error {
 	if isDaemonRunning() {
-		fmt.Println("Optimizer is already running.")
+		fmt.Printf("%s✓%s  Optimizer is already running.\n", green, reset)
 		return nil
 	}
 

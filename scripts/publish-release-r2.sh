@@ -34,7 +34,8 @@ for ARCHIVE in "${DIST_DIR}"/confire_*.tar.gz; do
   BASENAME="$(basename "${ARCHIVE}")"
   put "${VERSION}/${BASENAME}" "${ARCHIVE}" "application/octet-stream"
 done
-put "${VERSION}/checksums.txt" "${DIST_DIR}/checksums.txt" "text/plain; charset=utf-8"
+put "${VERSION}/checksums.txt"        "${DIST_DIR}/checksums.txt"        "text/plain; charset=utf-8"
+put "${VERSION}/checksums.txt.bundle" "${DIST_DIR}/checksums.txt.bundle" "application/json; charset=utf-8"
 
 # latest.json
 cat > "${DIST_DIR}/latest.json" <<EOF

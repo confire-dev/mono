@@ -206,6 +206,10 @@ if ! command -v "$BINARY" >/dev/null 2>&1; then
 else
   INSTALLED_VERSION="$("$BINARY" version 2>/dev/null | head -1 || echo 'unknown')"
   printf "\n%s\n\n" "$INSTALLED_VERSION"
-  "$BINARY" setup || true
+  if [ -t 0 ]; then
+    "$BINARY" setup || true
+  else
+    "$BINARY" setup </dev/tty || true
+  fi
   "$BINARY" start
 fi
