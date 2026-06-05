@@ -20,5 +20,12 @@ export default defineConfig({
   session: {
     driver: sessionDrivers.memory(),
   },
-  adapter: cloudflare(),
+  // Disable Cloudflare Images runtime binding — no <Image> components are used in this project,
+  // so the IMAGES binding injected by the adapter serves no purpose. Without this option the
+  // adapter sets imageService to "cloudflare-binding" by default, which injects
+  // { images: { binding: "IMAGES" } } into the generated wrangler.json. If the Cloudflare Pages
+  // project doesn't have a Cloudflare Images subscription that binding is unresolvable and can
+  // trigger a Worker exception (Error 1101). Using compile-time optimization avoids any runtime
+  // binding requirement.
+  adapter: cloudflare({ imageService: 'compile' }),
 })
