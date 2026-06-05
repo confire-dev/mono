@@ -63,12 +63,12 @@ jobs:
             CGO_ENABLED=0 GOOS="${OS}" GOARCH="${ARCH}" \
               go build -trimpath -ldflags "${LDFLAGS}" \
               -o "dist/confire-dev" .
-            tar -czf "dist/confire_${VERSION}_${OS}_${ARCH}.tar.gz" -C dist confire-dev
+            tar -czf "dist/confire-dev_${VERSION}_${OS}_${ARCH}.tar.gz" -C dist confire-dev
             rm dist/confire-dev
           done
 
           cd dist
-          sha256sum confire_*.tar.gz > checksums.txt
+          sha256sum confire-dev_*.tar.gz > checksums.txt
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - name: Publish to R2
@@ -81,7 +81,7 @@ jobs:
           BUCKET="confire-releases"
           DIST="../cli/dist"
 
-          for FILE in "${DIST}"/confire_*.tar.gz "${DIST}/checksums.txt"; do
+          for FILE in "${DIST}"/confire-dev_*.tar.gz "${DIST}/checksums.txt"; do
             BASENAME="$(basename "${FILE}")"
             echo "Uploading dev/releases/${VERSION}/${BASENAME}..."
             pnpm exec wrangler r2 object put --remote \
