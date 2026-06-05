@@ -194,18 +194,18 @@ fi
 rm -rf "$TMP_DIR"
 
 # ── Post-install ──────────────────────────────────────────────────────────────
-if ! command -v confire >/dev/null 2>&1; then
-  if [ -x "$DEST" ]; then
-    printf "\nconfire installed to %s\n" "$DEST"
-    printf "\nAdd it to your PATH:\n"
-    printf "  export PATH=\"\$PATH:%s\"\n\n" "$INSTALL_DIR"
-  else
-    printf "Installation failed — binary not found at %s.\n" "$DEST" >&2
-    exit 1
-  fi
+if [ ! -x "$DEST" ]; then
+  printf "Installation failed — binary not found at %s.\n" "$DEST" >&2
+  exit 1
+fi
+
+if ! command -v "$BINARY" >/dev/null 2>&1; then
+  printf "\n%s installed to %s\n" "$BINARY" "$DEST"
+  printf "\nAdd it to your PATH:\n"
+  printf "  export PATH=\"\$PATH:%s\"\n\n" "$INSTALL_DIR"
 else
-  INSTALLED_VERSION="$(confire version 2>/dev/null | head -1 || echo 'unknown')"
+  INSTALLED_VERSION="$("$BINARY" version 2>/dev/null | head -1 || echo 'unknown')"
   printf "\n%s\n\n" "$INSTALLED_VERSION"
-  confire setup || true
-  confire start
+  "$BINARY" setup || true
+  "$BINARY" start
 fi
