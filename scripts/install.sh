@@ -14,6 +14,7 @@ set -e
 BINARY="confire"
 GET_URL="${CONFIRE_GET_URL:-https://get.confire.dev}"
 RELEASES_URL="${CONFIRE_RELEASES_URL:-https://releases.confire.dev}"
+PLATFORM_URL="${CONFIRE_PLATFORM_URL:-https://confire.dev}"
 
 VERSION=""
 INSTALL_DIR="${CONFIRE_INSTALL_DIR:-}"
@@ -34,9 +35,8 @@ done
 
 # ── License notice ──────────────────────────────────────────────────────────
 printf "\n"
-printf "Confire is proprietary software owned by Trana, Inc.\n"
-printf "By installing, you agree to the applicable Confire license terms.\n"
-printf "See: %s/terms\n\n" "$GET_URL"
+printf "Confire is proprietary software. By installing, you agree to the license terms.\n"
+printf "See: %s/terms\n\n" "$PLATFORM_URL"
 
 # ── Platform detection ───────────────────────────────────────────────────────
 OS="$(uname -s)"

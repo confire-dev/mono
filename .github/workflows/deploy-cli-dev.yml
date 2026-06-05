@@ -92,7 +92,8 @@ jobs:
           # Install script with dev URLs pre-baked
           sed \
             -e 's|https://get.confire.dev|https://get.dev.confire.dev|g' \
-            -e 's|https://releases.confire.dev|https://get.dev.confire.dev|g' \
+            -e 's|https://releases.confire.dev|https://get.dev.confire.dev/releases|g' \
+            -e 's|https://confire.dev|https://dev.confire.dev|g' \
             ../scripts/install.sh > /tmp/dev-install.sh
           pnpm exec wrangler r2 object put --remote \
             "${BUCKET}/dev/install.sh" \
