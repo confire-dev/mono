@@ -33,11 +33,6 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# ── License notice ──────────────────────────────────────────────────────────
-printf "\n"
-printf "Confire is proprietary software. By installing, you agree to the license terms.\n"
-printf "See: %s/terms\n\n" "$PLATFORM_URL"
-
 # ── Platform detection ───────────────────────────────────────────────────────
 OS="$(uname -s)"
 ARCH="$(uname -m)"
