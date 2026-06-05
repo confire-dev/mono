@@ -62,9 +62,9 @@ jobs:
             echo "Building ${OS}/${ARCH}..."
             CGO_ENABLED=0 GOOS="${OS}" GOARCH="${ARCH}" \
               go build -trimpath -ldflags "${LDFLAGS}" \
-              -o "dist/confire" .
-            tar -czf "dist/confire_${VERSION}_${OS}_${ARCH}.tar.gz" -C dist confire
-            rm dist/confire
+              -o "dist/confire-dev" .
+            tar -czf "dist/confire_${VERSION}_${OS}_${ARCH}.tar.gz" -C dist confire-dev
+            rm dist/confire-dev
           done
 
           cd dist
@@ -94,6 +94,7 @@ jobs:
             -e 's|https://get.confire.dev|https://get.dev.confire.dev|g' \
             -e 's|https://releases.confire.dev|https://get.dev.confire.dev/releases|g' \
             -e 's|https://confire.dev|https://dev.confire.dev|g' \
+            -e 's|^BINARY="confire"$|BINARY="confire-dev"|' \
             ../scripts/install.sh > /tmp/dev-install.sh
           pnpm exec wrangler r2 object put --remote \
             "${BUCKET}/dev/install.sh" \
