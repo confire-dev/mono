@@ -116,29 +116,6 @@ func (t *LocalTransport) handleToolPre(event intercept.InterceptEvent) (intercep
 		return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, nil
 	}
 
-	// Read: inject line limit before the file is even read
-	if normalizeLocalToolName(event.Tool.Name) == "read" {
-		input, ok := event.Tool.Input.(map[string]interface{})
-		if !ok {
-			return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, nil
-		}
-		if _, has := input["limit"]; has {
-			return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, nil
-		}
-		if _, has := input["offset"]; has {
-			return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, nil
-		}
-		newInput := make(map[string]interface{}, len(input)+1)
-		for k, v := range input {
-			newInput[k] = v
-		}
-		newInput["limit"] = 500
-		return intercept.InterceptResult{
-			Kind:      intercept.ResultReplaceInput,
-			ToolInput: newInput,
-			Stats:     &intercept.Stats{Optimizer: "local/read-pre"},
-		}, nil
-	}
 	return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, nil
 }
 

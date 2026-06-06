@@ -1,16 +1,13 @@
 package optimizer
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
-// ReadOptimizer caps large file reads before they bloat context.
-// Infrastructure optimizer — runs locally as part of the free tier.
+// ReadOptimizer applies emergency-only caps — no structural truncation by default.
+// Large reads pass through intact unless they exceed the emergency threshold.
 // Full session deduplication (repeated reads) runs in the Worker.
 const (
-	readMaxLines = 500
-	readMaxBytes = 80_000
+	readEmergencyBytes = 1 * 1024 * 1024 // 1 MB
+	readEmergencyHead  = 800 * 1024       // keep first 800 KB
 )
 
 type ReadOptimizer struct{}
@@ -54,19 +51,12 @@ func (r *ReadOptimizer) Optimize(data interface{}) interface{} {
 }
 
 func (r *ReadOptimizer) optimizeText(text string) string {
-	if len(text) <= readMaxBytes {
+	if len(text) <= readEmergencyBytes {
 		return text
 	}
 
-	lines := strings.Split(text, "\n")
-	if len(lines) > readMaxLines {
-		head := lines[:readMaxLines]
-		dropped := len(lines) - readMaxLines
-		return strings.Join(head, "\n") +
-			fmt.Sprintf("\n[confire: %d lines truncated — use offset/limit params to read more]", dropped)
-	}
-
-	truncated := text[:readMaxBytes]
-	dropped := len(text) - readMaxBytes
-	return truncated + fmt.Sprintf("\n[confire: %d bytes truncated]", dropped)
+	// Emergency cap only — preserve as much of the file as possible.
+	dropped := len(text) - readEmergencyHead
+	return text[:readEmergencyHead] +
+		fmt.Sprintf("\n[confire: %d bytes omitted — file exceeds 1MB; use offset/limit to read further]", dropped)
 }

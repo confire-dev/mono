@@ -55,4 +55,3 @@ conversation history, and project structure are never transmitted.
   instruction injection
 - [MCP output sanitization](../mcp-output-sanitization) — the full
   MCP security pipeline
-- [Context limits](../context-limits) — built-in output size caps

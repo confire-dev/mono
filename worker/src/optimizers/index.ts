@@ -2,7 +2,7 @@ import type { InterceptEvent, InterceptResult } from '../types.js'
 import { optimizeFigma, handlesFigma } from './figma.js'
 import { optimizeGeneric } from './generic.js'
 import { optimizeBash, handlesBash } from './bash.js'
-import { optimizeRead, buildReadPreResult, handlesRead } from './read.js'
+import { optimizeRead, handlesRead } from './read.js'
 import { optimizeWebFetch, handlesWebFetch } from './webfetch.js'
 import { optimizeGitHub, handlesGitHub } from './github.js'
 import { optimizeJira, optimizeConfluence, handlesAtlassian, isConfluence } from './atlassian.js'
@@ -126,14 +126,6 @@ export function runOptimizers(event: InterceptEvent): InterceptResult {
     toolOutput: rebuildOutput(event.tool.output, optimized),
     stats: { beforeBytes: before, afterBytes: after, optimizer: resolveOptimizerName(event) },
   }
-}
-
-export function runPreOptimizers(event: InterceptEvent): InterceptResult {
-  if (handlesRead(event)) {
-    const pre = buildReadPreResult(event)
-    if (pre) return pre
-  }
-  return { kind: 'passthrough' }
 }
 
 export function resolveOptimizerName(event: InterceptEvent): string {

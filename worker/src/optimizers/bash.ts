@@ -1,63 +1,79 @@
 // Bash optimizer — strips verbose noise from shell command output.
-// Strategy: keep signal (failures, errors, last N lines), drop passing tests / progress bars.
+// Strategy: keep signal (failures, errors, structural content), collapse
+// repeated lines, strip ANSI/progress. Emergency cap at 512KB only.
 
 import type { InterceptEvent } from '../types.js'
 
-const MAX_LINES   = 200   // keep at most this many lines
-const TAIL_LINES  = 50    // if over limit, keep first 20 + last (MAX-20) lines
-const MAX_BYTES   = 40_000
+const EMERGENCY_BYTES = 512 * 1024   // 512 KB
+const EMERGENCY_HEAD  = 200 * 1024   // keep first 200 KB
+const EMERGENCY_TAIL  = EMERGENCY_BYTES - EMERGENCY_HEAD  // keep last 312 KB
 
-// Patterns that indicate a test runner pass line (keep only on failure)
-const TEST_PASS_RE    = /^\s*(✓|✔|PASS|passing|ok\s+\S|·\s+✓|\d+ passing)/i
-const TEST_FAIL_RE    = /^\s*(✗|✘|FAIL|failing|not ok|×|\d+ failing|Error:|AssertionError)/i
-const PROGRESS_RE     = /[─-╿▀-▟■-◿]|={3,}|#{3,}|\[=+>?\s*\]|\d+%.*\r/
-const BUILD_ERROR_RE  = /error TS\d+|error\[E\d+\]|SyntaxError:|Cannot find|Module not found|ld: error|make\[1\].*Error/i
+const TEST_PASS_RE     = /^\s*(✓|✔|PASS|passing|ok\s+\S|·\s+✓|\d+ passing)/i
+const TEST_FAIL_RE     = /^\s*(✗|✘|FAIL|failing|not ok|×|\d+ failing|Error:|AssertionError)/i
+const PROGRESS_RE      = /[─-╿▀-▟■-◿]|={3,}|#{3,}|\[=+>?\s*\]|\d+%.*\r/
+const ANSI_RE          = /\x1b\[[0-9;]*[a-zA-Z]/g
+const BUILD_ERROR_RE   = /error TS\d+|error\[E\d+\]|SyntaxError:|Cannot find|Module not found|ld: error|make\[1\].*Error/i
 const BUILD_SUCCESS_RE = /Successfully compiled|Compiled \d+ files|webpack.*built|cargo.*Finished|Build succeeded/i
 
 export function optimizeBash(rawText: string, event: InterceptEvent): string | null {
   if (!rawText || typeof rawText !== 'string') return null
-  if (rawText.length < 500) return null // small output → not worth it
+  if (rawText.length < 500) return null
 
-  const lines = rawText.split('\n')
-  if (lines.length < 20 && rawText.length < MAX_BYTES) return null
+  // 1. Strip ANSI escape codes.
+  let result = rawText.replace(ANSI_RE, '')
 
   const cmd = getCommand(event)
-  let result = rawText
+  let lines = result.split('\n')
 
-  // Test runner output: keep failures + summary, strip individual passing tests
-  if (isTestOutput(rawText, cmd)) {
+  // 2. Structural cleanup by output type.
+  if (isTestOutput(result, cmd)) {
     result = filterTestOutput(lines)
-  }
-  // Build output with errors: drop progress/success lines
-  else if (isBuildOutput(rawText)) {
+    lines = result.split('\n')
+  } else if (isBuildOutput(result)) {
     result = filterBuildOutput(lines)
-  }
-  // Very long output: keep head + tail
-  else if (lines.length > MAX_LINES) {
-    const head = lines.slice(0, 20)
-    const tail = lines.slice(-TAIL_LINES)
-    const dropped = lines.length - 20 - TAIL_LINES
-    result = [...head, `\n[confire: ${dropped} lines omitted]\n`, ...tail].join('\n')
+    lines = result.split('\n')
   }
 
-  // Strip progress bar lines
-  result = result.split('\n')
-    .filter(l => !PROGRESS_RE.test(l))
-    .join('\n')
+  // 3. Strip progress-bar / spinner lines.
+  lines = lines.filter(l => !PROGRESS_RE.test(l))
 
-  // Byte-budget head+tail for few-lines-but-large outputs
-  const HEAD_BYTES = 20_000
-  const TAIL_BYTES = 10_000
-  if (result.length > MAX_BYTES && result.length > HEAD_BYTES + TAIL_BYTES) {
-    const dropped = result.length - HEAD_BYTES - TAIL_BYTES
-    result = result.slice(0, HEAD_BYTES) +
-      `\n[confire: ${dropped} bytes omitted]\n` +
-      result.slice(-TAIL_BYTES)
-  } else if (result.length > MAX_BYTES) {
-    result = result.slice(0, MAX_BYTES) + `\n[confire: output truncated at ${MAX_BYTES} bytes]`
+  // 4. Collapse consecutive identical lines (≥3 repeats).
+  lines = collapseRepeatedLines(lines)
+
+  result = lines.join('\n')
+
+  // 5. Emergency byte cap — fires only for very large output.
+  if (result.length > EMERGENCY_BYTES) {
+    const dropped = result.length - EMERGENCY_HEAD - EMERGENCY_TAIL
+    if (dropped > 0) {
+      result = result.slice(0, EMERGENCY_HEAD) +
+        `\n[confire: ${dropped} bytes omitted — output exceeded 512KB]\n` +
+        result.slice(-EMERGENCY_TAIL)
+    }
   }
 
   return result.length < rawText.length * 0.9 ? result : null
+}
+
+function collapseRepeatedLines(lines: string[]): string[] {
+  const MIN_REPEAT = 3
+  if (lines.length < MIN_REPEAT) return lines
+  const out: string[] = []
+  let i = 0
+  while (i < lines.length) {
+    const current = lines[i] ?? ''
+    let j = i + 1
+    while (j < lines.length && lines[j] === current) j++
+    const count = j - i
+    if (count >= MIN_REPEAT) {
+      out.push(current)
+      out.push(`[confire: ${count - 1} identical lines omitted]`)
+    } else {
+      out.push(...lines.slice(i, j))
+    }
+    i = j
+  }
+  return out
 }
 
 function isTestOutput(text: string, cmd: string): boolean {
@@ -89,7 +105,6 @@ function filterTestOutput(lines: string[]): string {
   for (const line of lines) {
     if (TEST_FAIL_RE.test(line)) { inFailBlock = true; out.push(line); continue }
     if (TEST_PASS_RE.test(line) && !inFailBlock) { passCount++; continue }
-    // Summary lines (contain counts) always kept
     if (/\d+\s+(passing|failing|skipped|pending)/i.test(line)) { inFailBlock = false; out.push(line); continue }
     out.push(line)
   }

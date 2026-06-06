@@ -54,7 +54,6 @@ export default defineConfig({
             { label: 'Secret redaction',        slug: 'context-firewall/secret-redaction' },
             { label: 'Injection guard',         slug: 'context-firewall/injection-guard' },
             { label: 'MCP output sanitization', slug: 'context-firewall/mcp-output-sanitization' },
-            { label: 'Context limits',          slug: 'context-firewall/context-limits' },
           ],
         },
         {

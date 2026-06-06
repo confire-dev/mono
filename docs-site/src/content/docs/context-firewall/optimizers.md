@@ -15,37 +15,38 @@ account required.
 
 ### Bash
 
-Trims shell output to preserve failures and actionable content.
+Cleans shell output while preserving all actionable content.
 The logic adapts to the type of output:
 
 - **Test output** — keeps pass/fail summary lines, drops individual
   passing test names and progress output
 - **Build output** — keeps error lines, drops progress and
   success-only noise
-- **General output** — keeps the first 20 lines and last 50 lines,
-  drops the middle with a `[confire: N lines omitted]` marker
+- **General output** — strips ANSI escape codes, progress-bar lines,
+  and collapses runs of identical consecutive lines into a single
+  line with a `[confire: N identical lines omitted]` marker
 
-Lines that match progress-bar patterns are stripped in all modes.
-If output exceeds 40KB after line trimming, it's truncated at the
-byte budget with a marker.
+Output is never blindly truncated by line count. An emergency
+512KB cap applies only to outputs that exceed that threshold after
+all structural cleanup, with an explicit marker at the cut point.
 
 Typical reduction: **60–95%**
 
 ### Read
 
-Caps large file reads. If the returned content exceeds 500 lines
-or 80KB, Confire truncates it and appends:
+Passes file content through unchanged by default. No line cap, no
+byte cap for normal files. An emergency cap applies only when
+file content exceeds 1MB:
 
 ```
-[confire: N lines truncated — use offset/limit params to read more]
+[confire: N bytes omitted — file exceeds 1MB; use offset/limit to read further]
 ```
 
-Confire also injects a line-limit hint into the tool input before
-the file is read (PreToolUse), so oversized reads are handled
-before the file is even opened when the agent supports input
-replacement.
+For files larger than 1MB, Confire preserves the first 800KB and
+appends the marker above. This fires rarely — most source files are
+well under this threshold.
 
-Typical reduction: **50–80%** on large files
+Typical reduction: **0%** on normal files, emergency cap on very large files only
 
 ### WebFetch
 

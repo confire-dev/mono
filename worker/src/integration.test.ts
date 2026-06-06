@@ -145,8 +145,8 @@ describe('optimizer: Bash', () => {
   })
 })
 
-describe('optimizer: Read (pre-injection)', () => {
-  it('injects line limit before reading a large file', () => {
+describe('optimizer: Read (tool.pre passthrough)', () => {
+  it('passes through tool.pre without injecting limits', () => {
     const event: InterceptEvent = {
       host: 'claude-code',
       strategy: 'hooks',
@@ -159,9 +159,7 @@ describe('optimizer: Read (pre-injection)', () => {
       },
     }
     const result = handle(event)
-    expect(result.kind).toBe('replace-input')
-    const input = result.toolInput as Record<string, unknown>
-    expect(input['limit']).toBe(500)
+    expect(result.kind).toBe('passthrough')
   })
 })
 

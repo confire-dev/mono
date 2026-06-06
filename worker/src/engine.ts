@@ -1,6 +1,5 @@
 import type { InterceptEvent, InterceptResult } from './types.js'
 import { runOptimizers } from './optimizers/index.js'
-import { buildReadPreResult } from './optimizers/read.js'
 
 // handle is the single entry-point for both the Worker and (in the future) the Go daemon
 // when it falls back to the bundled local optimizer.
@@ -13,7 +12,7 @@ export function handle(event: InterceptEvent): InterceptResult {
 
   switch (event.phase) {
     case 'tool.pre':
-      return handleToolPre(event)
+      return { kind: 'passthrough' }
     case 'tool.post':
       return handleToolPost(event)
     case 'session.start':
@@ -27,15 +26,6 @@ export function handle(event: InterceptEvent): InterceptResult {
     default:
       return { kind: 'passthrough' }
   }
-}
-
-function handleToolPre(event: InterceptEvent): InterceptResult {
-  // Read: inject limit before the file is even read
-  if (event.tool?.name === 'Read') {
-    const pre = buildReadPreResult(event)
-    if (pre) return pre
-  }
-  return { kind: 'passthrough' }
 }
 
 function handleToolPost(event: InterceptEvent): InterceptResult {

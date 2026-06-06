@@ -1,49 +1,19 @@
-// Read optimizer — shrinks large file reads and can short-circuit repeated reads.
-// Works on both tool.pre (inject limit before read) and tool.post (truncate after).
+// Read optimizer — emergency-only cap for very large file reads.
+// No structural truncation by default; reads pass through intact
+// unless they exceed the emergency threshold.
 
-import type { InterceptEvent, InterceptResult } from '../types.js'
+import type { InterceptEvent } from '../types.js'
 
-const MAX_LINES  = 500
-const MAX_BYTES  = 80_000
+const EMERGENCY_BYTES = 1 * 1024 * 1024  // 1 MB
+const EMERGENCY_HEAD  = 800 * 1024        // keep first 800 KB
 
-export function optimizeRead(rawText: string, event: InterceptEvent): string | null {
-  // tool.pre: inject a line limit into the Read input
-  // (handled by the caller checking event.phase; here we only handle tool.post)
+export function optimizeRead(rawText: string, _event: InterceptEvent): string | null {
   if (!rawText || typeof rawText !== 'string') return null
-  if (rawText.length <= MAX_BYTES) return null
+  if (rawText.length <= EMERGENCY_BYTES) return null
 
-  const lines = rawText.split('\n')
-  if (lines.length <= MAX_LINES) {
-    // Over byte limit but not line limit — byte-truncate
-    const truncated = rawText.slice(0, MAX_BYTES)
-    const dropped = rawText.length - MAX_BYTES
-    return truncated + `\n[confire: ${dropped} bytes truncated — use offset/limit params to read more]`
-  }
-
-  // Over both limits — line-truncate
-  const head = lines.slice(0, MAX_LINES)
-  const dropped = lines.length - MAX_LINES
-  return head.join('\n') + `\n[confire: ${dropped} lines truncated — use offset/limit params to read more]`
-}
-
-// buildPreResult is called by the host adapter for PreToolUse on a Read call.
-// It injects a line limit into the tool input to avoid reading a huge file at all.
-export function buildReadPreResult(event: InterceptEvent): InterceptResult | null {
-  const input = event.tool?.input as Record<string, unknown> | undefined
-  if (!input) return null
-
-  // Only inject limit if no limit already specified
-  if (input['limit'] || input['offset']) return null
-
-  const path = String(input['file_path'] ?? '')
-  // Heuristic: don't cap source files we're actively editing
-  if (!path) return null
-
-  return {
-    kind: 'replace-input',
-    toolInput: { ...input, limit: MAX_LINES },
-    stats: { beforeBytes: 0, afterBytes: 0, optimizer: 'read-pre' },
-  }
+  const dropped = rawText.length - EMERGENCY_HEAD
+  return rawText.slice(0, EMERGENCY_HEAD) +
+    `\n[confire: ${dropped} bytes omitted — file exceeds 1MB; use offset/limit to read further]`
 }
 
 export function handlesRead(event: InterceptEvent): boolean {

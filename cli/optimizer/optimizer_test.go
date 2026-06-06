@@ -228,7 +228,7 @@ func TestBashOptimizer_TestOutputFiltersPassingTests(t *testing.T) {
 	}
 }
 
-func TestBashOptimizer_LongOutputHeadTail(t *testing.T) {
+func TestBashOptimizer_RepeatedLineCollapse(t *testing.T) {
 	var sb strings.Builder
 	for i := 0; i < 300; i++ {
 		sb.WriteString("line content here\n")
@@ -241,8 +241,8 @@ func TestBashOptimizer_LongOutputHeadTail(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected string result")
 	}
-	if !strings.Contains(out, "lines omitted") {
-		t.Error("should contain omission marker for long output")
+	if !strings.Contains(out, "identical lines omitted") {
+		t.Error("should collapse repeated identical lines with omission marker")
 	}
 	if len(out) >= len(input) {
 		t.Error("output should be shorter than input")
@@ -273,11 +273,11 @@ func TestBashOptimizer_BuildOutputFiltersProgress(t *testing.T) {
 	}
 }
 
-func TestBashOptimizer_ByteBudgetSplit(t *testing.T) {
-	// Build a large output that's few lines but many bytes
+func TestBashOptimizer_RepeatedLinesReduceSize(t *testing.T) {
+	// 18 identical large lines — collapsed to 1 line + marker
 	bigLine := strings.Repeat("x", 2000)
 	var lines []string
-	for i := 0; i < 18; i++ { // under 20 lines but well over 40KB
+	for i := 0; i < 18; i++ {
 		lines = append(lines, bigLine)
 	}
 	input := strings.Join(lines, "\n")
@@ -286,11 +286,13 @@ func TestBashOptimizer_ByteBudgetSplit(t *testing.T) {
 	result := b.Optimize(input)
 	out, ok := result.(string)
 	if !ok {
-		// If no optimization triggered, that's also acceptable — just check it didn't blow up
-		return
+		t.Fatalf("expected string result after collapsing repeated lines")
+	}
+	if !strings.Contains(out, "identical lines omitted") {
+		t.Error("should collapse repeated identical lines")
 	}
 	if len(out) >= len(input) {
-		t.Log("byte budget split did not reduce size — may be expected for this input shape")
+		t.Error("collapsed output should be shorter than input")
 	}
 }
 
@@ -361,12 +363,11 @@ func TestWebFetchOptimizer_NonHTML(t *testing.T) {
 
 // ── read ──────────────────────────────────────────────────────────────────────
 
-func TestReadOptimizer_TruncatesLongFile(t *testing.T) {
+func TestReadOptimizer_PassesThroughUnder1MB(t *testing.T) {
 	r := &ReadOptimizer{}
-	// readMaxBytes = 80_000; build a string just over that with many lines
 	var sb strings.Builder
 	line := strings.Repeat("x", 159) + "\n" // 160 bytes/line
-	for sb.Len() < 90_000 {
+	for sb.Len() < 900_000 {                 // ~900 KB — under the 1 MB emergency cap
 		sb.WriteString(line)
 	}
 	input := sb.String()
@@ -375,11 +376,29 @@ func TestReadOptimizer_TruncatesLongFile(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected string result")
 	}
-	if !strings.Contains(out, "truncated") {
-		t.Error("large file should mention truncation")
+	if out != input {
+		t.Error("file under 1MB should pass through unchanged")
+	}
+}
+
+func TestReadOptimizer_EmergencyCapOver1MB(t *testing.T) {
+	r := &ReadOptimizer{}
+	var sb strings.Builder
+	line := strings.Repeat("x", 159) + "\n" // 160 bytes/line
+	for sb.Len() < 1_200_000 {               // ~1.2 MB — over the 1 MB emergency cap
+		sb.WriteString(line)
+	}
+	input := sb.String()
+	result := r.Optimize(input)
+	out, ok := result.(string)
+	if !ok {
+		t.Fatalf("expected string result")
+	}
+	if !strings.Contains(out, "omitted") {
+		t.Error("file over 1MB should contain omission marker")
 	}
 	if len(out) >= len(input) {
-		t.Error("truncated output should be shorter than input")
+		t.Error("capped output should be shorter than input")
 	}
 }
 
