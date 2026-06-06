@@ -3,6 +3,7 @@ import starlight from '@astrojs/starlight'
 
 export default defineConfig({
   site: process.env.SITE_URL ?? 'https://docs.confire.dev',
+  base: process.env.DOCS_BASE ?? '/',
   integrations: [
     starlight({
       title: 'Confire',
