@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 
 export default defineConfig({
-  site: 'https://docs.confire.dev',
+  site: process.env.SITE_URL ?? 'https://docs.confire.dev',
   integrations: [
     starlight({
       title: 'Confire',

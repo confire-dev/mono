@@ -1,0 +1,36 @@
+name: Deploy Docs (dev)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - 'docs-site/**'
+
+jobs:
+  deploy:
+    name: Build and publish docs to dev
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: docs-site
+        run: npm install
+
+      - name: Build
+        working-directory: docs-site
+        run: npm run build
+        env:
+          SITE_URL: https://docs.dev.confire.dev
+
+      - name: Deploy to Cloudflare Pages
+        working-directory: docs-site
+        run: npx wrangler pages deploy dist --project-name confire-docs-dev --branch main
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
