@@ -13,7 +13,7 @@ export default defineConfig({
         dark:  './src/assets/logo-dark.svg',
         replacesTitle: false,
       },
-      favicon: '/favicon.ico',
+      favicon: '/favicon.svg',
       social: [
         { icon: 'github',  label: 'GitHub',  href: 'https://github.com/confire-dev' },
       ],
