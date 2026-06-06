@@ -15,7 +15,11 @@ execSync('npm install', { cwd: docsDir, stdio: 'inherit' })
 execSync('npm run build', {
   cwd: docsDir,
   stdio: 'inherit',
-  env: { ...process.env, DOCS_BASE: '/docs' },
+  env: {
+    ...process.env,
+    DOCS_BASE: '/docs',
+    SITE_URL: process.env.DOCS_SITE_URL ?? 'https://confire.dev',
+  },
 })
 
 if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true })
