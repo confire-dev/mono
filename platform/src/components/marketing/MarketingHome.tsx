@@ -822,6 +822,10 @@ function Pricing() {
     setCtaLoading(planSlug)
     try {
       const supabase = createBrowserClient()
+      if (!supabase) {
+        window.location.href = `/login?plan=${encodeURIComponent(planSlug)}`
+        return
+      }
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session) {

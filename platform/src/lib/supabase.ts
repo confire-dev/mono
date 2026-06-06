@@ -7,9 +7,15 @@ function anon() { return import.meta.env.PUBLIC_SUPABASE_ANON_KEY ?? '' }
 
 // Browser client — uses @supabase/ssr so the session is synced to cookies,
 // making it visible to the server-side middleware after OAuth / OTP callback.
+// Returns null when Supabase env vars are not configured (safe for SSR).
 export function createBrowserClient() {
-  return ssrBrowserClient(url(), anon())
+  const u = url()
+  const a = anon()
+  if (!u || !a) return null
+  return ssrBrowserClient(u, a)
 }
+
+export type SupabaseBrowserClient = NonNullable<ReturnType<typeof createBrowserClient>>
 
 // Server client — for Astro pages and middleware.
 export function createSupabaseServer(request: Request, cookies: AstroCookies) {
