@@ -3,14 +3,14 @@ import type { InterceptEvent } from '../types.js'
 // Tools this optimizer handles (read/write ops return tiny success strings — no value in optimizing them)
 const GIT_OPT_TOOLS = new Set(['git_status', 'git_diff', 'git_diff_unstaged', 'git_diff_staged', 'git_log', 'git_show'])
 
-// Vendored / generated paths whose diffs are pure noise
-const NOISE_PATH_RE = /^(?:node_modules|vendor|\.yarn|\.pnp|dist|build|coverage|\.next|__generated__|generated)\//
+// Only machine-generated internals that are never human-readable —
+// lock files and dist/ are kept because the model may be answering
+// questions like "what packages changed?" or "what was the build output?"
+const NOISE_PATH_RE = /^node_modules\//
 
 function isNoisyFile(filePath: string): boolean {
   if (NOISE_PATH_RE.test(filePath)) return true
-  // Lock files: yarn.lock, Gemfile.lock, Cargo.lock, package-lock.json, pnpm-lock.yaml
-  if (filePath.endsWith('.lock') || filePath.includes('-lock.') || filePath.includes('.lock.')) return true
-  // Minified bundles
+  // Minified bundles — no human-readable signal
   if (/\.min\.[jt]sx?$/.test(filePath) || filePath.endsWith('.min.css')) return true
   return false
 }

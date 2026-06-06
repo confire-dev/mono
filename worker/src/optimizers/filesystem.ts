@@ -65,37 +65,12 @@ function dropEmptyChildren(node: unknown): unknown {
   return node
 }
 
-function optimizeSearchFiles(rawText: string): string | null {
-  if (!rawText || rawText === 'No matches found') return null
-  const lines = rawText.split('\n').filter(Boolean)
-  if (lines.length < 3) return null
-
-  const prefix = longestCommonDirPrefix(lines)
-  if (prefix.length < 8) return null
-
-  const trimmed = lines.map(l => l.slice(prefix.length))
-  return `[root: ${prefix}]\n${trimmed.join('\n')}`
-}
-
-function longestCommonDirPrefix(paths: string[]): string {
-  if (paths.length === 0) return ''
-  let prefix = paths[0]
-  for (const p of paths.slice(1)) {
-    while (prefix && !p.startsWith(prefix)) {
-      prefix = prefix.slice(0, prefix.lastIndexOf('/', prefix.length - 2) + 1)
-    }
-    if (!prefix) return ''
-  }
-  return prefix
-}
-
 export function optimizeFilesystem(rawText: string, event: InterceptEvent): string | null {
   if (!rawText) return null
   const n = event.tool?.name ?? ''
-  if (n === 'get_file_info')       return optimizeFileInfo(rawText)
-  if (n === 'directory_tree')      return optimizeDirectoryTree(rawText)
-  if (n === 'search_files')        return optimizeSearchFiles(rawText)
-  // list_directory / list_directory_with_sizes are already compact; passthrough
+  if (n === 'get_file_info')  return optimizeFileInfo(rawText)
+  if (n === 'directory_tree') return optimizeDirectoryTree(rawText)
+  // search_files and list_directory return paths/listings the model may need verbatim
   return null
 }
 

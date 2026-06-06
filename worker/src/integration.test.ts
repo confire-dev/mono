@@ -172,16 +172,16 @@ describe('optimizer: Git MCP', () => {
     assertSaving('Git log (repr cleanup)', event, 5)
   })
 
-  it('drops vendored and lockfile diffs, preserves source diffs', () => {
+  it('drops node_modules diffs but keeps lockfiles and source diffs', () => {
     const raw = fixture('optimizer/git-diff-noisy.txt')
     const event = makeEvent('git_diff', raw, { isMcp: true, mcpServer: 'git' })
-    const { result } = assertSaving('Git diff (drop vendor)', event, 20)
+    const { result } = assertSaving('Git diff (drop node_modules)', event, 5)
     const out = extractText(result.toolOutput) ?? ''
-    expect(out).toContain('src/parser.ts')       // source diff kept
-    expect(out).toContain('src/retry.ts')         // source diff kept
-    expect(out).not.toContain('node_modules')     // vendor diff dropped
-    expect(out).not.toContain('package-lock.json') // lockfile dropped
-    expect(out).toContain('[confire:')            // truncation notice present
+    expect(out).toContain('src/parser.ts')        // source diff kept
+    expect(out).toContain('src/retry.ts')          // source diff kept
+    expect(out).toContain('package-lock.json')     // lockfile kept — model may need it
+    expect(out).not.toContain('node_modules/lodash') // node_modules internal dropped
+    expect(out).toContain('[confire:')             // omission notice present
   })
 })
 
@@ -243,36 +243,21 @@ describe('optimizer: PostgreSQL MCP', () => {
     expect(out).toContain('alice@example.com')     // row data intact
   })
 
-  it('does NOT truncate when query has explicit LIMIT', () => {
-    const rows = Array.from({ length: 60 }, (_, i) => ({ id: i + 1, name: `user${i + 1}` }))
-    const raw = JSON.stringify(rows)
-    const event = makeEvent('execute_sql', raw, {
-      isMcp: true,
-      mcpServer: 'postgres',
-      input: { query: 'SELECT id, name FROM users LIMIT 60' },
-    })
-    const result = handle(event)
-    // With LIMIT, optimizer should either passthrough or pretty-print — never truncate
-    if (result.kind === 'replace-output') {
-      const out = extractText(result.toolOutput) ?? ''
-      expect(out).not.toContain('[confire: showing')
-      expect(out.split('"id"').length - 1).toBeGreaterThanOrEqual(60)
-    }
-  })
-
-  it('truncates large results without LIMIT and adds notice', () => {
+  it('never truncates rows — all data is passed through intact', () => {
     const rows = Array.from({ length: 80 }, (_, i) => ({ id: i + 1, email: `u${i + 1}@example.com` }))
     const raw = JSON.stringify(rows)
     const event = makeEvent('execute_sql', raw, {
       isMcp: true,
       mcpServer: 'postgres',
-      input: { query: 'SELECT * FROM users' }, // no LIMIT
+      input: { query: 'SELECT * FROM users' },
     })
     const result = handle(event)
-    expect(result.kind).toBe('replace-output')
-    const out = extractText(result.toolOutput) ?? ''
-    expect(out).toContain('[confire: showing 50 of 80 rows')
-    expect(out).toContain('add LIMIT')
+    // No content is ever removed — result is passthrough or pretty-print only
+    if (result.kind === 'replace-output') {
+      const out = extractText(result.toolOutput) ?? ''
+      expect(out).not.toContain('[confire:')           // no truncation notice
+      expect(out.split('"id"').length - 1).toBeGreaterThanOrEqual(80) // all rows present
+    }
   })
 })
 
