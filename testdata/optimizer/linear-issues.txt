@@ -1,0 +1,37 @@
+{
+  "issues": [
+    {
+      "id": "ENG-142",
+      "title": "Fix authentication timeout on mobile devices",
+      "priority": 2,
+      "status": "In Progress",
+      "assignee": "jane@acme.com",
+      "url": "https://linear.app/acme/issue/ENG-142"
+    },
+    {
+      "id": "ENG-98",
+      "title": "Database connection pool exhaustion under load",
+      "priority": 1,
+      "status": "Todo",
+      "assignee": "bob@acme.com",
+      "url": "https://linear.app/acme/issue/ENG-98"
+    },
+    {
+      "id": "ENG-201",
+      "title": "Add retry logic in payment service",
+      "priority": 3,
+      "status": "Done",
+      "assignee": "alice@acme.com",
+      "url": "https://linear.app/acme/issue/ENG-201"
+    }
+  ],
+  "metadata": {
+    "apiMetrics": {
+      "requestsInLastHour": 14,
+      "remainingRequests": 986,
+      "averageRequestTime": "234ms",
+      "queueLength": 0
+    },
+    "totalCount": 3
+  }
+}

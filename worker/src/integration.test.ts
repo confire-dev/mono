@@ -165,6 +165,117 @@ describe('optimizer: Read (pre-injection)', () => {
   })
 })
 
+describe('optimizer: Git MCP', () => {
+  it('cleans repr() formatting from git_log output', () => {
+    const raw = fixture('optimizer/git-log.txt')
+    const event = makeEvent('git_log', raw, { isMcp: true, mcpServer: 'git' })
+    assertSaving('Git log (repr cleanup)', event, 5)
+  })
+
+  it('drops vendored and lockfile diffs, preserves source diffs', () => {
+    const raw = fixture('optimizer/git-diff-noisy.txt')
+    const event = makeEvent('git_diff', raw, { isMcp: true, mcpServer: 'git' })
+    const { result } = assertSaving('Git diff (drop vendor)', event, 20)
+    const out = extractText(result.toolOutput) ?? ''
+    expect(out).toContain('src/parser.ts')       // source diff kept
+    expect(out).toContain('src/retry.ts')         // source diff kept
+    expect(out).not.toContain('node_modules')     // vendor diff dropped
+    expect(out).not.toContain('package-lock.json') // lockfile dropped
+    expect(out).toContain('[confire:')            // truncation notice present
+  })
+})
+
+describe('optimizer: Sentry MCP', () => {
+  it('strips coaching sections while preserving issue data', () => {
+    const raw = fixture('optimizer/sentry-issues.txt')
+    const event = makeEvent('search_issues', raw, { isMcp: true, mcpServer: 'sentry' })
+    const { result } = assertSaving('Sentry search_issues', event, 20)
+    const out = extractText(result.toolOutput) ?? ''
+    expect(out).toContain('ACME-123')             // issue ID kept
+    expect(out).toContain('TypeError')            // error title kept
+    expect(out).not.toContain('Next Steps')       // coaching stripped
+    expect(out).not.toContain('Query Translation') // coaching stripped
+    expect(out).not.toContain('Suggested presentation') // coaching stripped
+  })
+})
+
+describe('optimizer: Linear MCP', () => {
+  it('strips apiMetrics telemetry block from JSON response', () => {
+    const raw = fixture('optimizer/linear-issues.txt')
+    const event = makeEvent('linear_search_issues', raw, { isMcp: true, mcpServer: 'linear' })
+    const { result } = assertSaving('Linear issues list', event, 10)
+    const out = extractText(result.toolOutput) ?? ''
+    expect(out).toContain('ENG-142')         // issue data kept
+    expect(out).toContain('ENG-98')          // issue data kept
+    expect(out).not.toContain('apiMetrics')  // telemetry stripped
+    expect(out).not.toContain('requestsInLastHour') // telemetry stripped
+  })
+})
+
+describe('optimizer: Filesystem MCP', () => {
+  it('strips redundant fields from get_file_info', () => {
+    const raw = fixture('optimizer/filesystem-info.txt')
+    const event = makeEvent('get_file_info', raw, { isMcp: true, mcpServer: 'filesystem' })
+    const { result } = assertSaving('Filesystem get_file_info', event, 20)
+    const out = extractText(result.toolOutput) ?? ''
+    expect(out).toContain('type: file')       // merged isFile/isDirectory
+    expect(out).toContain('size:')            // useful field kept
+    expect(out).toContain('modified:')        // useful field kept
+    expect(out).not.toContain('isDirectory:') // redundant bool dropped
+    expect(out).not.toContain('isFile:')      // redundant bool dropped
+    expect(out).not.toContain('accessed:')    // noise dropped
+    expect(out).not.toContain('permissions:') // default 644 dropped
+  })
+})
+
+describe('optimizer: PostgreSQL MCP', () => {
+  it('converts Python repr datetime format to ISO-8601 and pretty-prints', () => {
+    const raw = fixture('optimizer/postgres-query.txt')
+    const event = makeEvent('execute_sql', raw, {
+      isMcp: true,
+      mcpServer: 'postgres',
+      input: { query: 'SELECT * FROM users' }, // no LIMIT — exploratory
+    })
+    const { result } = assertSaving('Postgres execute_sql', event, 10)
+    const out = extractText(result.toolOutput) ?? ''
+    expect(out).not.toContain('datetime.datetime') // Python repr gone
+    expect(out).toContain('2024-01-15T10:30:00Z')  // ISO timestamp present
+    expect(out).toContain('alice@example.com')     // row data intact
+  })
+
+  it('does NOT truncate when query has explicit LIMIT', () => {
+    const rows = Array.from({ length: 60 }, (_, i) => ({ id: i + 1, name: `user${i + 1}` }))
+    const raw = JSON.stringify(rows)
+    const event = makeEvent('execute_sql', raw, {
+      isMcp: true,
+      mcpServer: 'postgres',
+      input: { query: 'SELECT id, name FROM users LIMIT 60' },
+    })
+    const result = handle(event)
+    // With LIMIT, optimizer should either passthrough or pretty-print — never truncate
+    if (result.kind === 'replace-output') {
+      const out = extractText(result.toolOutput) ?? ''
+      expect(out).not.toContain('[confire: showing')
+      expect(out.split('"id"').length - 1).toBeGreaterThanOrEqual(60)
+    }
+  })
+
+  it('truncates large results without LIMIT and adds notice', () => {
+    const rows = Array.from({ length: 80 }, (_, i) => ({ id: i + 1, email: `u${i + 1}@example.com` }))
+    const raw = JSON.stringify(rows)
+    const event = makeEvent('execute_sql', raw, {
+      isMcp: true,
+      mcpServer: 'postgres',
+      input: { query: 'SELECT * FROM users' }, // no LIMIT
+    })
+    const result = handle(event)
+    expect(result.kind).toBe('replace-output')
+    const out = extractText(result.toolOutput) ?? ''
+    expect(out).toContain('[confire: showing 50 of 80 rows')
+    expect(out).toContain('add LIMIT')
+  })
+})
+
 describe('optimizer: generic (unknown MCP tool)', () => {
   const raw = fixture('optimizer/generic-mcp.json')
 

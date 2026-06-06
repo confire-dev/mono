@@ -15,6 +15,11 @@ import { optimizePlaywright, handlesPlaywright } from './playwright.js'
 import { optimizeZapier, handlesZapier } from './zapier.js'
 import { optimizeGoogleDrive, handlesGoogleDrive } from './google-drive.js'
 import { optimizeWebSearch, handlesWebSearch } from './websearch.js'
+import { optimizeGit, handlesGit } from './git.js'
+import { optimizeSentry, handlesSentry } from './sentry.js'
+import { optimizeLinear, handlesLinear } from './linear.js'
+import { optimizeFilesystem, handlesFilesystem } from './filesystem.js'
+import { optimizePostgres, handlesPostgres } from './postgres.js'
 
 // extractText pulls the relevant string from a tool_response.
 // Handles all common shapes:
@@ -79,25 +84,32 @@ export function rebuildOutput(original: unknown, optimizedText: string): unknown
 // dispatch routes to the correct optimizer function for a given event.
 // Returns the optimized string, or null if no optimization applied.
 function dispatch(rawText: string, event: InterceptEvent): string | null {
-  if (handlesFigma(event))     return optimizeFigma(rawText)
-  if (handlesGitHub(event))    return optimizeGitHub(rawText)
+  if (handlesFigma(event))       return optimizeFigma(rawText)
+  if (handlesGitHub(event))      return optimizeGitHub(rawText)
   if (handlesAtlassian(event)) {
     return isConfluence(event.tool?.name ?? '')
       ? optimizeConfluence(rawText)
       : optimizeJira(rawText)
   }
-  if (handlesClickUp(event))    return optimizeClickUp(rawText)
-  if (handlesSlack(event))      return optimizeSlack(rawText)
-  if (handlesAmplitude(event))  return optimizeAmplitude(rawText)
-  if (handlesFireflies(event))  return optimizeFireflies(rawText)
-  if (handlesNotion(event))     return optimizeNotion(rawText)
-  if (handlesPlaywright(event)) return optimizePlaywright(rawText)
-  if (handlesZapier(event))     return optimizeZapier(rawText)
+  if (handlesClickUp(event))     return optimizeClickUp(rawText)
+  if (handlesSlack(event))       return optimizeSlack(rawText)
+  if (handlesAmplitude(event))   return optimizeAmplitude(rawText)
+  if (handlesFireflies(event))   return optimizeFireflies(rawText)
+  if (handlesNotion(event))      return optimizeNotion(rawText)
+  if (handlesPlaywright(event))  return optimizePlaywright(rawText)
+  if (handlesZapier(event))      return optimizeZapier(rawText)
   if (handlesGoogleDrive(event)) return optimizeGoogleDrive(rawText)
-  if (handlesBash(event))       return optimizeBash(rawText, event)
-  if (handlesRead(event))       return optimizeRead(rawText, event)
-  if (handlesWebFetch(event))   return optimizeWebFetch(rawText)
-  if (handlesWebSearch(event))  return optimizeWebSearch(rawText)
+  // New cloud optimizers
+  if (handlesGit(event))         return optimizeGit(rawText)
+  if (handlesSentry(event))      return optimizeSentry(rawText)
+  if (handlesLinear(event))      return optimizeLinear(rawText)
+  if (handlesFilesystem(event))  return optimizeFilesystem(rawText, event)
+  if (handlesPostgres(event))    return optimizePostgres(rawText, event)
+  // Native Claude Code tools
+  if (handlesBash(event))        return optimizeBash(rawText, event)
+  if (handlesRead(event))        return optimizeRead(rawText, event)
+  if (handlesWebFetch(event))    return optimizeWebFetch(rawText)
+  if (handlesWebSearch(event))   return optimizeWebSearch(rawText)
   // Generic fallback — handles any unrecognized tool
   return optimizeGeneric(rawText)
 }
@@ -142,5 +154,11 @@ export function resolveOptimizerName(event: InterceptEvent): string {
   for (const key of ['figma','github','atlassian','clickup','slack','amplitude','fireflies','notion','playwright','zapier','google_drive','googledrive','bash','read','webfetch','websearch','brave_','exa_','tavily','perplexity']) {
     if (n.includes(key) || s.includes(key)) return key
   }
+  // New optimizers — checked after existing ones to avoid shadowing
+  if (handlesGit(event))        return 'git'
+  if (handlesSentry(event))     return 'sentry'
+  if (handlesLinear(event))     return 'linear'
+  if (handlesFilesystem(event)) return 'filesystem'
+  if (handlesPostgres(event))   return 'postgres'
   return 'generic'
 }

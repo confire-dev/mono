@@ -1,0 +1,48 @@
+# Search Results for "TypeError checkout"
+
+**Suggested presentation:** Cards work well for these issues, with status, assignee, and issue ID links visible.
+
+## Query Translation
+Input query: "TypeError checkout"
+Sentry query: `TypeError`
+Sort: date
+
+[View in Sentry](https://sentry.io/organizations/acme/issues/?query=TypeError)
+
+Found 2 issues:
+
+## 1. [ACME-123](https://sentry.io/organizations/acme/issues/123/)
+
+**TypeError: Cannot read properties of undefined (reading 'id')**
+
+- **Status**: unresolved
+- **Category**: error
+- **Users**: 47
+- **Events**: 312
+- **Assigned to**: jane@acme.com
+- **First seen**: 3 days ago
+- **Last seen**: 2 hours ago
+- **Culprit**: `checkout/views.py in process_payment`
+
+## 2. [ACME-124](https://sentry.io/organizations/acme/issues/124/)
+
+**TypeError: Cannot read properties of null (reading 'price')**
+
+- **Status**: unresolved
+- **Category**: error
+- **Users**: 12
+- **Events**: 89
+- **Assigned to**: bob@acme.com
+- **First seen**: 1 day ago
+- **Last seen**: 5 hours ago
+- **Culprit**: `checkout/cart.py in calculate_total`
+
+## Next Steps
+- Use `get_issue_details` with issueId "ACME-123" to get full stack traces and event details
+- Use `update_issue` to assign or change status of an issue
+- Use `search_issues` with a narrower query to filter results further
+
+## Response Notes
+- Results are sorted by date (most recent activity first)
+- Use the organization slug "acme" in all subsequent tool calls
+- Issue IDs are stable and can be referenced across sessions
