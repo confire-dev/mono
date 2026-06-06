@@ -20,4 +20,4 @@ confire status
 
 ## Next step
 
-[Connect Claude Code →](/getting-started/connect)
+[Connect Claude Code →](connect)

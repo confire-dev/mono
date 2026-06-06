@@ -121,3 +121,8 @@ site-search button {
 .mobile-sidebar-toggle {
   color: #a1a1aa;
 }
+
+/* Hide dark/light mode toggle — dark only */
+starlight-theme-select {
+  display: none !important;
+}

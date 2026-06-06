@@ -14,6 +14,11 @@ export default defineConfig({
         replacesTitle: false,
       },
       favicon: '/favicon.svg',
+      // Lock to dark mode — no theme toggle
+      defaultColorScheme: 'dark',
+      head: [
+        { tag: 'script', content: "document.documentElement.dataset.theme = 'dark'" },
+      ],
       social: [
         { icon: 'github',  label: 'GitHub',  href: 'https://github.com/confire-dev' },
       ],
