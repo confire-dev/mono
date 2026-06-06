@@ -7,6 +7,10 @@ compatibility_flags = ["nodejs_compat"]
 WORKER_URL = "https://api.dev.confire.dev"
 PUBLIC_WORKER_URL = "https://api.dev.confire.dev"
 
+[[services]]
+binding = "WORKER_API"
+service = "confire-worker-dev"
+
 # Production environment (confire.dev)
 [env.production]
 name = "confire-platform"
@@ -14,3 +18,7 @@ name = "confire-platform"
 [env.production.vars]
 WORKER_URL = "https://api.confire.dev"
 PUBLIC_WORKER_URL = "https://api.confire.dev"
+
+[[env.production.services]]
+binding = "WORKER_API"
+service = "confire-worker"
