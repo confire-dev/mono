@@ -87,9 +87,10 @@ export function CliAuthorizeCard({ user, device, callbackURL }: Props) {
         message: string
       }
       setState('done')
-      // Notify CLI in background — don't redirect browser so user sees our success page
+      // Navigate browser to CLI callback server — fetch() is blocked as mixed content
+      // (HTTPS page → HTTP localhost), but navigation is not subject to that restriction.
       const params = new URLSearchParams({ api_key: apiKey, email, message })
-      fetch(`${callbackURL}?${params}`, { mode: 'no-cors' }).catch(() => {})
+      window.location.href = `${callbackURL}?${params}`
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Authorization failed')
       setState('error')
