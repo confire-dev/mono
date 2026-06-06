@@ -139,7 +139,7 @@ confire config set notifications.enabled=false
 confire config set mode=strict
 ```
 
-See [Config file](../configuration/config-file) for all keys.
+See [Config file](../../configuration/config-file) for all keys.
 
 ---
 

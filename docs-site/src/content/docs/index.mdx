@@ -5,38 +5,30 @@ description: >-
   agent can do and what tool output it can see.
 ---
 
-import { Card, CardGrid, LinkButton } from '@astrojs/starlight/components'
+import { LinkButton } from '@astrojs/starlight/components'
 
-Confire is a context and tool firewall for AI coding agents. It sits
-between your agent and the tools it runs, intercepting every tool call
-in both directions.
+Confire is a context and tool firewall for AI coding agents. It
+sits between your agent and the tools it runs, intercepting every
+tool call in both directions — before it executes and after it
+returns.
 
-<CardGrid>
-  <Card title="Tool Firewall" icon="shield">
-    Runs **before** each tool call. Reviews, warns, or blocks risky
-    commands — destructive git operations, mutating MCP actions,
-    secret file reads — before they execute.
-  </Card>
-  <Card title="Context Firewall" icon="seti:config">
-    Runs **after** each tool call. Sanitizes MCP output, redacts
-    common secret patterns, strips hidden-unicode injection attempts,
-    and removes noise before output enters the model context.
-  </Card>
-  <Card title="Local-first" icon="laptop">
-    Core optimizers run on your machine, free and offline. Remote
-    optimizers (Figma, GitHub, all MCP tools) activate when you log
-    in with a paid plan.
-  </Card>
-  <Card title="Zero workflow change" icon="rocket">
-    One install command hooks into Claude Code, Cursor, or VS Code.
-    No proxy, no new MCP server, no changes to how you work.
-  </Card>
-</CardGrid>
+---
+
+**Tool Firewall** — runs before each tool call. Reviews, warns, or
+blocks risky commands: destructive git operations, mutating MCP
+actions, secret file reads — before anything executes.
+
+**Context Firewall** — runs after each tool call. Sanitizes MCP
+output, redacts common secret patterns, strips hidden-unicode
+injection attempts, and removes noise before output enters the
+model context.
+
+---
+
+Core optimizers run on your machine, free and offline. Remote
+optimizers (Figma, GitHub, all MCP tools) activate when you log in
+with a paid plan. One install command. No proxy, no new MCP server.
 
 <br />
 
-<LinkButton href="getting-started/install">Install Confire →</LinkButton>
-&nbsp;
-<LinkButton href="core-concepts/what-is-confire" variant="secondary">
-  How it works →
-</LinkButton>
+<LinkButton href="getting-started/install">Get started →</LinkButton>

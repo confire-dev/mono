@@ -76,4 +76,4 @@ confire config set analytics=false
 ## Per-agent overrides
 
 To override capabilities for a specific agent, see
-[Per-agent settings](per-agent-settings).
+[Per-agent settings](../configuration/per-agent-settings).

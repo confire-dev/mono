@@ -67,12 +67,12 @@ The active mode controls how strictly rules are enforced. In
 `observe` mode the firewall records matches without acting. In
 `balanced` mode (default) rules fire at their stated severity.
 In `strict` mode additional rules activate. See
-[Policy modes](policy-modes).
+[Policy modes](../tool-firewall/policy-modes).
 
 ## Related pages
 
-- [Built-in rules](built-in-rules) — what ships in the binary
-- [Policy modes](policy-modes) — observe, balanced, strict, bypass
-- [MCP risk classifier](mcp-risk-classifier) — automatic MCP scoring
-- [Custom rules](custom-rules) — cloud-managed rule additions
-- [Bypass and approvals](bypass-and-approvals) — one-shot overrides
+- [Built-in rules](../tool-firewall/built-in-rules) — what ships in the binary
+- [Policy modes](../tool-firewall/policy-modes) — observe, balanced, strict, bypass
+- [MCP risk classifier](../tool-firewall/mcp-risk-classifier) — automatic MCP scoring
+- [Custom rules](../tool-firewall/custom-rules) — cloud-managed rule additions
+- [Bypass and approvals](../tool-firewall/bypass-and-approvals) — one-shot overrides

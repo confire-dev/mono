@@ -49,10 +49,10 @@ conversation history, and project structure are never transmitted.
 
 ## Related pages
 
-- [Optimizers](optimizers) — how noise trimming works per tool type
-- [Secret redaction](secret-redaction) — what patterns are detected
-- [Injection guard](injection-guard) — hidden unicode and
+- [Optimizers](../context-firewall/optimizers) — how noise trimming works per tool type
+- [Secret redaction](../context-firewall/secret-redaction) — what patterns are detected
+- [Injection guard](../context-firewall/injection-guard) — hidden unicode and
   instruction injection
-- [MCP output sanitization](mcp-output-sanitization) — the full
+- [MCP output sanitization](../context-firewall/mcp-output-sanitization) — the full
   MCP security pipeline
-- [Context limits](context-limits) — built-in output size caps
+- [Context limits](../context-firewall/context-limits) — built-in output size caps
