@@ -24,7 +24,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   // Call the worker to generate the API key
-  const workerURL = import.meta.env.PUBLIC_WORKER_URL ?? 'http://localhost:8787'
+  const workerURL = import.meta.env.WORKER_URL ?? 'http://localhost:8787'
   const res = await fetch(`${workerURL}/api/keys/generate`, {
     method: 'POST',
     headers: {
@@ -36,7 +36,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   if (!res.ok) {
     const text = await res.text()
-    return Response.json({ error: `worker error: ${text}` }, { status: 502 })
+    return Response.json({ error: `worker error (${res.status}): ${text}` }, { status: 502 })
   }
 
   const data = await res.json() as {

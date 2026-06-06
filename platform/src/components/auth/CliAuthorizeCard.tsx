@@ -184,13 +184,10 @@ export function CliAuthorizeCard({ user, device, callbackURL }: Props) {
           {/* Confire icon */}
           <div style={{
             width: 52, height: 52, borderRadius: '50%',
-            background: 'rgba(244,129,31,0.12)', border: '1px solid rgba(244,129,31,0.3)',
+            background: 'rgba(235,90,24,0.12)', border: '1px solid rgba(235,90,24,0.3)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2C12 2 5 6 5 13C5 17.418 8.134 21 12 21C15.866 21 19 17.418 19 13C19 6 12 2 12 2Z" fill="#f4811f" opacity="0.9"/>
-              <path d="M12 7C12 7 8.5 10 8.5 14C8.5 16.485 10.015 18.5 12 18.5C13.985 18.5 15.5 16.485 15.5 14C15.5 10 12 7 12 7Z" fill="#fdb97d" opacity="0.7"/>
-            </svg>
+            <img src="/brand/confire-bg-transparent-logo-orange.svg" alt="Confire" width={28} height={28} style={{ width: 28, height: 28 }} />
           </div>
         </div>
 
@@ -234,13 +231,10 @@ export function CliAuthorizeCard({ user, device, callbackURL }: Props) {
             }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-                background: 'rgba(244,129,31,0.08)', border: '1px solid rgba(244,129,31,0.15)',
+                background: 'rgba(235,90,24,0.08)', border: '1px solid rgba(235,90,24,0.15)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2C12 2 5 6 5 13C5 17.418 8.134 21 12 21C15.866 21 19 17.418 19 13C19 6 12 2 12 2Z" fill="#f4811f" opacity="0.9"/>
-                  <path d="M12 7C12 7 8.5 10 8.5 14C8.5 16.485 10.015 18.5 12 18.5C13.985 18.5 15.5 16.485 15.5 14C15.5 10 12 7 12 7Z" fill="#fdb97d" opacity="0.7"/>
-                </svg>
+                <img src="/brand/confire-bg-transparent-logo-orange.svg" alt="Confire" width={20} height={20} style={{ width: 20, height: 20 }} />
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>Account</div>
