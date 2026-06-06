@@ -1,48 +1,45 @@
 ---
 title: Plans and limits
-description: What's included in the free and paid plans.
+description: What's included in Free, and what's coming in Dev early access.
 ---
 
 ## Free
 
-No account required. Works offline. All firewall features are
-included.
+No account required. All firewall and local optimization features
+are included at no cost.
 
 - **Tool Firewall** — all built-in rules, all policy modes
-- **Context Firewall security** — secret redaction, injection
-  guard, hidden-unicode stripping
+- **Context Firewall** — secret redaction, injection guard,
+  hidden-unicode stripping
 - **Local optimizers** — Bash, Read, WebFetch, Generic fallback
-- **Unlimited** local optimizations
 - **All supported agents** — Claude Code, Cursor, VS Code
+- **Basic stats** — token savings per session
 
-## Paid
+Local optimizers run in the daemon binary with no network round-trip
+and no account. The firewall runs entirely on your machine.
 
-Requires a Confire account (`confire login`).
+## Dev — early access
+
+Dev is opening soon for power users who want higher limits, custom
+guardrails, and full history. Planned at $10/month.
 
 - Everything in Free
-- **Remote optimizers** — Figma, GitHub, Slack, Notion, Jira,
-  and every other MCP-connected tool your agent uses
-- **Custom rules** — organization-specific firewall rules managed
-  in the dashboard and synced via `confire policy pull`
-- **Group overrides** — toggle rule groups on/off per team from
-  the dashboard
-- **Usage dashboard** — token savings, session stats, rule
-  activity
-- **Top-up credits** — purchase additional optimization credits
-  via `confire topup`
+- **Higher remote optimization limits** — Figma, GitHub, Slack,
+  Notion, Jira, and all MCP-connected tools your agent uses
+- **Custom dashboard guardrails** — organization-specific firewall
+  rules managed in the dashboard and synced via `confire policy pull`
+- **Policy sync** — keep rules in sync across machines
+- **Firewall + optimization history** — full activity log per session
+- **Updated optimizer and risk-rule library** — priority access to
+  new adapters and rule updates
+- **Top-up credits** — purchase additional remote optimization
+  credits via `confire topup`
 
-See [confire.dev/pricing](https://confire.dev/pricing) for current
-pricing and credit limits.
+[Request early access →](mailto:hello@confire.dev?subject=Dev%20Early%20Access)
 
-## Usage credits
+## Team — planned
 
-Remote optimization on paid plans is metered by usage credits.
-Your current balance and limit are shown in `confire status` and
-in the dashboard. When credits run low, local optimizers continue
-running — only remote optimization pauses.
+Shared policy management, team usage dashboard, custom optimizers,
+audit controls, and SSO. Contact us to join the waitlist.
 
-Purchase more credits:
-
-```bash
-confire topup
-```
+[Join waitlist →](mailto:hello@confire.dev?subject=Team%20Plan)
