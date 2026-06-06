@@ -1,50 +1,40 @@
 ---
 title: What is Confire?
-description: Context and tool firewall for AI coding agents.
+description: AI agent context optimizer for Claude Code.
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components'
 
-Confire sits between your AI coding agent and the outside world, giving you fine-grained control over what tools it can call, what context it sees, and how many tokens it burns.
+Confire is a context optimizer for AI coding agents. It runs as a background daemon and intercepts tool call responses **before they reach the model**, stripping noise to keep the context window lean.
 
-It works as a **local proxy** — no traffic leaves to Confire servers unless you choose remote features. You keep full control.
+## What it does
 
-## What problems does it solve?
-
-AI coding agents are powerful but undisciplined: they read files you didn't ask about, call tools you didn't intend, and jam thousands of tokens of irrelevant context into every request. Confire fixes that.
+Every time Claude Code finishes a tool call — running a shell command, reading a file, fetching a URL — the raw output goes back to the model. Most of that output is noise: stack traces you don't need, boilerplate HTML, hundreds of lines of log you'd never read. Confire cuts it down to signal.
 
 <CardGrid>
-  <Card title="Tool Firewall" icon="shield">
-    Block, allow, or require approval for specific MCP tool calls. Your agent can't `rm -rf` anything unless you say so.
-  </Card>
   <Card title="Context Optimizer" icon="compress">
-    Strips noise from context before it reaches the model. Fewer tokens, faster responses, lower cost — without losing signal.
+    Strips noise from Bash output, file reads, web fetches, Figma responses, GitHub PRs, and more. Up to 98% token reduction on some tool types.
   </Card>
-  <Card title="Secret Redaction" icon="lock">
-    Automatically detects and redacts secrets (API keys, tokens, passwords) before they appear in prompts or logs.
+  <Card title="Local + Remote" icon="laptop">
+    Local optimizers for Bash, Read, and WebFetch run free, offline, on your machine. Remote optimizers (Figma, GitHub, Jira) require a paid plan.
   </Card>
-  <Card title="Prompt-Injection Guard" icon="warning">
-    Scans tool results and file contents for attempts to hijack agent behavior via injected instructions.
+  <Card title="Zero config" icon="rocket">
+    One install command. Confire hooks into Claude Code automatically — no changes to your workflow.
+  </Card>
+  <Card title="Open pipeline" icon="open-book">
+    The optimizer runs in a daemon on your machine. Traffic only leaves to Confire servers for remote optimizers that need cloud processing.
   </Card>
 </CardGrid>
 
-## How it works in one sentence
+## How it works
 
-Confire intercepts MCP messages between your agent and its tools, applies your policy rules, and either lets the message through, modifies it, or blocks it.
-
-## Quick start
-
-```bash
-# 1. Install the CLI
-npm install -g @confire/cli
-
-# 2. Start the proxy
-confire start
-
-# 3. Point your agent at it
-# See the client guides for Claude Code, Cursor, and VS Code →
+```
+Claude Code finishes a tool call
+  → confire hook (PostToolUse, stdin: raw tool output)
+  → daemon (Unix socket)
+  → optimizer (local or remote)
+  → stripped output back to Claude Code (stdout)
 ```
 
 - [Install the CLI →](/getting-started/install)
-- [Connect your agent →](/getting-started/connect)
-- [Write your first policy →](/getting-started/first-policy)
+- [Connect Claude Code →](/getting-started/connect)

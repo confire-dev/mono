@@ -1,81 +1,59 @@
 ---
 title: Context Optimizer
-description: Reduce token usage by stripping noise from agent context before it hits the model.
+description: How Confire strips noise from tool outputs to save tokens.
 ---
 
-AI coding agents attach a lot of context to every request: open files, tool results, conversation history, imported modules. Most of it is irrelevant to the current task. The Context Optimizer removes the noise before it reaches the model.
+The context optimizer is Confire's core feature. After every tool call, Claude Code gets back raw output — often thousands of tokens of noise. The optimizer strips it down to what the model actually needs.
 
-## What it does
+## Local optimizers (free)
 
-The optimizer sits between the proxy and the outbound MCP call. It receives the full context payload, analyzes it, and returns a trimmed version that preserves the signal.
+### Bash
 
-Typical reductions:
+Trims shell output to keep failures, errors, and key results. Removes long chains of progress lines, repeated output, and irrelevant stdout.
 
-- **30–60%** fewer tokens on file-heavy tasks
-- Near-zero reduction on short, focused requests (the optimizer gets out of the way)
+Typical reduction: **60–95%**
 
-## Optimizer types
+### Read (file)
 
-### Universal fallback optimizer
+Caps large file reads before they're sent to the model. Works in two phases:
+- **Pre-tool**: if a file exceeds the threshold, Confire signals Claude Code to read only a slice
+- **Post-tool**: strips boilerplate and repeated patterns from the returned content
 
-Available on the Free plan. Applies generic heuristics:
+Typical reduction: **50–80%** on large files
 
-- Truncates repeated boilerplate (imports, license headers)
-- Collapses long stack traces to first/last few frames
-- Strips binary content and non-UTF-8 sequences
-- Removes duplicate blocks
+### WebFetch
 
-### Source-specific optimizers (Dev plan and above)
+Strips HTML structure, CSS, navigation, ads, and repeated layout elements from fetched pages. Returns readable text content.
 
-Separate optimizers tuned per content type:
+Typical reduction: **80–90%**
 
-| Optimizer          | Specialization                              |
-|--------------------|---------------------------------------------|
-| `typescript`       | Strips type annotations when types are inferable |
-| `python`           | Removes docstrings, collapses imports        |
-| `rust`             | Strips lifetimes and doc comments            |
-| `json-large`       | Summarizes large JSON payloads               |
-| `stacktrace`       | Extracts root cause, hides framework frames  |
-| `html`             | Strips scripts, styles, hidden elements      |
-| `markdown-long`    | Summarizes large documents                   |
-| `git-diff`         | Highlights changed lines, collapses context  |
-| `package-lock`     | Replaces with dependency summary             |
-| … and more         |                                              |
+### Generic
 
-### PreCompact optimizer (Pro plan)
+A fallback for any tool type without a specific optimizer. Strips common JSON noise patterns — deeply nested empty objects, null fields, duplicate keys.
 
-Runs before Claude Code's built-in context compaction. Cleans up the session context window before it grows too large, preserving decisions and discarding implementation noise. Keeps sessions coherent for much longer.
+## Remote optimizers (paid)
 
-## Configuration
+Remote optimizers run in Confire's cloud and handle tool types that need domain-specific context to optimize well.
 
-```yaml
-optimizer:
-  enabled: true
-  strategy: auto          # auto | conservative | aggressive
-  max-tokens: 40000       # hard cap on output context size
-  preserve:
-    - "*.test.ts"         # never strip test files
-    - "CLAUDE.md"         # never strip project instructions
-```
+### Figma
 
-**Strategies:**
+Converts raw Figma MCP output (verbose JSX-like component trees) into a compact section map the model can reason about.
 
-- `auto` — adapts based on how close you are to the model's context limit
-- `conservative` — only removes clearly redundant content
-- `aggressive` — prioritizes token savings even at the cost of some detail
+Typical reduction: **98%**
 
-## Measuring savings
+### GitHub PR
 
-```bash
-confire stats
-```
+Summarizes pull request diffs, focusing on meaningful changes and stripping generated files, lock files, and whitespace-only diffs.
 
-```
-Last 7 days
-  Requests:        142
-  Tokens sent:     1,840,000
-  Tokens saved:      610,000  (33%)
-  Estimated cost:   -$1.83
-```
+Typical reduction: **85–95%**
 
-The dashboard shows the same data with charts over time.
+### MCP tools
+
+Platform-specific optimizers for Jira, Slack, Linear, and other MCP-connected tools.
+
+## How routing works
+
+The daemon inspects the tool name and output shape and routes to the appropriate optimizer. If no specific optimizer matches, Generic runs as fallback. Remote optimizers only activate when:
+1. You're logged in (`confire login`)
+2. An API key is stored locally
+3. The daemon can reach `api.confire.dev`

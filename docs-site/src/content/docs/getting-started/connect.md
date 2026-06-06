@@ -1,71 +1,49 @@
 ---
 title: Connect your agents
-description: Point Claude Code, Cursor, or VS Code at the Confire proxy.
+description: Install Confire hooks into Claude Code.
 ---
 
-Once the proxy is running (`confire start`), tell your agent to route its MCP traffic through it.
+Confire uses Claude Code's **PostToolUse hook** to intercept tool outputs. The installer runs `confire setup` automatically, but you can re-run it any time.
 
-## Claude Code
-
-Add Confire as an MCP server in your Claude Code config (`.claude/settings.json` or `~/.claude/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "confire": {
-      "command": "confire",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-The `confire mcp` sub-command starts an MCP stdio transport that forwards to the proxy.
-
-For a detailed walk-through see the [Claude Code client guide →](/clients/claude-code)
-
-## Cursor
-
-In Cursor settings, add a new MCP server pointing at the Confire HTTP proxy:
-
-```json
-{
-  "mcpServers": {
-    "confire": {
-      "url": "http://localhost:4747/mcp"
-    }
-  }
-}
-```
-
-For a detailed walk-through see the [Cursor client guide →](/clients/cursor)
-
-## VS Code (Copilot)
-
-In your workspace `.vscode/settings.json`:
-
-```json
-{
-  "github.copilot.mcpServers": {
-    "confire": {
-      "url": "http://localhost:4747/mcp"
-    }
-  }
-}
-```
-
-For a detailed walk-through see the [VS Code client guide →](/clients/vscode)
-
-## Verify the connection
-
-After connecting, run a quick sanity check:
+## Setup
 
 ```bash
-confire test
+confire setup
 ```
 
-This sends a test request through the proxy and prints what the firewall would do with it.
+This opens an interactive prompt to choose scope and select agents. Pick **Global** to apply to all projects, or **Local** to apply only to the current repo's `.claude/settings.json`.
 
-## Next step
+After setup, restart Claude Code to activate the hook.
 
-[Test your first policy →](/getting-started/first-policy)
+## What setup installs
+
+`confire setup` adds a `PostToolUse` entry to your Claude Code settings:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [{ "type": "command", "command": "confire hook" }]
+      }
+    ]
+  }
+}
+```
+
+Every time Claude Code finishes a tool call, it pipes the output through `confire hook`, which sends it to the daemon for optimization.
+
+## Start the daemon
+
+```bash
+confire start
+```
+
+The daemon runs in the background and handles all optimization. Setup starts it automatically, but you can also start it manually.
+
+## Verify everything is running
+
+```bash
+confire status
+```

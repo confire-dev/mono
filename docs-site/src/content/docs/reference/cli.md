@@ -1,40 +1,37 @@
 ---
-title: CLI commands
-description: Complete reference for the confire command-line interface.
+title: CLI reference
+description: All confire commands.
 ---
 
-## Global flags
+## `confire setup`
 
-| Flag | Description |
-|------|-------------|
-| `--config <path>` | Use a specific config file instead of the default |
-| `--verbose, -v` | Enable verbose output |
-| `--json` | Output results as JSON (where supported) |
-| `--help, -h` | Show help for a command |
-| `--version` | Print the CLI version |
+Installs Confire hooks into your AI agent's settings file.
+
+```bash
+confire setup           # interactive — asks for scope and agents
+confire setup --global  # install into ~/.claude/settings.json
+confire setup --local   # install into .claude/settings.json in nearest git root
+```
+
+After installation, restart your AI agent to activate the hook.
 
 ---
 
 ## `confire start`
 
-Start the Confire proxy.
+Starts the optimizer daemon in the background.
 
 ```bash
-confire start [flags]
+confire start
 ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--port <n>` | `4747` | Port to listen on |
-| `--daemon` | false | Run as a background process |
-| `--policy <path>` | `~/.confire/policy.yaml` | Policy file to load |
-| `--no-sync` | false | Skip remote policy sync on start |
+The daemon listens on a Unix socket at `~/.confire/daemon.sock`. Setup runs this automatically.
 
 ---
 
 ## `confire stop`
 
-Stop a running daemon.
+Stops the running daemon.
 
 ```bash
 confire stop
@@ -44,7 +41,7 @@ confire stop
 
 ## `confire status`
 
-Show whether the proxy is running, the port it's on, and active connections.
+Shows daemon status, hook installation, login state, and session stats.
 
 ```bash
 confire status
@@ -52,35 +49,21 @@ confire status
 
 ---
 
-## `confire mcp`
-
-Start an MCP stdio transport that forwards to the proxy. Used by Claude Code.
-
-```bash
-confire mcp
-```
-
-This is an internal command — you reference it in MCP server config, you don't run it directly.
-
----
-
 ## `confire login`
 
-Authenticate with Confire.
+Opens a browser to authenticate with your Confire account. Stores the API key in the system keychain.
 
 ```bash
-confire login [flags]
+confire login
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--api-key <key>` | Authenticate using an API key (no browser) |
+Required for remote optimizers (Figma, GitHub, etc.) and paid plan features.
 
 ---
 
 ## `confire logout`
 
-Remove stored credentials.
+Revokes the current API key and removes it from the keychain.
 
 ```bash
 confire logout
@@ -88,105 +71,40 @@ confire logout
 
 ---
 
-## `confire test`
+## `confire reset`
 
-Send a test tool call through the proxy and show what the policy engine does with it.
+Removes hooks from all agent settings files and stops the daemon. The binary stays installed.
 
 ```bash
-confire test [flags]
+confire reset
 ```
+
+---
+
+## `confire version`
+
+Prints the installed version.
+
+```bash
+confire version
+```
+
+---
+
+## `confire hook`
+
+Called automatically by the Claude Code PostToolUse hook. Not intended for direct use.
+
+```bash
+confire hook  # reads tool output from stdin, writes optimized output to stdout
+```
+
+---
+
+## Global flags
 
 | Flag | Description |
 |------|-------------|
-| `--tool <name>` | Tool name to test |
-| `--server <name>` | MCP server to target |
-| `--args <json>` | Tool arguments as JSON |
-| `--client <name>` | Simulate a specific client (e.g. `claude-code`) |
-
----
-
-## `confire policy push`
-
-Upload a local policy file to the Confire cloud.
-
-```bash
-confire policy push <file> [flags]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--name <name>` | Named policy slot (default: `default`) |
-| `--share` | Make visible to team members |
-
----
-
-## `confire policy pull`
-
-Download a policy from the Confire cloud.
-
-```bash
-confire policy pull [flags]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--name <name>` | Named policy to pull (default: `default`) |
-| `--account <slug>` | Pull from a team account |
-| `--output <path>` | Write to a file instead of stdout |
-
----
-
-## `confire policy versions`
-
-List versions of a stored policy.
-
-```bash
-confire policy versions [--name <name>]
-```
-
----
-
-## `confire policy rollback`
-
-Revert to a previous policy version.
-
-```bash
-confire policy rollback --version <n>
-```
-
----
-
-## `confire stats`
-
-Show token usage and savings statistics.
-
-```bash
-confire stats [flags]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--days <n>` | Show last N days (default: 7) |
-| `--json` | Output as JSON |
-
----
-
-## `confire redaction test`
-
-Test a redaction pattern against sample input.
-
-```bash
-confire redaction test --pattern <regex> --input <string>
-```
-
----
-
-## `confire keys`
-
-Manage API keys.
-
-```bash
-confire keys list
-confire keys create [--name <label>]
-confire keys revoke <key-id>
-```
+| `--local` | Use local worker at `localhost:8787` |
+| `--version` | Print version |
+| `--help` | Show help |

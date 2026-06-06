@@ -1,95 +1,40 @@
 ---
-title: Test a policy
-description: Write a simple policy rule and see Confire enforce it.
+title: See it working
+description: Verify Confire is optimizing your context.
 ---
 
-Policies are YAML files that tell Confire what to do with tool calls and context. This guide walks you through writing and testing your first rule.
-
-## Default policy location
-
-```
-~/.confire/policy.yaml        # global (all projects)
-<project-root>/.confire.yaml  # project-specific (takes precedence)
-```
-
-## A minimal policy
-
-Create `.confire.yaml` in your project root:
-
-```yaml
-version: 1
-
-rules:
-  - name: block-shell
-    when:
-      tool: bash
-    do: block
-    reason: "Shell execution requires manual approval"
-```
-
-This blocks any `bash` tool call your agent attempts.
-
-## Test it
-
-With `confire start` running in the background, trigger a tool call from your agent or use the CLI:
+## Check status
 
 ```bash
-confire test --tool bash --args '{"command": "ls"}'
+confire status
 ```
 
-You should see:
+This shows whether the daemon is running, which hooks are installed, and whether you're logged in.
 
-```
-✗ BLOCKED  bash  →  "Shell execution requires manual approval"
-```
+## Watch it optimize
 
-## Approve instead of block
+Run Claude Code and trigger a tool call — open a large file, run a shell command, or fetch a URL. You'll see Confire's optimization stats in the daemon output:
 
-Change `do: block` to `do: require-approval` to get an interactive prompt:
-
-```yaml
-rules:
-  - name: approve-shell
-    when:
-      tool: bash
-    do: require-approval
+```bash
+confire logs
 ```
 
-Next time the agent calls `bash`, Confire will pause and ask:
+## Check savings
 
-```
-Agent wants to run: bash {"command": "ls -la"}
-Allow? [y/N/always]
-```
+After a session, run:
 
-## Allow specific tools
-
-You can combine rules. For example, allow `read_file` freely, require approval for `write_file`, and block `delete_file`:
-
-```yaml
-version: 1
-
-rules:
-  - name: allow-reads
-    when:
-      tool: read_file
-    do: allow
-
-  - name: approve-writes
-    when:
-      tool: write_file
-    do: require-approval
-
-  - name: block-deletes
-    when:
-      tool: delete_file
-    do: block
+```bash
+confire status
 ```
 
-Rules are evaluated top-to-bottom. The first match wins.
+The output includes token savings for the current session.
 
-## Next steps
+## Log in for remote optimizers
 
-- [Full policy syntax reference →](/configuration/policy-rules)
-- [Custom guardrails →](/configuration/custom-guardrails)
-- [How the firewall works →](/how-it-works/tool-firewall)
+Local optimizers (Bash, Read, WebFetch) work without an account. Remote optimizers — Figma, GitHub, Jira, Slack — require a Confire account:
+
+```bash
+confire login
+```
+
+This opens a browser to authenticate. Once logged in, remote optimizers activate automatically when the relevant tool types are detected.

@@ -1,77 +1,48 @@
 ---
 title: Architecture
-description: How Confire fits into the AI agent stack.
+description: How Confire fits into the Claude Code stack.
 ---
 
-## High-level view
+## Data flow
 
 ```
- ┌─────────────────────────────────────────────────┐
- │  AI Coding Agent (Claude Code, Cursor, VS Code) │
- └────────────────────────┬────────────────────────┘
-                          │  MCP messages (stdio / HTTP)
-                          ▼
- ┌─────────────────────────────────────────────────┐
- │               Confire Proxy                     │
- │                                                 │
- │  ① Policy Engine   → allow / block / approve   │
- │  ② Context Filter  → strip noise, redact        │
- │  ③ Injection Guard → scan tool results          │
- └────────────────────────┬────────────────────────┘
-                          │  clean, filtered messages
-                          ▼
- ┌──────────────┐  ┌──────────────┐  ┌────────────┐
- │  Filesystem  │  │  Shell / Bash│  │  APIs, DBs │
- │  MCP Server  │  │  MCP Server  │  │  MCP Servers│
- └──────────────┘  └──────────────┘  └────────────┘
+Claude Code finishes a tool call
+  → PostToolUse hook fires
+  → confire hook (stdin: raw tool output JSON)
+  → daemon (Unix socket at ~/.confire/daemon.sock)
+  → optimizer (local or remote)
+  → optimized output (stdout → Claude Code)
 ```
+
+Confire intercepts **tool call responses**, not tool calls themselves. It runs after the tool executes and before the result reaches the model.
 
 ## Components
 
-### Policy Engine
+### CLI (`confire`)
 
-The first thing every MCP message hits. The engine evaluates your policy rules in order and decides:
+The user-facing binary. Handles setup, login, start/stop, and status. Also acts as the hook entrypoint — Claude Code calls `confire hook` on every tool output.
 
-- **allow** — pass through unchanged
-- **block** — return an error to the agent explaining why
-- **require-approval** — pause and prompt the user, then proceed or block
+### Daemon
 
-### Context Filter / Optimizer
+A background process that listens on a Unix socket. The hook sends raw tool output to the daemon, which runs the optimizer and returns the stripped result. The daemon handles:
+- Routing to the right optimizer per tool type
+- Forwarding to the remote Worker if an API key is present
+- Caching and connection management
 
-Runs on the *input* side of each tool call — the context payload the agent sends along with its request. The optimizer:
+### Worker (remote)
 
-1. Identifies signal vs. noise (irrelevant file content, giant stack traces, repeated boilerplate)
-2. Strips or summarises the noisy parts
-3. Passes a leaner payload upstream
-
-This reduces token usage and speeds up responses without changing what the agent can do.
-
-### Secret Redaction
-
-Scans all outbound context (and inbound tool results) for patterns matching common secret formats:
-
-- AWS / GCP / Azure credentials
-- GitHub, npm, Stripe tokens
-- Private keys (PEM blocks)
-- Generic high-entropy strings
-
-Matches are replaced with `[REDACTED:type]` before they can appear in any prompt or log.
-
-### Injection Guard
-
-Scans the *output* of tool calls (files read, shell output, API responses) before handing them back to the agent. It looks for embedded prompt-injection payloads — text designed to make the agent ignore its instructions or exfiltrate data.
-
-Suspicious results are flagged or stripped depending on your policy.
+A Cloudflare Worker at `api.confire.dev`. Runs source-specific remote optimizers — Figma, GitHub PR, Jira, Slack — that require more context or cloud processing. Only used when you're logged in with a paid plan.
 
 ## Local vs. remote
 
-All core features run **locally** — no data leaves your machine. Remote features (optimizer updates, remote policy sync, usage analytics) connect to Confire's cloud service and require a paid plan.
+| Optimizer        | Mode   | Plan     |
+|------------------|--------|----------|
+| Bash             | Local  | Free     |
+| Read (file)      | Local  | Free     |
+| WebFetch         | Local  | Free     |
+| Generic JSON     | Local  | Free     |
+| Figma            | Remote | Paid     |
+| GitHub PR        | Remote | Paid     |
+| MCP tools        | Remote | Paid     |
 
-| Feature                    | Local | Remote |
-|----------------------------|:-----:|:------:|
-| Tool Firewall              | ✓     |        |
-| Secret Redaction           | ✓     |        |
-| Basic context optimizer    | ✓     |        |
-| Source-specific optimizers |       | ✓      |
-| Remote policy sync         |       | ✓      |
-| Usage analytics            |       | ✓      |
+Local optimizers run entirely on your machine. No data leaves unless you're using remote optimizers.
