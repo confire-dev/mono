@@ -1,33 +1,45 @@
 ---
 title: Bypass and approvals
 description: >-
-  How to let a single reviewed tool call through without
-  changing your policy mode.
+  How to approve a single reviewed tool call without
+  disabling the firewall.
 ---
 
-When the Tool Firewall reviews a tool call and you've confirmed
-it's safe, you can let the next call through without disabling
-the firewall entirely.
+The firewall just fired a review. Your agent is paused:
 
-## Bypass-next
+```
+CONFIRE REVIEW REQUIRED
+
+Rule:              Review destructive git operation
+Claude is about to run: Bash — git push origin main --force
+Risk:              high severity
+Why this matters:  Force push can rewrite remote branch history and affect open PRs.
+
+ACTION REQUIRED — ask the user:
+"Confire flagged this command. Do you want me to run it anyway?
+If yes: run 'confire bypass-next' in your terminal, then tell me to retry."
+```
+
+You've checked it. It's intentional. Run:
 
 ```bash
 confire bypass-next
 ```
 
-Sets a one-shot flag that causes the firewall to pass through the
-very next PreToolUse event without review, warn, or block. After
-that one event, the flag is automatically cleared and the firewall
-returns to normal enforcement.
+Then tell the agent to retry. That's it.
 
-This is the right tool when your agent is paused on a review and
-you've inspected the command and want to proceed. It doesn't change
-your mode or persist beyond the single call.
+## What bypass-next does
 
-## Disabling the firewall temporarily
+`confire bypass-next` sets a one-shot approval flag. The very next
+PreToolUse event skips all firewall evaluation and the tool runs.
+After that single use the flag is automatically cleared — the
+firewall returns to normal enforcement immediately. This is a
+one-shot approval, not disabling the firewall.
 
-If you need to run a sequence of operations without review
-interruptions, you can switch to bypass mode:
+## Disabling the firewall for a longer sequence
+
+If you need to run several operations in a row without review
+interruptions, switch to bypass mode:
 
 ```bash
 confire off          # sets mode to bypass
@@ -35,17 +47,16 @@ confire off          # sets mode to bypass
 confire on           # re-enables balanced mode
 ```
 
-`confire off` disables the firewall completely. `confire on`
-re-enables it at `balanced`. Remember to restart the daemon after
-switching:
+Restart the daemon after switching:
 
 ```bash
 confire stop && confire start
 ```
 
-## Permanent changes
+## Block vs. review
 
-If a built-in rule fires too often on something your team considers
-safe, the right fix is a custom rule override or a group disable —
-not leaving the firewall off. See [Custom rules](custom-rules) for
-managing rule groups.
+`bypass-next` works only for review outcomes. A **block** has no
+retry path from the agent — the tool won't run regardless. If a
+block fires on something you intend to do, the right fix is a
+custom rule override or a group disable. See
+[Custom rules](custom-rules).

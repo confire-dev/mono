@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
+import starlightThemeRapide from 'starlight-theme-rapide'
 
 export default defineConfig({
   site: process.env.SITE_URL ?? 'https://docs.confire.dev',
@@ -9,9 +10,9 @@ export default defineConfig({
       title: 'Confire',
       tagline: 'Context and tool firewall for AI coding agents.',
       logo: {
-        light: './src/assets/logo-light.svg',
-        dark:  './src/assets/logo-dark.svg',
+        src: './src/assets/logo-light.svg',
         replacesTitle: false,
+        alt: 'Confire flame',
       },
       favicon: '/favicon.svg',
       head: [
@@ -23,6 +24,7 @@ export default defineConfig({
       editLink: {
         baseUrl: 'https://github.com/confire-dev/mono/edit/main/docs-site/',
       },
+      plugins: [starlightThemeRapide()],
       customCss: ['./src/styles/custom.css'],
       expressiveCode: {
         themes: ['github-dark'],
@@ -58,26 +60,26 @@ export default defineConfig({
         {
           label: 'Tool Firewall',
           items: [
-            { label: 'Overview',            slug: 'tool-firewall/overview' },
-            { label: 'Built-in rules',      slug: 'tool-firewall/built-in-rules' },
-            { label: 'Policy modes',        slug: 'tool-firewall/policy-modes' },
-            { label: 'MCP risk classifier', slug: 'tool-firewall/mcp-risk-classifier' },
-            { label: 'Custom rules',        slug: 'tool-firewall/custom-rules' },
+            { label: 'Overview',             slug: 'tool-firewall/overview' },
+            { label: 'Built-in rules',       slug: 'tool-firewall/built-in-rules' },
+            { label: 'Policy modes',         slug: 'tool-firewall/policy-modes' },
+            { label: 'MCP risk classifier',  slug: 'tool-firewall/mcp-risk-classifier' },
+            { label: 'Custom rules',         slug: 'tool-firewall/custom-rules' },
             { label: 'Bypass and approvals', slug: 'tool-firewall/bypass-and-approvals' },
           ],
         },
         {
           label: 'Configuration',
           items: [
-            { label: 'Config file',                     slug: 'configuration/config-file' },
-            { label: 'Per-agent settings',              slug: 'configuration/per-agent-settings' },
-            { label: 'Privacy and cloud optimization',  slug: 'configuration/privacy-and-cloud-optimization' },
+            { label: 'Config file',                    slug: 'configuration/config-file' },
+            { label: 'Per-agent settings',             slug: 'configuration/per-agent-settings' },
+            { label: 'Privacy and cloud optimization', slug: 'configuration/privacy-and-cloud-optimization' },
           ],
         },
         {
           label: 'Reference',
           items: [
-            { label: 'CLI commands',   slug: 'reference/cli' },
+            { label: 'CLI commands',     slug: 'reference/cli' },
             { label: 'Plans and limits', slug: 'reference/plans-and-limits' },
           ],
         },

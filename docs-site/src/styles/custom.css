@@ -126,3 +126,14 @@ site-search button {
 starlight-theme-select {
   display: none !important;
 }
+
+/* Site title text — always white */
+.site-title {
+  color: #ffffff !important;
+}
+
+/* Logo image sizing */
+.site-title img {
+  height: 1.5rem;
+  width: auto;
+}
