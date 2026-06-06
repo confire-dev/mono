@@ -1,9 +1,9 @@
 ---
 title: Connect your agents
-description: Install Confire hooks into Claude Code.
+description: Install Confire hooks into your AI coding agent.
 ---
 
-Confire uses Claude Code's **PostToolUse hook** to intercept tool outputs. The installer runs `confire setup` automatically, but you can re-run it any time.
+Confire uses your agent's **PostToolUse hook** to intercept tool outputs. The installer runs `confire setup` automatically, but you can re-run it any time.
 
 ## Setup
 
@@ -11,11 +11,11 @@ Confire uses Claude Code's **PostToolUse hook** to intercept tool outputs. The i
 confire setup
 ```
 
-This opens an interactive prompt to choose scope and select agents. Pick **Global** to apply to all projects, or **Local** to apply only to the current repo's `.claude/settings.json`.
+Opens an interactive prompt to choose scope and select agents. Pick **Global** to apply to all projects, or **Local** to apply only to the current repo's settings file.
 
-After setup, restart Claude Code to activate the hook.
+After setup, restart your agent to activate the hook.
 
-## What setup installs
+## What setup installs (Claude Code)
 
 `confire setup` adds a `PostToolUse` entry to your Claude Code settings:
 
@@ -32,7 +32,11 @@ After setup, restart Claude Code to activate the hook.
 }
 ```
 
-Every time Claude Code finishes a tool call, it pipes the output through `confire hook`, which sends it to the daemon for optimization.
+Every time a tool call finishes, Claude Code pipes the output through `confire hook`, which sends it to the daemon for optimization and returns the stripped result.
+
+## Other agents
+
+Hook-based integration for Cursor, VS Code, and other agents is on the roadmap. The daemon is agent-agnostic — once the hook fires, optimization works the same regardless of which agent triggered it.
 
 ## Start the daemon
 
@@ -40,9 +44,9 @@ Every time Claude Code finishes a tool call, it pipes the output through `confir
 confire start
 ```
 
-The daemon runs in the background and handles all optimization. Setup starts it automatically, but you can also start it manually.
+Runs in the background and handles all optimization. Setup starts it automatically.
 
-## Verify everything is running
+## Verify
 
 ```bash
 confire status

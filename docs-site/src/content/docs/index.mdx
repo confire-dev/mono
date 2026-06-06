@@ -1,40 +1,40 @@
 ---
 title: What is Confire?
-description: AI agent context optimizer for Claude Code.
+description: AI agent context optimizer — cuts token noise from tool outputs.
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components'
 
-Confire is a context optimizer for AI coding agents. It runs as a background daemon and intercepts tool call responses **before they reach the model**, stripping noise to keep the context window lean.
+Confire is a context optimizer for AI coding agents. It runs as a background daemon and intercepts tool call responses **before they reach the model**, stripping noise to keep the context window lean and costs low.
 
 ## What it does
 
-Every time Claude Code finishes a tool call — running a shell command, reading a file, fetching a URL — the raw output goes back to the model. Most of that output is noise: stack traces you don't need, boilerplate HTML, hundreds of lines of log you'd never read. Confire cuts it down to signal.
+Every time your agent finishes a tool call — running a shell command, reading a file, fetching a URL, querying a design tool or a project manager — the raw output goes back to the model. Most of that output is noise: stack traces you don't need, boilerplate HTML, hundreds of lines of log, verbose JSON, component trees. Confire cuts it down to signal.
 
 <CardGrid>
   <Card title="Context Optimizer" icon="compress">
-    Strips noise from Bash output, file reads, web fetches, Figma responses, GitHub PRs, and more. Up to 98% token reduction on some tool types.
+    Strips noise from Bash output, file reads, web fetches, design tools, code review, and any MCP-connected tool. Up to 98% token reduction on some tool types.
   </Card>
   <Card title="Local + Remote" icon="laptop">
-    Local optimizers for Bash, Read, and WebFetch run free, offline, on your machine. Remote optimizers (Figma, GitHub, Jira) require a paid plan.
+    Local optimizers for Bash, Read, and WebFetch run free, offline, on your machine. Remote optimizers for everything else require a paid plan.
   </Card>
   <Card title="Zero config" icon="rocket">
-    One install command. Confire hooks into Claude Code automatically — no changes to your workflow.
+    One install command. Confire hooks into your agent automatically — no changes to your workflow, no new MCP servers, no proxy to manage.
   </Card>
-  <Card title="Open pipeline" icon="open-book">
-    The optimizer runs in a daemon on your machine. Traffic only leaves to Confire servers for remote optimizers that need cloud processing.
+  <Card title="Grows with your stack" icon="open-book">
+    As you connect more tools to your agent, Confire adds source-aware optimizers for each one. The more tools you use, the more it saves.
   </Card>
 </CardGrid>
 
 ## How it works
 
 ```
-Claude Code finishes a tool call
-  → confire hook (PostToolUse, stdin: raw tool output)
-  → daemon (Unix socket)
-  → optimizer (local or remote)
-  → stripped output back to Claude Code (stdout)
+Agent finishes a tool call
+  → PostToolUse hook fires
+  → confire hook receives raw output
+  → daemon selects optimizer by tool type
+  → stripped output returned to agent
 ```
 
-- [Install the CLI →](getting-started/install)
-- [Connect Claude Code →](getting-started/connect)
+- [Install →](getting-started/install)
+- [Connect your agent →](getting-started/connect)

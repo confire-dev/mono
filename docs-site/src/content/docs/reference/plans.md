@@ -5,18 +5,19 @@ description: What's included in each Confire plan.
 
 ## Free
 
-No account required.
+No account required. Works offline.
 
-- Local optimizers: Bash, Read, WebFetch, Generic
+- Local optimizers: Bash, Read, WebFetch, Generic fallback
 - Unlimited local optimizations
-- Claude Code hook integration
+- Agent hook integration
 
 ## Paid
 
-Requires a Confire account and API key (`confire login`).
+Requires a Confire account (`confire login`).
 
 - Everything in Free
-- Remote optimizers: Figma, GitHub PR, Jira, Slack, MCP tools
+- Remote optimizers for all supported tool types — Figma, GitHub, and every MCP-connected platform your agent uses
+- New optimizers added continuously as the catalog grows
 - Cloud optimization pipeline
 - Usage dashboard
 

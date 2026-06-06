@@ -3,11 +3,9 @@ title: Claude Code
 description: Confire integrates with Claude Code via PostToolUse hooks.
 ---
 
-## How it works
+Claude Code is the first fully supported agent. Confire hooks into Claude Code's **PostToolUse** system — every tool output is intercepted, optimized, and returned before the model sees it.
 
-Confire uses Claude Code's **PostToolUse hook** — a built-in feature that lets external commands process tool outputs before they're returned to the model. When a tool call finishes, Claude Code pipes the raw output to `confire hook`, which sends it to the daemon for optimization and returns the stripped result.
-
-No MCP server. No proxy. No changes to your existing MCP setup.
+No MCP server, no proxy, no port to configure.
 
 ## Setup
 
@@ -32,16 +30,18 @@ Installs the hook into `~/.claude/settings.json` (global) or `.claude/settings.j
 }
 ```
 
+The empty `matcher` means all tool types are intercepted. Confire routes each one to the appropriate optimizer automatically.
+
 ## Verify
 
 ```bash
 confire status
 ```
 
-## Uninstall
+## Remove
 
 ```bash
 confire reset
 ```
 
-Removes the hooks and stops the daemon. The binary stays installed.
+Removes the hooks and stops the daemon. Binary stays installed.
