@@ -1,19 +1,19 @@
 ---
 title: CLI reference
-description: All confire commands.
+description: All confire commands and global flags.
 ---
 
 ## `confire setup`
 
-Installs Confire hooks into your AI agent's settings file.
+Installs Confire hooks into detected AI agent settings files.
 
 ```bash
-confire setup           # interactive — asks for scope and agents
-confire setup --global  # install into ~/.claude/settings.json
-confire setup --local   # install into .claude/settings.json in nearest git root
+confire setup            # interactive — prompts for scope and agents
+confire setup --global   # install into user-level settings
+confire setup --local    # install into nearest git root's settings
 ```
 
-After installation, restart your AI agent to activate the hook.
+Restart your agent after running setup.
 
 ---
 
@@ -25,7 +25,9 @@ Starts the optimizer daemon in the background.
 confire start
 ```
 
-The daemon listens on a Unix socket at `~/.confire/daemon.sock`. Setup runs this automatically.
+The daemon listens on a Unix socket at `~/.confire/daemon.sock`
+and handles all firewall evaluation and optimization. Setup starts
+it automatically.
 
 ---
 
@@ -41,7 +43,8 @@ confire stop
 
 ## `confire status`
 
-Shows daemon status, hook installation, login state, and session stats.
+Shows daemon state, hook installation, account info, and
+optimizer status.
 
 ```bash
 confire status
@@ -49,15 +52,48 @@ confire status
 
 ---
 
+## `confire on`
+
+Enables the firewall and sets the mode to `balanced`.
+
+```bash
+confire on
+```
+
+---
+
+## `confire off`
+
+Sets the mode to `bypass`, disabling all firewall enforcement.
+
+```bash
+confire off
+```
+
+---
+
+## `confire bypass-next`
+
+Sets a one-shot flag to allow the next PreToolUse event to skip
+firewall review. Clears automatically after one use.
+
+```bash
+confire bypass-next
+```
+
+---
+
 ## `confire login`
 
-Opens a browser to authenticate with your Confire account. Stores the API key in the system keychain.
+Opens a browser to authenticate with your Confire account.
+Stores the API key in the system keychain.
 
 ```bash
 confire login
 ```
 
-Required for remote optimizers (Figma, GitHub, etc.) and paid plan features.
+Required for remote optimizers (Figma, GitHub, all MCP tools)
+and paid plan features.
 
 ---
 
@@ -71,12 +107,59 @@ confire logout
 
 ---
 
+## `confire policy`
+
+Subcommands for managing firewall policy.
+
+```bash
+confire policy status                     # show mode, rule counts, cache info
+confire policy test <command-or-tool>     # simulate a PreToolUse evaluation
+confire policy pull                       # fetch custom rules (paid plan)
+```
+
+Examples:
+
+```bash
+confire policy test 'git push --force'
+confire policy test 'mcp__github__merge_pull_request'
+confire policy test 'git log'
+```
+
+---
+
+## `confire config`
+
+Read or write CLI configuration stored in
+`~/.confire/config.json`.
+
+```bash
+confire config                              # show all settings
+confire config get notifications.style
+confire config set notifications.enabled=false
+confire config set mode=strict
+```
+
+See [Config file](../configuration/config-file) for all keys.
+
+---
+
 ## `confire reset`
 
-Removes hooks from all agent settings files and stops the daemon. The binary stays installed.
+Removes hooks from all agent settings files and stops the daemon.
+The binary stays installed.
 
 ```bash
 confire reset
+```
+
+---
+
+## `confire update`
+
+Updates the Confire binary to the latest release.
+
+```bash
+confire update
 ```
 
 ---
@@ -93,10 +176,10 @@ confire version
 
 ## `confire hook`
 
-Called automatically by the Claude Code PostToolUse hook. Not intended for direct use.
+Called automatically by agent hooks. Not for direct use.
 
 ```bash
-confire hook  # reads tool output from stdin, writes optimized output to stdout
+confire hook   # reads tool event from stdin, writes result to stdout
 ```
 
 ---
@@ -104,7 +187,7 @@ confire hook  # reads tool output from stdin, writes optimized output to stdout
 ## Global flags
 
 | Flag | Description |
-|------|-------------|
-| `--local` | Use local worker at `localhost:8787` |
-| `--version` | Print version |
+|---|---|
+| `--local` | Use local dev servers (platform `:4321`, worker `:8787`) |
+| `--version` | Print version and exit |
 | `--help` | Show help |

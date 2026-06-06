@@ -1,15 +1,20 @@
 ---
-title: Install the CLI
-description: Get the Confire CLI installed in under a minute.
+title: Install
+description: Get Confire installed and running in under a minute.
 ---
 
-## Install
+## Install the CLI
+
+Run the installer:
 
 ```bash
 curl -fsSL https://get.confire.dev/install.sh | sh
 ```
 
-The installer downloads the binary for your platform (macOS or Linux, x64 or arm64), verifies the SHA-256 checksum, places it in `~/.local/bin`, then runs `confire setup` and starts the daemon automatically.
+The installer downloads the binary for your platform (macOS or Linux,
+x64 or arm64), verifies the SHA-256 checksum, places it in
+`~/.local/bin`, runs `confire setup` to install agent hooks, and
+starts the daemon automatically.
 
 ## Verify
 
@@ -18,6 +23,11 @@ confire version
 confire status
 ```
 
+`confire status` shows which agents were detected, whether hooks are
+installed, and whether the daemon is running. If everything went
+smoothly, you'll see green checkmarks next to your agent and the
+optimizer status.
+
 ## Next step
 
-[Connect Claude Code →](connect)
+[Connect your agent →](connect)

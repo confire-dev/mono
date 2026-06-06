@@ -1,40 +1,42 @@
 ---
-title: What is Confire?
-description: AI agent context optimizer — cuts token noise from tool outputs.
+title: Confire
+description: >-
+  Context and tool firewall for AI coding agents. Controls what your
+  agent can do and what tool output it can see.
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components'
+import { Card, CardGrid, LinkButton } from '@astrojs/starlight/components'
 
-Confire is a context optimizer for AI coding agents. It runs as a background daemon and intercepts tool call responses **before they reach the model**, stripping noise to keep the context window lean and costs low.
-
-## What it does
-
-Every time your agent finishes a tool call — running a shell command, reading a file, fetching a URL, querying a design tool or a project manager — the raw output goes back to the model. Most of that output is noise: stack traces you don't need, boilerplate HTML, hundreds of lines of log, verbose JSON, component trees. Confire cuts it down to signal.
+Confire is a context and tool firewall for AI coding agents. It sits
+between your agent and the tools it runs, intercepting every tool call
+in both directions.
 
 <CardGrid>
-  <Card title="Context Optimizer" icon="compress">
-    Strips noise from Bash output, file reads, web fetches, design tools, code review, and any MCP-connected tool. Up to 98% token reduction on some tool types.
+  <Card title="Tool Firewall" icon="shield">
+    Runs **before** each tool call. Reviews, warns, or blocks risky
+    commands — destructive git operations, mutating MCP actions,
+    secret file reads — before they execute.
   </Card>
-  <Card title="Local + Remote" icon="laptop">
-    Local optimizers for Bash, Read, and WebFetch run free, offline, on your machine. Remote optimizers for everything else require a paid plan.
+  <Card title="Context Firewall" icon="seti:config">
+    Runs **after** each tool call. Sanitizes MCP output, redacts
+    common secret patterns, strips hidden-unicode injection attempts,
+    and removes noise before output enters the model context.
   </Card>
-  <Card title="Zero config" icon="rocket">
-    One install command. Confire hooks into your agent automatically — no changes to your workflow, no new MCP servers, no proxy to manage.
+  <Card title="Local-first" icon="laptop">
+    Core optimizers run on your machine, free and offline. Remote
+    optimizers (Figma, GitHub, all MCP tools) activate when you log
+    in with a paid plan.
   </Card>
-  <Card title="Grows with your stack" icon="open-book">
-    As you connect more tools to your agent, Confire adds source-aware optimizers for each one. The more tools you use, the more it saves.
+  <Card title="Zero workflow change" icon="rocket">
+    One install command hooks into Claude Code, Cursor, or VS Code.
+    No proxy, no new MCP server, no changes to how you work.
   </Card>
 </CardGrid>
 
-## How it works
+<br />
 
-```
-Agent finishes a tool call
-  → PostToolUse hook fires
-  → confire hook receives raw output
-  → daemon selects optimizer by tool type
-  → stripped output returned to agent
-```
-
-- [Install →](getting-started/install)
-- [Connect your agent →](getting-started/connect)
+<LinkButton href="getting-started/install">Install Confire →</LinkButton>
+&nbsp;
+<LinkButton href="core-concepts/what-is-confire" variant="secondary">
+  How it works →
+</LinkButton>

@@ -14,13 +14,11 @@ export default defineConfig({
         replacesTitle: false,
       },
       favicon: '/favicon.svg',
-      // Lock to dark mode — no theme toggle
-      defaultColorScheme: 'dark',
       head: [
         { tag: 'script', content: "document.documentElement.dataset.theme = 'dark'" },
       ],
       social: [
-        { icon: 'github',  label: 'GitHub',  href: 'https://github.com/confire-dev' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/confire-dev' },
       ],
       editLink: {
         baseUrl: 'https://github.com/confire-dev/mono/edit/main/docs-site/',
@@ -33,44 +31,54 @@ export default defineConfig({
         {
           label: 'Getting started',
           items: [
-            { label: 'What is Confire?', link: '/' },
-            { label: 'Install the CLI',   slug: 'getting-started/install' },
-            { label: 'Connect your agents', slug: 'getting-started/connect' },
-            { label: 'Test a policy',     slug: 'getting-started/first-policy' },
+            { label: 'Install',              slug: 'getting-started/install' },
+            { label: 'Connect your agent',   slug: 'getting-started/connect' },
+            { label: 'Verify your setup',    slug: 'getting-started/verify' },
           ],
         },
         {
-          label: 'How it works',
+          label: 'Core concepts',
           items: [
-            { label: 'Architecture',          slug: 'how-it-works/architecture' },
-            { label: 'Tool Firewall',          slug: 'how-it-works/tool-firewall' },
-            { label: 'MCP Firewall',           slug: 'how-it-works/mcp-firewall' },
-            { label: 'Context Optimizer',      slug: 'how-it-works/context-optimizer' },
-            { label: 'Secret Redaction',       slug: 'how-it-works/secret-redaction' },
-            { label: 'Prompt-Injection Guard', slug: 'how-it-works/injection-guard' },
+            { label: 'What is Confire?',     slug: 'core-concepts/what-is-confire' },
+            { label: 'Hook phases',          slug: 'core-concepts/hook-phases' },
+            { label: 'Client support modes', slug: 'core-concepts/client-support-modes' },
           ],
         },
         {
-          label: 'Clients',
+          label: 'Context Firewall',
           items: [
-            { label: 'Claude Code', slug: 'clients/claude-code' },
-            { label: 'Cursor',      slug: 'clients/cursor' },
-            { label: 'VS Code',     slug: 'clients/vscode' },
+            { label: 'Overview',                slug: 'context-firewall/overview' },
+            { label: 'Optimizers',              slug: 'context-firewall/optimizers' },
+            { label: 'Secret redaction',        slug: 'context-firewall/secret-redaction' },
+            { label: 'Injection guard',         slug: 'context-firewall/injection-guard' },
+            { label: 'MCP output sanitization', slug: 'context-firewall/mcp-output-sanitization' },
+            { label: 'Context limits',          slug: 'context-firewall/context-limits' },
+          ],
+        },
+        {
+          label: 'Tool Firewall',
+          items: [
+            { label: 'Overview',            slug: 'tool-firewall/overview' },
+            { label: 'Built-in rules',      slug: 'tool-firewall/built-in-rules' },
+            { label: 'Policy modes',        slug: 'tool-firewall/policy-modes' },
+            { label: 'MCP risk classifier', slug: 'tool-firewall/mcp-risk-classifier' },
+            { label: 'Custom rules',        slug: 'tool-firewall/custom-rules' },
+            { label: 'Bypass and approvals', slug: 'tool-firewall/bypass-and-approvals' },
           ],
         },
         {
           label: 'Configuration',
           items: [
-            { label: 'Policy rules',       slug: 'configuration/policy-rules' },
-            { label: 'Custom guardrails',  slug: 'configuration/custom-guardrails' },
-            { label: 'Remote policy sync', slug: 'configuration/remote-sync' },
+            { label: 'Config file',                     slug: 'configuration/config-file' },
+            { label: 'Per-agent settings',              slug: 'configuration/per-agent-settings' },
+            { label: 'Privacy and cloud optimization',  slug: 'configuration/privacy-and-cloud-optimization' },
           ],
         },
         {
           label: 'Reference',
           items: [
-            { label: 'CLI commands', slug: 'reference/cli' },
-            { label: 'Plans',        slug: 'reference/plans' },
+            { label: 'CLI commands',   slug: 'reference/cli' },
+            { label: 'Plans and limits', slug: 'reference/plans-and-limits' },
           ],
         },
       ],

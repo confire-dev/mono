@@ -1,23 +1,32 @@
 ---
-title: Connect your agents
-description: Install Confire hooks into your AI coding agent.
+title: Connect your agent
+description: Install Confire hooks into Claude Code, Cursor, or VS Code.
 ---
 
-Confire uses your agent's **PostToolUse hook** to intercept tool outputs. The installer runs `confire setup` automatically, but you can re-run it any time.
+The installer runs `confire setup` automatically, but you can re-run
+it any time — for example, to add a second agent or switch from
+global to local scope.
 
-## Setup
+## Run setup
 
 ```bash
 confire setup
 ```
 
-Opens an interactive prompt to choose scope and select agents. Pick **Global** to apply to all projects, or **Local** to apply only to the current repo's settings file.
+This opens an interactive prompt. You'll pick a scope and select
+which agents to hook.
 
-After setup, restart your agent to activate the hook.
+**Global** installs hooks into your user-level settings file and
+applies to every project. **Local** writes to `.claude/settings.json`
+(or the equivalent) in the nearest git root and applies only to that
+repo.
 
-## What setup installs (Claude Code)
+After setup, restart your agent for the hook to take effect.
 
-`confire setup` adds a `PostToolUse` entry to your Claude Code settings:
+## What setup installs
+
+For Claude Code, `confire setup` adds a `PostToolUse` hook entry to
+your settings file:
 
 ```json
 {
@@ -27,16 +36,22 @@ After setup, restart your agent to activate the hook.
         "matcher": "",
         "hooks": [{ "type": "command", "command": "confire hook" }]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [{ "type": "command", "command": "confire hook" }]
+      }
     ]
   }
 }
 ```
 
-Every time a tool call finishes, Claude Code pipes the output through `confire hook`, which sends it to the daemon for optimization and returns the stripped result.
+Every tool call — before it runs and after it finishes — passes
+through `confire hook`, which forwards the event to the daemon.
 
-## Other agents
-
-Hook-based integration for Cursor, VS Code, and other agents is on the roadmap. The daemon is agent-agnostic — once the hook fires, optimization works the same regardless of which agent triggered it.
+For Cursor and VS Code, setup writes equivalent hook entries to
+their respective settings files.
 
 ## Start the daemon
 
@@ -44,10 +59,23 @@ Hook-based integration for Cursor, VS Code, and other agents is on the roadmap. 
 confire start
 ```
 
-Runs in the background and handles all optimization. Setup starts it automatically.
+The daemon runs in the background and handles all firewall evaluation
+and optimization. Setup starts it automatically, but run this if you
+stopped it with `confire stop`.
 
-## Verify
+## Log in for remote optimizers
+
+Local optimizers (Bash, Read, WebFetch) work without an account.
+Remote optimizers for Figma, GitHub, and all other MCP-connected
+tools require a Confire account:
 
 ```bash
-confire status
+confire login
 ```
+
+This opens a browser to authenticate. Once logged in, remote
+optimizers activate automatically when the relevant tools are called.
+
+## Next step
+
+[Verify your setup →](verify)
