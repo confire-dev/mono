@@ -4,10 +4,6 @@ function msToDate(ms: unknown): string | null {
   if (!ms) return null
   try { return new Date(parseInt(String(ms))).toISOString().slice(0, 10) } catch { return null }
 }
-function trunc(s: unknown, n: number): string {
-  const str = String(s ?? '')
-  return str.length > n ? str.slice(0, n) + `\n…[truncated]` : str
-}
 function cleanUser(u: unknown): string | null {
   const o = u as Record<string,string> | null
   return o?.['email'] ?? o?.['username'] ?? null
@@ -30,7 +26,7 @@ function resolveCustomField(cf: Record<string,unknown>): [string, unknown] | nul
     return [name, val]
   }
   if (type === 'number') return [name, val]
-  if (type === 'text' && val) return [name, trunc(val, 200)]
+  if (type === 'text' && val) return [name, String(val)]
   if (type === 'date' && val) return [name, msToDate(val)]
   if (type === 'checkbox') return [name, !!val]
   if (val && typeof val === 'string') return [name, val]
@@ -72,9 +68,9 @@ export function optimizeClickUp(rawText: string): string | null {
     }))
   }
   if ((t['comments'] as unknown[])?.length) {
-    result['comments'] = (t['comments'] as Record<string,unknown>[]).slice(-3).map(c => ({
+    result['comments'] = (t['comments'] as Record<string,unknown>[]).map(c => ({
       author: cleanUser(c['user'] ?? c), date: msToDate(c['date']),
-      body: trunc(c['comment_text'] ?? c['text_content'] ?? c['body'], 400),
+      body: String(c['comment_text'] ?? c['text_content'] ?? c['body'] ?? ''),
     }))
   }
   return JSON.stringify(result, null, 2)

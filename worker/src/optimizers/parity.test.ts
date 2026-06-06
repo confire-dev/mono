@@ -37,24 +37,17 @@ describe('bash parity', () => {
     expect(result!.length).toBeLessThan(input.length)
   })
 
-  it('strips passing test lines from pure-pass suites', () => {
+  it('strips terminal progress bar noise', () => {
     const result = optimizeBash(input, bashEvent(input))!
-    // Lines from PASS-only suites (login.test.ts, Button.test.tsx) are stripped
-    expect(result).not.toMatch(/✓ redirects to dashboard/)
-    expect(result).not.toMatch(/✓ shows error on invalid/)
-    expect(result).not.toMatch(/✓ renders correctly/)
-    // Lines within the FAIL block (checkout.test.ts) may be kept — that's correct
+    expect(result).not.toMatch(/\[====/)
+    expect(result).not.toMatch(/######/)
   })
 
-  it('preserves failing test details', () => {
+  it('preserves all test output — pass and fail alike', () => {
     const result = optimizeBash(input, bashEvent(input))!
+    expect(result).toMatch(/✓ redirects to dashboard/)
     expect(result).toMatch(/creates stripe checkout session/)
     expect(result).toMatch(/checkout\.test\.ts/)
-  })
-
-  it('includes omitted-tests header', () => {
-    const result = optimizeBash(input, bashEvent(input))!
-    expect(result).toMatch(/passing tests omitted/)
   })
 
   it('preserves test summary line', () => {

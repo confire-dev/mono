@@ -1,7 +1,5 @@
 import type { InterceptEvent } from '../types.js'
 
-const MAX_RESULTS = 10
-
 interface SearchResult { title: string; url: string; snippet: string; age: string }
 
 function strField(o: Record<string, unknown>, ...keys: string[]): string {
@@ -55,15 +53,11 @@ export function optimizeWebSearch(rawText: string): string | null {
   if (!results.length) return null
 
   const lines: string[] = []
-  const capped = results.slice(0, MAX_RESULTS)
-  for (const [i, r] of capped.entries()) {
+  for (const [i, r] of results.entries()) {
     lines.push(`${i + 1}. ${r.title}`)
     lines.push(`   ${r.url}`)
     if (r.snippet !== '') lines.push(`   ${r.snippet}`)
     if (r.age !== '')     lines.push(`   ${r.age}`)
-  }
-  if (results.length > MAX_RESULTS) {
-    lines.push(`[${results.length - MAX_RESULTS} more results omitted]`)
   }
 
   const text = lines.join('\n')

@@ -1,9 +1,5 @@
 import type { InterceptEvent } from '../types.js'
 
-function trunc(s: unknown, n: number): string {
-  const str = String(s ?? '')
-  return str.length > n ? str.slice(0, n) + `\n…[truncated at ${n} chars]` : str
-}
 function cleanUser(u: unknown): string | null {
   const o = u as Record<string,unknown> | null
   if (!o) return null
@@ -46,13 +42,13 @@ function optimizeSingleIssue(issue: Record<string,unknown>): Record<string,unkno
     project: f['project'] ? `${(f['project'] as Record<string,string>)['key']} — ${(f['project'] as Record<string,string>)['name']}` : null,
     labels: f['labels'] ?? [],
     url: issue['webUrl'] ?? `https://jira.atlassian.net/browse/${issue['key']}`,
-    description: trunc(desc, 3000),
+    description: desc,
   }
   const comments = ((f['comment'] as Record<string,unknown>)?.['comments'] as unknown[]) ?? []
   if (comments.length) {
-    result['comments'] = (comments as Record<string,unknown>[]).slice(-5).map(c => ({
+    result['comments'] = (comments as Record<string,unknown>[]).map(c => ({
       author: cleanUser(c['author']), date: (c['created'] as string)?.slice(0, 10),
-      body: trunc(stripAdf(c['body']), 400),
+      body: stripAdf(c['body']) ?? String(c['body'] ?? ''),
     }))
   }
   return result

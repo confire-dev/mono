@@ -137,16 +137,21 @@ describe('optimizer: WebFetch', () => {
 describe('optimizer: Bash', () => {
   const raw = fixture('optimizer/bash-test-runner.txt')
 
-  it('strips passing tests and keeps failures + summary', () => {
+  it('strips terminal progress bar noise while keeping test output intact', () => {
     const event = makeEvent('Bash', raw, {
       input: { command: 'pnpm test' },
     })
-    assertSaving('Bash test runner', event, 30)
+    const { result } = assertSaving('Bash test runner', event, 5)
+    const out = extractText(result.toolOutput) ?? ''
+    expect(out).toContain('FAIL src/billing/checkout.test.ts')  // failure kept
+    expect(out).toContain('Tests: 1 failed, 8 passed')           // summary kept
+    expect(out).not.toContain('[============')                    // progress bar stripped
+    expect(out).not.toContain('###########')                     // hash bar stripped
   })
 })
 
 describe('optimizer: Read (pre-injection)', () => {
-  it('injects line limit before reading a large file', () => {
+  it('passes through without modification — model decides how much of the file it needs', () => {
     const event: InterceptEvent = {
       host: 'claude-code',
       strategy: 'hooks',
@@ -159,9 +164,7 @@ describe('optimizer: Read (pre-injection)', () => {
       },
     }
     const result = handle(event)
-    expect(result.kind).toBe('replace-input')
-    const input = result.toolInput as Record<string, unknown>
-    expect(input['limit']).toBe(500)
+    expect(result.kind).toBe('passthrough')
   })
 })
 

@@ -1,3 +1,10 @@
+⠏ Resolving packages...
+⠋ Fetching packages...
+[============================================================] 100%
+###############################################################
+Progress: resolving 1234 packages... done
+[=====================================================>      ] 95%
+
 PASS src/auth/login.test.ts
   ✓ redirects to dashboard on success (45ms)
   ✓ shows error on invalid credentials (23ms)
