@@ -63,8 +63,9 @@ export default defineConfig({
         {
           label: 'Reference',
           items: [
-            { label: 'CLI commands', slug: 'reference/cli' },
-            { label: 'Plans',        slug: 'reference/plans' },
+            { label: 'CLI commands',    slug: 'reference/cli' },
+            { label: 'Plans',           slug: 'reference/plans' },
+            { label: 'Troubleshooting', slug: 'reference/troubleshooting' },
           ],
         },
       ],

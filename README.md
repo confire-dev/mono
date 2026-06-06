@@ -104,6 +104,12 @@ Remote (API key + daemon): all platform optimizers — Figma, GitHub, Jira, Slac
 - [Supabase schema](docs/supabase-schema.sql)
 - [Internal operations](docs/internal/README.md)
 
+## Legal & security
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md) — vulnerability disclosure
+- [PRIVACY.md](PRIVACY.md) — what data we collect and why
+
 ## Deploy
 
 See [docs/internal/deploy.md](docs/internal/deploy.md) for the full deployment checklist.
