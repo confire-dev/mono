@@ -78,4 +78,4 @@ optimizers activate automatically when the relevant tools are called.
 
 ## Next step
 
-[Verify your setup →](../getting-started/verify)
+[Verify your setup →](../verify)

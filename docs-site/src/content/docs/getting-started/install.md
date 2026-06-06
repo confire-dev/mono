@@ -30,4 +30,4 @@ optimizer status.
 
 ## Next step
 
-[Connect your agent →](../getting-started/connect)
+[Connect your agent →](../connect)

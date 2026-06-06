@@ -59,4 +59,4 @@ confire stop && confire start
 retry path from the agent — the tool won't run regardless. If a
 block fires on something you intend to do, the right fix is a
 custom rule override or a group disable. See
-[Custom rules](../tool-firewall/custom-rules).
+[Custom rules](../custom-rules).
