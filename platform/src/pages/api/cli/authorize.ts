@@ -1,14 +1,5 @@
 import type { APIRoute } from 'astro'
 import { createSupabaseServer } from '@/lib/supabase'
-import { createClient } from '@supabase/supabase-js'
-
-function sbAdmin() {
-  return createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.SUPABASE_SERVICE_KEY,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-}
 
 async function sha256(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
@@ -35,10 +26,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return Response.json({ error: 'invalid callback URL' }, { status: 400 })
   }
 
-  const admin = sbAdmin()
-
-  // Upsert profile
-  const { error: profileError } = await admin
+  // Upsert profile using the user's own session (RLS-safe, no service key needed)
+  const { error: profileError } = await supabase
     .from('profiles')
     .upsert({ id: user.id, email: user.email }, { onConflict: 'id' })
   if (profileError) {
@@ -49,7 +38,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const rawKey = `cf_live_${secureRandom(32)}`
   const hash   = await sha256(rawKey)
 
-  const { error: keyError } = await admin.from('api_keys').insert({
+  const { error: keyError } = await supabase.from('api_keys').insert({
     user_id:    user.id,
     key_hash:   hash,
     key_prefix: rawKey.slice(0, 12),
