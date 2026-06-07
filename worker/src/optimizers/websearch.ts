@@ -1,6 +1,6 @@
 import type { InterceptEvent } from '../types.js'
 
-interface SearchResult { title: string; url: string; snippet: string; age: string }
+interface SearchResult { title: string; url: string; source: string; snippet: string; extras: string[]; age: string }
 
 function strField(o: Record<string, unknown>, ...keys: string[]): string {
   for (const k of keys) {
@@ -18,10 +18,17 @@ function parseResultArray(arr: unknown[]): SearchResult[] {
     const title = strField(o, 'title')
     const url   = strField(o, 'url')
     if (!title || !url) continue
+    // extra_snippets are additional factual extracts (e.g. Brave Search) — keep them
+    const extras = Array.isArray(o['extra_snippets'])
+      ? (o['extra_snippets'] as unknown[]).filter((s): s is string => typeof s === 'string' && s.length > 0)
+      : []
+    // profile.name is the publisher name — useful for source credibility
+    const source = strField((o['profile'] as Record<string,unknown>) ?? {}, 'name', 'long_name')
     out.push({
-      title, url,
+      title, url, source,
       snippet: strField(o, 'description', 'content', 'text', 'snippet'),
-      age:     strField(o, 'age', 'publishedDate', 'date'),
+      extras,
+      age: strField(o, 'age', 'publishedDate', 'date'),
     })
   }
   return out
@@ -54,9 +61,11 @@ export function optimizeWebSearch(rawText: string): string | null {
 
   const lines: string[] = []
   for (const [i, r] of results.entries()) {
-    lines.push(`${i + 1}. ${r.title}`)
+    const titleLine = r.source ? `${i + 1}. ${r.title} [${r.source}]` : `${i + 1}. ${r.title}`
+    lines.push(titleLine)
     lines.push(`   ${r.url}`)
     if (r.snippet !== '') lines.push(`   ${r.snippet}`)
+    for (const extra of r.extras) lines.push(`   • ${extra}`)
     if (r.age !== '')     lines.push(`   ${r.age}`)
   }
 

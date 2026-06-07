@@ -192,8 +192,22 @@ describe('websearch parity', () => {
     expect(result).not.toMatch(/thumbnail/)
     expect(result).not.toMatch(/meta_url/)
     expect(result).not.toMatch(/family_friendly/)
-    expect(result).not.toMatch(/extra_snippets/)
-    expect(result).not.toMatch(/cdn-icons/)
+    expect(result).not.toMatch(/cdn-icons/)           // image URLs stripped
+    expect(result).not.toMatch(/"extra_snippets"/)    // JSON key gone — content is inlined as bullets
+  })
+
+  it('preserves extra_snippets content as bullet points', () => {
+    const result = optimizeWebSearch(input)!
+    // extra_snippets are factual content, not noise — must survive
+    expect(result).toMatch(/Paid plans support workers larger than 1MB/)
+    expect(result).toMatch(/WASM modules up to 10MB on paid plans/)
+    expect(result).toMatch(/TinyGo 0\.33 supports Cloudflare Workers/)
+  })
+
+  it('includes publisher name from profile', () => {
+    const result = optimizeWebSearch(input)!
+    expect(result).toMatch(/Cloudflare Docs/)
+    expect(result).toMatch(/Cloudflare Blog/)
   })
 
   it('numbers results sequentially', () => {
