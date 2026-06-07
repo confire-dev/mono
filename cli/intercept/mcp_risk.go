@@ -8,7 +8,16 @@ import (
 
 // MCPRiskHandler implements the PreToolUse risk classifier for MCP tools.
 // It scores tool name + input parameter names and returns review/warn/passthrough.
-type MCPRiskHandler struct{}
+// Use NewMCPRiskHandler to supply the trusted-server allowlist.
+type MCPRiskHandler struct {
+	trustedServers map[string]bool
+}
+
+// NewMCPRiskHandler creates an MCPRiskHandler with the given trusted-server allowlist.
+// Pass provenance.TrustedMCPServers from the caller to avoid a circular import.
+func NewMCPRiskHandler(trustedServers map[string]bool) *MCPRiskHandler {
+	return &MCPRiskHandler{trustedServers: trustedServers}
+}
 
 func (h *MCPRiskHandler) ID() string     { return "mcp.risk_classifier" }
 func (h *MCPRiskHandler) Phases() []Phase { return []Phase{PhaseToolPre} }
@@ -18,12 +27,12 @@ func (h *MCPRiskHandler) Matches(e InterceptEvent) bool {
 }
 
 func (h *MCPRiskHandler) Run(e InterceptEvent) (InterceptResult, error) {
-	score, reason := scoreMCPRisk(e.Tool)
+	score, reason := scoreMCPRisk(e.Tool, h.trustedServers)
 	switch {
 	case score >= 50:
 		return InterceptResult{
-			Kind:   ResultReview,
-			Reason: reason,
+			Kind:    ResultReview,
+			Reason:  reason,
 			Context: fmt.Sprintf("[Confire mcp.risk] score=%d — %s", score, reason),
 		}, nil
 	case score >= 20:
@@ -37,15 +46,35 @@ func (h *MCPRiskHandler) Run(e InterceptEvent) (InterceptResult, error) {
 }
 
 // scoreMCPRisk returns a 0-100 risk score and the first reason that drove it up.
-func scoreMCPRisk(tool *Tool) (int, string) {
+func scoreMCPRisk(tool *Tool, trustedServers map[string]bool) (int, string) {
 	name := strings.ToLower(tool.Name)
 	score := 0
 	reason := ""
 
+	// Tier 0 — unknown MCP server (+25 pts)
+	if tool.IsMCP && len(trustedServers) > 0 {
+		server := strings.ToLower(tool.MCPServer)
+		if server == "" {
+			// Extract from mcp__<server>__<tool> naming convention.
+			if strings.HasPrefix(name, "mcp__") {
+				parts := strings.SplitN(name[5:], "__", 2)
+				if len(parts) > 0 {
+					server = parts[0]
+				}
+			}
+		}
+		if server != "" && !trustedServers[server] {
+			score += 25
+			reason = "MCP server is not in the trusted allowlist"
+		}
+	}
+
 	// Tier 1 — shell/exec names (40 pts)
 	if matchesAny(name, shellNamePatterns) {
 		score += 40
-		reason = "tool name suggests shell or code execution"
+		if reason == "" {
+			reason = "tool name suggests shell or code execution"
+		}
 	}
 
 	// Tier 2 — write/delete/destroy names (30 pts, cumulative)

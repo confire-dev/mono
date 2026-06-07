@@ -261,6 +261,61 @@ export async function recordOptimization(
   }
 }
 
+// recordSecurityEvent writes a security event to the security_events table.
+export async function recordSecurityEvent(
+  cfg: SupabaseConfig,
+  params: {
+    userId: string
+    sessionId: string
+    toolName: string
+    eventType: string
+    riskLevel: string
+    actionTaken: string
+    patternMatched?: string
+    bypassed?: boolean
+  }
+): Promise<void> {
+  await sbFetch(cfg, 'POST', '/rest/v1/security_events', {
+    user_id:         params.userId,
+    session_id:      params.sessionId || null,
+    tool_name:       params.toolName,
+    event_type:      params.eventType,
+    risk_level:      params.riskLevel,
+    action_taken:    params.actionTaken,
+    pattern_matched: params.patternMatched ?? null,
+    bypassed:        params.bypassed ?? false,
+  })
+}
+
+// recordProvenanceEvent writes a provenance label to the provenance_events table.
+// Only metadata is stored — no raw tool output or secret values.
+export async function recordProvenanceEvent(
+  cfg: SupabaseConfig,
+  params: {
+    userId: string
+    sessionId: string
+    toolName: string
+    trustLevel: string
+    sanitized: boolean
+    redactionCount: number
+    flags: string[]
+    mcpServer?: string
+    originDomain?: string
+  }
+): Promise<void> {
+  await sbFetch(cfg, 'POST', '/rest/v1/provenance_events', {
+    user_id:        params.userId,
+    session_id:     params.sessionId || null,
+    tool_name:      params.toolName,
+    trust_level:    params.trustLevel,
+    sanitized:      params.sanitized,
+    redaction_count: params.redactionCount,
+    flags:          params.flags,
+    mcp_server:     params.mcpServer ?? null,
+    origin_domain:  params.originDomain ?? null,
+  })
+}
+
 // ── Top-up credits ────────────────────────────────────────────────────────────
 
 // grantPurchasedCredits adds one-time purchased credits to a user's balance.

@@ -86,6 +86,11 @@ func matchesPreTool(rule Rule, event intercept.InterceptEvent) bool {
 	tool := event.Tool
 	m := rule.Match
 
+	// Flow rules are evaluated by firewall.CheckFlowRules, not here.
+	if m.FlowRule {
+		return false
+	}
+
 	// MCP-only gate.
 	if m.MCPOnly && !tool.IsMCP {
 		return false
