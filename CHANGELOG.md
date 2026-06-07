@@ -1,3 +1,32 @@
+## v0.13.0 — 2026-06-07
+
+### Fixes
+- fix: remove duplicate recordSecurityEvent from supabase.ts (218db63)
+- fix(docs): correct all inline relative links (a2c827c)
+- fix(platform): use user session client for key gen, drop service key dependency (047ace9)
+- fix(docs): real flame logo, fix broken links, remove dark/light toggle (d9b9951)
+- fix(docs): match platform colors exactly, fix favicon with confire flame SVG (518234b)
+- fix(platform): pass correct DOCS_SITE_URL to docs build for dev and prod (649fbc8)
+- fix(platform): redirect /docs to docs.confire.dev (68b7bda)
+- fix(platform): callback via navigation not fetch, inline key gen, fix /docs crash (543c75f)
+- fix(platform): use CF service binding for worker calls to avoid same-zone 1003 error (e2d311a)
+- fix(platform): use runtime WORKER_URL for server-side auth, update CLI authorize icons (0441e18)
+- fix(benchmark): skip tsc in build to unblock monorepo CI (64fd30e)
+- fix(platform): make Supabase client null-safe to prevent Worker 1101 on missing env vars (799c194)
+- fix(install): reconnect /dev/tty for setup when piped, style start message (b6e90b1)
+- fix(platform): disable Cloudflare Images runtime binding to prevent potential 1101 (464f79a)
+- fix(install): use $BINARY var in post-install instead of hardcoded 'confire' (8a355cc)
+- fix(ci): name dev archives confire-dev_* to match install script BINARY name (ac9227a)
+- fix(ci): build confire-dev binary for dev installs, fix BINARY name in dev install script (83c3240)
+- fix(install): fix dev releases URL path, shorten license notice, terms points to platform (0fd323d)
+- fix(platform): fix code block top alignment, force Shiki dark theme colors for contrast (95986f2)
+- fix(platform): replace custom regex highlighter with Kumo CodeHighlighted (Shiki) (ee90da6)
+- fix(platform): skip comment highlighting inside URLs (https://) (778e692)
+- fix(platform): disable Cloudflare KV auto-session to fix Worker 1101 error (caa8512)
+
+
+---
+
 ## v0.12.0 — 2026-06-04
 
 
