@@ -25,20 +25,18 @@ export interface UsageSummary {
   month: string
 }
 
-export interface ToolCallSummary {
+export type RiskLevel = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+export type ActionTaken = 'ALLOWED' | 'WARNED' | 'REVIEW_REQUIRED' | 'BLOCKED' | 'SANITIZED'
+
+export interface SecurityEvent {
   id: string
-  tool_type: string
-  integration: string
-  optimizer: string
-  raw_bytes: number
-  optimized_bytes: number
-  saved_bytes: number
-  reduction_ratio: number
-  duration_ms?: number
-  was_cached: boolean
+  tool_name: string
+  event_type: string
+  risk_level: RiskLevel
+  action_taken: ActionTaken
+  pattern_matched?: string
+  bypassed: boolean
   created_at: string
-  // Derived
-  mode: 'local' | 'remote'
 }
 
 export interface CliSession {
@@ -49,11 +47,7 @@ export interface CliSession {
   started_at: string
   ended_at?: string
   total_tool_calls: number
-  optimized_calls: number
-  raw_bytes: number
-  optimized_bytes: number
   // Derived
-  saved_bytes: number
   is_active: boolean
 }
 

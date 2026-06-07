@@ -71,7 +71,7 @@ export function EarlyAccessForm({ open, onOpenChange, planInterest = 'dev' }: Pr
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog className="p-8">
+      <Dialog className="p-8 w-full max-w-md">
         {step === 'done' ? (
           <div className="flex flex-col gap-4">
             <DialogTitle>You're on the list</DialogTitle>

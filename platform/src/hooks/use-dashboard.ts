@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase-client'
-import type { CliSession, ToolCallSummary, ApiKey } from '@/lib/types'
+import type { CliSession, SecurityEvent, ApiKey } from '@/lib/types'
 
 export type Plan = 'free' | 'dev' | 'dev_annual' | 'pro' | 'pro_annual' | 'enterprise'
 
@@ -141,46 +141,28 @@ export function useDashboard(apiKey: string | null, workerBase: string) {
     queryFn:  async () => {
       const { data } = await supabase
         .from('cli_sessions')
-        .select('id,device_id,cli_version,integration,started_at,ended_at,total_tool_calls,optimized_calls,raw_bytes,optimized_bytes')
+        .select('id,device_id,cli_version,integration,started_at,ended_at,total_tool_calls')
         .eq('user_id', uid!)
         .order('started_at', { ascending: false })
         .limit(10)
       return (data ?? []).map((s: any) => ({
         ...s,
-        saved_bytes: s.raw_bytes - s.optimized_bytes,
-        is_active:   !s.ended_at,
+        is_active: !s.ended_at,
       })) as CliSession[]
     },
     enabled: !!uid,
   })
 
-  const recentCallsQuery = useQuery({
-    queryKey: ['recent-calls', uid],
+  const securityEventsQuery = useQuery({
+    queryKey: ['security-events', uid],
     queryFn:  async () => {
       const { data } = await supabase
-        .from('tool_call_summaries')
-        .select('id,tool_type,integration,optimizer,raw_bytes,optimized_bytes,was_cached,created_at')
+        .from('security_events')
+        .select('id,tool_name,event_type,risk_level,action_taken,pattern_matched,bypassed,created_at')
         .eq('user_id', uid!)
         .order('created_at', { ascending: false })
-        .limit(20)
-      return (data ?? []).map((c: any) => ({
-        ...c,
-        saved_bytes:     c.raw_bytes - c.optimized_bytes,
-        reduction_ratio: c.raw_bytes > 0 ? Math.round((1 - c.optimized_bytes / c.raw_bytes) * 100) : 0,
-        mode:            c.optimizer?.startsWith('local/') ? 'local' : 'remote',
-      })) as ToolCallSummary[]
-    },
-    enabled: !!uid,
-  })
-
-  const allCallBytesQuery = useQuery({
-    queryKey: ['call-bytes', uid],
-    queryFn:  async () => {
-      const { data } = await supabase
-        .from('tool_call_summaries')
-        .select('raw_bytes,optimized_bytes,created_at')
-        .eq('user_id', uid!)
-      return (data ?? []) as { raw_bytes: number; optimized_bytes: number; created_at: string }[]
+        .limit(50)
+      return (data ?? []) as SecurityEvent[]
     },
     enabled: !!uid,
   })
@@ -239,8 +221,11 @@ export function useDashboard(apiKey: string | null, workerBase: string) {
 
   // ── derived stats ──────────────────────────────────────────────────────────
 
-  const allCallBytes    = allCallBytesQuery.data ?? []
-  const totalSavedBytes = allCallBytes.reduce((s, c) => s + Math.max(0, c.raw_bytes - c.optimized_bytes), 0)
+  const securityEvents = securityEventsQuery.data ?? []
+  const protectedActions = securityEvents.filter(e => e.action_taken !== 'ALLOWED').length
+  const threatsBlocked   = securityEvents.filter(e => e.action_taken === 'BLOCKED').length
+  const secretsRedacted  = securityEvents.filter(e => e.event_type === 'SECRET_REDACTED').length
+  const highRiskFlagged  = securityEvents.filter(e => e.risk_level === 'HIGH' || e.risk_level === 'CRITICAL').length
 
   const loading = !apiKey
     ? false
@@ -252,18 +237,18 @@ export function useDashboard(apiKey: string | null, workerBase: string) {
     ?? null
 
   return {
-    me:           meQuery.data ?? null,
-    sessions:     sessionsQuery.data ?? [],
-    recentCalls:  recentCallsQuery.data ?? [],
-    allCallBytes,
-    apiKeys:      apiKeysQuery.data ?? [],
-    firewall:     firewallQuery.data ?? [],
+    me:              meQuery.data ?? null,
+    sessions:        sessionsQuery.data ?? [],
+    securityEvents,
+    apiKeys:         apiKeysQuery.data ?? [],
+    firewall:        firewallQuery.data ?? [],
     loading,
     error,
-    totalSavedBytes,
-    totalSavedTokens:  Math.round(totalSavedBytes / 4),
-    totalCallsAllTime: allCallBytes.length,
-    activeSessions:    (sessionsQuery.data ?? []).filter(s => s.is_active).length,
+    protectedActions,
+    threatsBlocked,
+    secretsRedacted,
+    highRiskFlagged,
+    activeSessions: (sessionsQuery.data ?? []).filter(s => s.is_active).length,
     // mutations
     revokeKey,
     toggleFirewallGroup,

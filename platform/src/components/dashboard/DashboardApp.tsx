@@ -14,7 +14,6 @@ import {
 } from '@phosphor-icons/react'
 import { useAuth } from '@/hooks/use-auth'
 import { useDashboard, type MeData } from '@/hooks/use-dashboard'
-import { formatTokenCount } from '@/lib/types'
 import { EarlyAccessForm } from '@/components/marketing/EarlyAccessForm'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
@@ -29,21 +28,16 @@ function timeAgo(iso: string): string {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
-const INTEGRATION_COLOR: Record<string, string> = {
-  'claude-code': '#f4811f',
-  cursor:        '#7b68ee',
-  vscode:        '#007acc',
-  default:       '#6b7280',
+const ACTION_LABELS: Record<string, { label: string; color: string }> = {
+  ALLOWED:         { label: 'allowed',  color: '#6b7280' },
+  WARNED:          { label: 'warned',   color: '#fbbf24' },
+  REVIEW_REQUIRED: { label: 'review',   color: '#60a5fa' },
+  BLOCKED:         { label: 'blocked',  color: '#f87171' },
+  SANITIZED:       { label: 'sanitized', color: '#a78bfa' },
 }
 
-const ACTION_LABELS: Record<string, { label: string; color: string }> = {
-  optimized:  { label: 'optimized',  color: '#4ade80' },
-  reviewed:   { label: 'reviewed',   color: '#60a5fa' },
-  blocked:    { label: 'blocked',    color: '#f87171' },
-  sanitized:  { label: 'sanitized',  color: '#a78bfa' },
-  redacted:   { label: 'redacted',   color: '#fbbf24' },
-  passthrough:{ label: 'passed',     color: '#6b7280' },
-  local:      { label: 'local',      color: '#6b7280' },
+const RISK_COLOR: Record<string, string> = {
+  NONE: '#6b7280', LOW: '#4ade80', MEDIUM: '#fbbf24', HIGH: '#fb923c', CRITICAL: '#f87171',
 }
 
 // ── primitives ────────────────────────────────────────────────────────────────
@@ -317,45 +311,37 @@ function BigStatCard({ label, value, sub, accent }: { label: string; value: stri
 }
 
 function OverviewPage({
-  me, recentCalls, allCallBytes, apiKeys, firewall, canToggle, totalSavedTokens, totalCallsAllTime,
+  me, securityEvents, sessions, apiKeys, firewall, canToggle,
+  protectedActions, threatsBlocked, secretsRedacted, highRiskFlagged,
   revokeKey, toggleFirewallGroup, onRequestEarlyAccess,
 }: any) {
-  // context reduction from byte data
-  const totalRaw = allCallBytes.reduce((s: number, c: any) => s + c.raw_bytes, 0)
-  const totalOpt = allCallBytes.reduce((s: number, c: any) => s + c.optimized_bytes, 0)
-  const contextReduction = totalRaw > 0 ? Math.round((1 - totalOpt / totalRaw) * 100) : 0
-
-  // protected = calls with a meaningful action (not just passthrough/local)
-  const protectedCalls = recentCalls.filter((c: any) => c.mode && c.mode !== 'passthrough' && c.mode !== 'local')
-  const secretsRedacted = recentCalls.filter((c: any) => c.mode === 'redacted').length
-
-  // top noisy tools
-  const byTool: Record<string, { total: number; count: number }> = {}
-  for (const c of recentCalls) {
-    const t = c.tool_type || 'unknown'
-    if (!byTool[t]) byTool[t] = { total: 0, count: 0 }
-    byTool[t].total += c.reduction_ratio || 0
-    byTool[t].count += 1
+  // most-flagged tools
+  const byTool: Record<string, { flagged: number; total: number }> = {}
+  for (const e of securityEvents) {
+    const t = e.tool_name || 'unknown'
+    if (!byTool[t]) byTool[t] = { flagged: 0, total: 0 }
+    byTool[t].total += 1
+    if (e.action_taken !== 'ALLOWED') byTool[t].flagged += 1
   }
   const topTools = Object.entries(byTool)
-    .map(([tool, { total, count }]) => ({ tool, avg: Math.round(total / count) }))
-    .sort((a, b) => b.avg - a.avg)
+    .map(([tool, { flagged, total }]) => ({ tool, flagged, total }))
+    .sort((a, b) => b.flagged - a.flagged)
     .slice(0, 4)
 
-  // usage chart data
+  // events-per-day chart data
   const byDay = new Map<string, number>()
-  for (const c of allCallBytes) {
-    const day = c.created_at.slice(0, 10)
-    byDay.set(day, (byDay.get(day) ?? 0) + Math.max(0, Math.round((c.raw_bytes - c.optimized_bytes) / 4)))
+  for (const e of securityEvents) {
+    const day = e.created_at.slice(0, 10)
+    byDay.set(day, (byDay.get(day) ?? 0) + 1)
   }
   const chartData: [number, number][] = Array.from(byDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, tokens]) => [new Date(day).getTime(), tokens])
+    .map(([day, count]) => [new Date(day).getTime(), count])
 
   const usedPct = me ? Math.min(100, Math.round((me.used / me.effectiveLimit) * 100)) : 0
 
-  // active integrations from recent calls
-  const seenIntegrations = [...new Set(recentCalls.slice(0, 20).map((c: any) => c.integration).filter(Boolean))] as string[]
+  // active integrations from recent CLI sessions
+  const seenIntegrations = [...new Set(sessions.slice(0, 20).map((s: any) => s.integration).filter(Boolean))] as string[]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -378,10 +364,10 @@ function OverviewPage({
 
       {/* 4 stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }} className="stat-grid">
-        <BigStatCard label="Tokens saved" value={formatTokenCount(totalSavedTokens)} sub="all-time" accent />
-        <BigStatCard label="Context reduction" value={contextReduction > 0 ? `${contextReduction}%` : '—'} sub="avg across calls" />
-        <BigStatCard label="Protected actions" value={protectedCalls.length.toLocaleString()} sub="reviewed / blocked" />
-        <BigStatCard label="Secrets redacted" value={secretsRedacted > 0 ? secretsRedacted.toString() : '0'} sub="all-time" />
+        <BigStatCard label="Protected actions" value={protectedActions.toLocaleString()} sub="reviewed / blocked / sanitized" accent />
+        <BigStatCard label="Threats blocked" value={threatsBlocked.toLocaleString()} sub="all-time" />
+        <BigStatCard label="Secrets redacted" value={secretsRedacted.toLocaleString()} sub="all-time" />
+        <BigStatCard label="High-risk flagged" value={highRiskFlagged.toLocaleString()} sub="high / critical" />
       </div>
 
       {/* recent activity + top tools */}
@@ -390,25 +376,25 @@ function OverviewPage({
         {/* recent activity */}
         <Card>
           <CardHeader title="Recent activity" />
-          {recentCalls.length === 0
+          {securityEvents.length === 0
             ? <EmptyRow label="No activity yet — install the CLI to get started" />
-            : recentCalls.slice(0, 8).map((c: any, i: number) => {
-                const action = ACTION_LABELS[c.mode] ?? ACTION_LABELS.passthrough
+            : securityEvents.slice(0, 8).map((e: any, i: number) => {
+                const action = ACTION_LABELS[e.action_taken] ?? ACTION_LABELS.ALLOWED
                 return (
-                  <div key={c.id} style={{
+                  <div key={e.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '9px 20px',
-                    borderBottom: i < Math.min(recentCalls.length, 8) - 1 ? '1px solid var(--confire-border)' : undefined,
+                    borderBottom: i < Math.min(securityEvents.length, 8) - 1 ? '1px solid var(--confire-border)' : undefined,
                   }}>
                     <span style={{
                       width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                      background: INTEGRATION_COLOR[c.integration] ?? INTEGRATION_COLOR.default,
+                      background: RISK_COLOR[e.risk_level] ?? RISK_COLOR.NONE,
                     }} />
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--confire-text)', fontFamily: 'monospace' }}>
-                        {c.tool_type}
+                        {e.tool_name}
                       </span>
-                      <span style={{ fontSize: 11, color: 'var(--confire-text-muted)', marginLeft: 8 }}>{c.integration}</span>
+                      <span style={{ fontSize: 11, color: 'var(--confire-text-muted)', marginLeft: 8 }}>{e.event_type}</span>
                     </div>
                     <span style={{
                       fontSize: 11, fontWeight: 600, color: action.color,
@@ -416,13 +402,8 @@ function OverviewPage({
                     }}>
                       {action.label}
                     </span>
-                    {c.reduction_ratio > 0 && (
-                      <span style={{ fontSize: 11, color: '#4ade80', fontVariantNumeric: 'tabular-nums', minWidth: 40, textAlign: 'right' }}>
-                        −{c.reduction_ratio}%
-                      </span>
-                    )}
                     <span style={{ fontSize: 11, color: 'var(--confire-text-muted)', minWidth: 52, textAlign: 'right' }}>
-                      {timeAgo(c.created_at)}
+                      {timeAgo(e.created_at)}
                     </span>
                   </div>
                 )
@@ -430,10 +411,10 @@ function OverviewPage({
           }
         </Card>
 
-        {/* top noisy tools */}
+        {/* top flagged tools */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card>
-            <CardHeader title="Top noisy tools" />
+            <CardHeader title="Most flagged tools" />
             {topTools.length === 0
               ? <EmptyRow label="No data yet" />
               : topTools.map((t, i) => (
@@ -445,8 +426,8 @@ function OverviewPage({
                     <span style={{ fontSize: 12, color: 'var(--confire-text)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
                       {t.tool}
                     </span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#4ade80', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-                      {t.avg}% avg
+                    <span style={{ fontSize: 12, fontWeight: 600, color: t.flagged > 0 ? '#fb923c' : 'var(--confire-text-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                      {t.flagged} / {t.total} flagged
                     </span>
                   </div>
                 ))
@@ -500,13 +481,13 @@ function OverviewPage({
       {/* token savings chart */}
       {chartData.length > 0 && (
         <Card>
-          <CardHeader title="Tokens saved — daily" />
+          <CardHeader title="Security events — daily" />
           <div style={{ padding: '12px 8px 4px' }}>
             <TimeseriesChart
               echarts={echarts}
               type="line"
-              data={[{ name: 'Tokens saved', data: chartData, color: '#f4811f' }]}
-              tooltipValueFormat={(v: number) => `${Math.round(v).toLocaleString()} tokens`}
+              data={[{ name: 'Events', data: chartData, color: '#f4811f' }]}
+              tooltipValueFormat={(v: number) => `${Math.round(v).toLocaleString()} events`}
               height={160}
             />
           </div>
@@ -945,9 +926,9 @@ function Dashboard() {
   }, [])
 
   const {
-    me, recentCalls, allCallBytes, apiKeys, firewall,
+    me, sessions, securityEvents, apiKeys, firewall,
     loading, error,
-    totalSavedTokens, totalCallsAllTime,
+    protectedActions, threatsBlocked, secretsRedacted, highRiskFlagged,
     revokeKey, toggleFirewallGroup,
   } = useDashboard(apiKey, workerBase)
 
@@ -1017,9 +998,10 @@ function Dashboard() {
           <div style={{ maxWidth: 1100, margin: '0 auto' }}>
             {currentPath === '/dashboard' && (
               <OverviewPage
-                me={me} recentCalls={recentCalls} allCallBytes={allCallBytes}
+                me={me} sessions={sessions} securityEvents={securityEvents}
                 apiKeys={apiKeys} firewall={firewall} canToggle={canToggle}
-                totalSavedTokens={totalSavedTokens} totalCallsAllTime={totalCallsAllTime}
+                protectedActions={protectedActions} threatsBlocked={threatsBlocked}
+                secretsRedacted={secretsRedacted} highRiskFlagged={highRiskFlagged}
                 revokeKey={revokeKey} toggleFirewallGroup={toggleFirewallGroup}
                 onRequestEarlyAccess={openEarlyAccess}
               />
