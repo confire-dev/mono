@@ -63,7 +63,7 @@ export function BillingCancelled() {
           <LinkButton href="/onboarding" variant="primary">
             Continue on Free
           </LinkButton>
-          <LinkButton href="/pricing" variant="outline">
+          <LinkButton href="/#pricing" variant="outline">
             Try a paid plan again
           </LinkButton>
         </div>

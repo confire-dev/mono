@@ -35,11 +35,11 @@ guardrails, and full history. Planned at $10/month.
 - **Top-up credits** — purchase additional remote optimization
   credits via `confire topup`
 
-[Request early access →](mailto:hello@confire.dev?subject=Dev%20Early%20Access)
+[Request early access →](https://confire.dev/#pricing)
 
 ## Team — planned
 
 Shared policy management, team usage dashboard, custom optimizers,
 audit controls, and SSO. Contact us to join the waitlist.
 
-[Join waitlist →](mailto:hello@confire.dev?subject=Team%20Plan)
+[Join waitlist →](https://confire.dev/#pricing)

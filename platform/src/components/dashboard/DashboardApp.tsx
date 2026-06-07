@@ -15,6 +15,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { useDashboard, type MeData } from '@/hooks/use-dashboard'
 import { formatTokenCount } from '@/lib/types'
+import { EarlyAccessForm } from '@/components/marketing/EarlyAccessForm'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
@@ -317,10 +318,8 @@ function BigStatCard({ label, value, sub, accent }: { label: string; value: stri
 
 function OverviewPage({
   me, recentCalls, allCallBytes, apiKeys, firewall, canToggle, totalSavedTokens, totalCallsAllTime,
-  revokeKey, toggleFirewallGroup, onUpgrade,
+  revokeKey, toggleFirewallGroup, onRequestEarlyAccess,
 }: any) {
-  const [upgradeInterval, setUpgradeInterval] = useState<'monthly' | 'annual'>('monthly')
-
   // context reduction from byte data
   const totalRaw = allCallBytes.reduce((s: number, c: any) => s + c.raw_bytes, 0)
   const totalOpt = allCallBytes.reduce((s: number, c: any) => s + c.optimized_bytes, 0)
@@ -480,33 +479,15 @@ function OverviewPage({
                 </div>
                 {me.plan === 'free' && (
                   <div style={{ marginTop: 12 }}>
-                    {/* interval toggle */}
-                    <div style={{ display: 'flex', gap: 2, marginBottom: 8, background: 'var(--confire-border)', borderRadius: 6, padding: 2 }}>
-                      {(['monthly', 'annual'] as const).map(iv => (
-                        <button
-                          key={iv}
-                          onClick={() => setUpgradeInterval(iv)}
-                          style={{
-                            flex: 1, padding: '4px 0', borderRadius: 4, border: 'none', cursor: 'pointer',
-                            fontSize: 11, fontWeight: 600,
-                            background: upgradeInterval === iv ? 'var(--confire-bg-card)' : 'transparent',
-                            color: upgradeInterval === iv ? '#f4811f' : 'var(--confire-text-muted)',
-                            transition: 'background 0.15s, color 0.15s',
-                          }}
-                        >
-                          {iv === 'monthly' ? '$10 / mo' : '$90 / yr'}
-                        </button>
-                      ))}
-                    </div>
                     <button
-                      onClick={() => onUpgrade(upgradeInterval)}
+                      onClick={onRequestEarlyAccess}
                       style={{
                         display: 'block', width: '100%', padding: '7px 12px', textAlign: 'center',
                         background: 'rgba(244,129,31,0.1)', border: '1px solid rgba(244,129,31,0.3)',
                         borderRadius: 6, fontSize: 12, fontWeight: 600, color: '#f4811f', cursor: 'pointer',
                       }}
                     >
-                      Upgrade to Dev {upgradeInterval === 'annual' ? '(save 20%) →' : '→'}
+                      Request Dev early access →
                     </button>
                   </div>
                 )}
@@ -662,53 +643,16 @@ function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-export async function runCheckout(
-  workerBase: string,
-  apiKey: string,
-  planSlug: string,
-  interval: 'monthly' | 'annual',
-  cancelUrl: string,
-): Promise<{ checkoutUrl?: string; redirect?: string; error?: string; message?: string }> {
-  const res = await fetch(`${workerBase}/api/checkout/create`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      planSlug,
-      interval,
-      successUrl: `${window.location.origin}/billing/success`,
-      cancelUrl,
-    }),
-  })
-  return res.json()
-}
-
-function BillingPage({ me, apiKey, workerBase }: {
+function BillingPage({ me, apiKey, workerBase, onRequestEarlyAccess }: {
   me: MeData | null
   apiKey: string | null
   workerBase: string
+  onRequestEarlyAccess: () => void
 }) {
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
   const [actionError,     setActionError]     = useState<string | null>(null)
   const [cancelStep,      setCancelStep]      = useState<'idle' | 'confirm' | 'done'>('idle')
   const [cancelling,      setCancelling]      = useState(false)
   const [cancelledUntil,  setCancelledUntil]  = useState<string | null>(null)
-
-  async function startCheckout(planSlug: string, interval: 'monthly' | 'annual') {
-    if (!apiKey) { window.location.href = '/login'; return }
-    const key = `${planSlug}-${interval}`
-    setCheckoutLoading(key)
-    setActionError(null)
-    try {
-      const data = await runCheckout(workerBase, apiKey, planSlug, interval, `${window.location.origin}/dashboard/billing`)
-      if (data.redirect)         window.location.href = data.redirect
-      else if (data.checkoutUrl) window.location.href = data.checkoutUrl
-      else setActionError(data.message ?? data.error ?? 'Checkout failed — please try again.')
-    } catch {
-      setActionError('Network error — please try again.')
-    } finally {
-      setCheckoutLoading(null)
-    }
-  }
 
   async function confirmCancel() {
     if (!apiKey) return
@@ -844,11 +788,15 @@ function BillingPage({ me, apiKey, workerBase }: {
         </Card>
       )}
 
-      {/* Upgrade (free plan) */}
+      {/* Dev early access (free plan) */}
       {isFree && (
         <Card>
-          <CardHeader title="Upgrade to Dev — $10 / month" />
+          <CardHeader title="Dev — $10/month soon, early access now" />
           <div style={{ padding: '16px 20px 20px' }}>
+            <p style={{ fontSize: 13, color: 'var(--confire-text-dim)', margin: '0 0 16px', lineHeight: 1.6 }}>
+              Dev is opening soon for power users who want custom guardrails, higher remote limits, and full history.
+              Request access and we'll email you when it's ready.
+            </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px', marginBottom: 18 }}>
               {DEV_FEATURES.map(f => (
                 <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--confire-text-dim)' }}>
@@ -857,31 +805,15 @@ function BillingPage({ me, apiKey, workerBase }: {
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button
-                onClick={() => startCheckout('dev', 'monthly')}
-                disabled={!!checkoutLoading}
-                style={{
-                  padding: '9px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600,
-                  background: '#f4811f', color: '#fff', border: 'none', cursor: 'pointer',
-                  opacity: checkoutLoading === 'dev-monthly' ? 0.7 : 1,
-                }}
-              >
-                {checkoutLoading === 'dev-monthly' ? 'Loading…' : 'Dev — $10 / month'}
-              </button>
-              <button
-                onClick={() => startCheckout('dev_annual', 'annual')}
-                disabled={!!checkoutLoading}
-                style={{
-                  padding: '9px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600,
-                  background: 'transparent', color: '#f4811f',
-                  border: '1px solid rgba(244,129,31,0.4)', cursor: 'pointer',
-                  opacity: checkoutLoading === 'dev_annual-annual' ? 0.7 : 1,
-                }}
-              >
-                {checkoutLoading === 'dev_annual-annual' ? 'Loading…' : 'Dev Annual — $90 / year'}
-              </button>
-            </div>
+            <button
+              onClick={onRequestEarlyAccess}
+              style={{
+                padding: '9px 22px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                background: '#f4811f', color: '#fff', border: 'none', cursor: 'pointer',
+              }}
+            >
+              Request early access
+            </button>
           </div>
         </Card>
       )}
@@ -1031,17 +963,10 @@ function Dashboard() {
 
   const canToggle = !!(me?.features?.firewallGroupToggles)
 
-  async function handleUpgrade(interval: 'monthly' | 'annual' = 'monthly') {
+  const [earlyAccessOpen, setEarlyAccessOpen] = useState(false)
+  function openEarlyAccess() {
     if (!apiKey) { window.location.href = '/login'; return }
-    const planSlug = interval === 'annual' ? 'dev_annual' : 'dev'
-    try {
-      const data = await runCheckout(workerBase, apiKey, planSlug, interval, `${window.location.origin}/dashboard/billing`)
-      if (data.redirect)         window.location.href = data.redirect
-      else if (data.checkoutUrl) window.location.href = data.checkoutUrl
-      else navigate('/dashboard/billing')
-    } catch {
-      navigate('/dashboard/billing')
-    }
+    setEarlyAccessOpen(true)
   }
 
   // page title for topbar
@@ -1096,7 +1021,7 @@ function Dashboard() {
                 apiKeys={apiKeys} firewall={firewall} canToggle={canToggle}
                 totalSavedTokens={totalSavedTokens} totalCallsAllTime={totalCallsAllTime}
                 revokeKey={revokeKey} toggleFirewallGroup={toggleFirewallGroup}
-                onUpgrade={handleUpgrade}
+                onRequestEarlyAccess={openEarlyAccess}
               />
             )}
             {currentPath.startsWith('/dashboard/activity') && (
@@ -1112,7 +1037,7 @@ function Dashboard() {
               <StubPage title="Setup" subtitle="Install, configure, and verify Confire on your machine" icon={Terminal} />
             )}
             {currentPath.startsWith('/dashboard/billing') && (
-              <BillingPage me={me} apiKey={apiKey} workerBase={workerBase} />
+              <BillingPage me={me} apiKey={apiKey} workerBase={workerBase} onRequestEarlyAccess={openEarlyAccess} />
             )}
             {currentPath.startsWith('/dashboard/settings') && (
               <StubPage title="Settings" subtitle="Account preferences, telemetry, and API keys" icon={GearSix} />
@@ -1123,6 +1048,8 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      <EarlyAccessForm open={earlyAccessOpen} onOpenChange={setEarlyAccessOpen} planInterest="dev" />
 
       <style>{`
         .sidebar-mobile-trigger { display: none !important; }

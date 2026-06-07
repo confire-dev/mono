@@ -92,7 +92,7 @@ try {
 
   if (!res.ok) {
     // Plan validation failed — stay on Free, tell the user.
-    return Astro.redirect(`/pricing?error=invalid_plan`)
+    return Astro.redirect(`/?error=invalid_plan#pricing`)
   }
 
   if (data.redirect)     redirectOverride = data.redirect
