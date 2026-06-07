@@ -16,19 +16,21 @@ func init() {
 
 var rootCmd = &cobra.Command{
 	Use:   "confire",
-	Short: "Confire — universal AI agent tool-output optimizer",
-	Long: `Confire optimizes tool call outputs before they reach the model context.
-Less noise in context = cheaper, faster, sharper AI agents.
+	Short: "Confire — context firewall for AI coding agents",
+	Long: `Confire reviews risky tool calls before they run, sanitizes untrusted tool
+output before it reaches the model, and labels where context came from.
 
 Get started:
-  confire setup    install hooks for your AI agent and start the optimizer
-  confire login    connect your account (cloud optimization + stats)
+  confire setup    install hooks for your AI agent and start the firewall
+  confire login    connect your account (cloud sync + security events)
   confire status   show current state
 
-Optimizer control:
-  confire start    start the optimizer in the background
-  confire stop     stop the optimizer
-  confire reset    remove hooks and stop (leaves confire installed passively)`,
+Firewall control:
+  confire start       start the firewall daemon in the background
+  confire stop        stop the daemon
+  confire bypass-next allow the next tool call without review (one-shot)
+  confire review      show recent security events
+  confire stats       show activity summary`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }

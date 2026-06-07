@@ -1,50 +1,34 @@
 ---
-title: What is Confire?
-description: Context and tool firewall for AI coding agents.
+title: Confire
+description: >-
+  Context and tool firewall for AI coding agents. Controls what your
+  agent can do and what tool output it can see.
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components'
+import { LinkButton } from '@astrojs/starlight/components'
 
-Confire sits between your AI coding agent and the outside world, giving you fine-grained control over what tools it can call, what context it sees, and how many tokens it burns.
+Confire is a context and tool firewall for AI coding agents. It
+sits between your agent and the tools it runs, intercepting every
+tool call in both directions — before it executes and after it
+returns.
 
-It works as a **local proxy** — no traffic leaves to Confire servers unless you choose remote features. You keep full control.
+---
 
-## What problems does it solve?
+**Tool Firewall** — runs before each tool call. Reviews, warns, or
+blocks risky commands: destructive git operations, mutating MCP
+actions, secret file reads — before anything executes.
 
-AI coding agents are powerful but undisciplined: they read files you didn't ask about, call tools you didn't intend, and jam thousands of tokens of irrelevant context into every request. Confire fixes that.
+**Context Firewall** — runs after each tool call. Sanitizes MCP
+output, redacts common secret patterns, strips hidden-unicode
+injection attempts, and removes noise before output enters the
+model context.
 
-<CardGrid>
-  <Card title="Tool Firewall" icon="shield">
-    Block, allow, or require approval for specific MCP tool calls. Your agent can't `rm -rf` anything unless you say so.
-  </Card>
-  <Card title="Context Optimizer" icon="compress">
-    Strips noise from context before it reaches the model. Fewer tokens, faster responses, lower cost — without losing signal.
-  </Card>
-  <Card title="Secret Redaction" icon="lock">
-    Automatically detects and redacts secrets (API keys, tokens, passwords) before they appear in prompts or logs.
-  </Card>
-  <Card title="Prompt-Injection Guard" icon="warning">
-    Scans tool results and file contents for attempts to hijack agent behavior via injected instructions.
-  </Card>
-</CardGrid>
+---
 
-## How it works in one sentence
+Core optimizers run on your machine, free and offline. Remote
+optimizers (Figma, GitHub, all MCP tools) activate when you log in
+with a paid plan. One install command. No proxy, no new MCP server.
 
-Confire intercepts MCP messages between your agent and its tools, applies your policy rules, and either lets the message through, modifies it, or blocks it.
+<br />
 
-## Quick start
-
-```bash
-# 1. Install the CLI
-npm install -g @confire/cli
-
-# 2. Start the proxy
-confire start
-
-# 3. Point your agent at it
-# See the client guides for Claude Code, Cursor, and VS Code →
-```
-
-- [Install the CLI →](/getting-started/install)
-- [Connect your agent →](/getting-started/connect)
-- [Write your first policy →](/getting-started/first-policy)
+<LinkButton href="getting-started/install">Get started →</LinkButton>

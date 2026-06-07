@@ -67,6 +67,14 @@ func TestEvaluatePreTool_BuiltinRules(t *testing.T) {
 		{"env.example allowed", "Bash", bash("cat .env.example"), ModeBalanced, ""},
 		{"env.sample allowed", "Bash", bash("cat .env.sample"), ModeBalanced, ""},
 
+		// .env access tiers — raw dump vs. redacted preview vs. key-names-only
+		// all still require review, but classify differently (see secret-file-read-* rules)
+		{"env grep raw review", "Bash", bash(`grep -i "SUPABASE" .env`), ModeBalanced, ActionReview},
+		{"env redacted preview review", "Bash", bash(`grep -i "SUPABASE" .env | sed 's/=.*/=<redacted>/'`), ModeBalanced, ActionReview},
+		{"env awk redacted review", "Bash", bash(`awk -F= '{print $1"=<redacted>"}' .env`), ModeBalanced, ActionReview},
+		{"env key names only review", "Bash", bash(`cut -d= -f1 .env`), ModeBalanced, ActionReview},
+		{"env key names grep review", "Bash", bash(`grep -E '^[A-Z_]+=' .env | cut -d= -f1`), ModeBalanced, ActionReview},
+
 		// Observe mode downgrades block→warn, review→warn
 		{"observe mode downgrades review", "Bash", bash("git push --force"), ModeObserve, ActionWarn},
 		{"observe mode downgrades block", "Bash", bash("gh repo delete myorg/x"), ModeObserve, ActionWarn},
@@ -93,6 +101,43 @@ func TestEvaluatePreTool_BuiltinRules(t *testing.T) {
 			}
 			if result.Action != tc.wantAct {
 				t.Errorf("expected action=%s, got action=%s (rule=%s)", tc.wantAct, result.Action, result.Rule.ID)
+			}
+		})
+	}
+}
+
+func TestSecretFileReadTiers(t *testing.T) {
+	engine := NewEngine(BuiltinRules())
+
+	cases := []struct {
+		name     string
+		command  string
+		wantRule string
+		wantSev  Severity
+	}{
+		{"raw cat", "cat .env", "secret-file-read-raw", SeverityHigh},
+		{"raw grep", `grep -i "SUPABASE" .env`, "secret-file-read-raw", SeverityHigh},
+		{"redacted sed", `grep -i "SUPABASE" .env | sed 's/=.*/=<redacted>/'`, "secret-file-read-redacted", SeverityLow},
+		{"redacted awk", `awk -F= '{print $1"=<redacted>"}' .env`, "secret-file-read-redacted", SeverityLow},
+		{"key names cut", "cut -d= -f1 .env", "secret-file-read-keynames", SeverityLow},
+		{"key names grep+cut", `grep -E '^[A-Z_]+=' .env | cut -d= -f1`, "secret-file-read-keynames", SeverityLow},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			event := makeEvent("Bash", bash(tc.command))
+			result := engine.EvaluatePreTool(event, ModeBalanced)
+			if result == nil {
+				t.Fatalf("expected a match, got passthrough")
+			}
+			if result.Rule.ID != tc.wantRule {
+				t.Errorf("expected rule=%s, got rule=%s (action=%s)", tc.wantRule, result.Rule.ID, result.Action)
+			}
+			if result.Rule.Severity != tc.wantSev {
+				t.Errorf("expected severity=%s, got severity=%s", tc.wantSev, result.Rule.Severity)
+			}
+			if result.Action != ActionReview {
+				t.Errorf("expected action=review, got action=%s", result.Action)
 			}
 		})
 	}

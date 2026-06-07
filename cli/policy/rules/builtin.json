@@ -8,7 +8,9 @@
       "phase": "PreToolUse",
       "action": "review",
       "severity": "high",
-      "match": { "tool_name": "Bash" },
+      "match": {
+        "tool_name": "Bash"
+      },
       "patterns": [
         {
           "id": "force-push",
@@ -44,7 +46,9 @@
       "phase": "PreToolUse",
       "action": "review",
       "severity": "medium",
-      "match": { "tool_name": "Bash" },
+      "match": {
+        "tool_name": "Bash"
+      },
       "patterns": [
         {
           "id": "pr-close",
@@ -65,7 +69,12 @@
       "phase": "PreToolUse",
       "action": "block",
       "severity": "high",
-      "match": { "tool_name": "Bash", "command_contains": ["gh repo delete"] },
+      "match": {
+        "tool_name": "Bash",
+        "command_contains": [
+          "gh repo delete"
+        ]
+      },
       "message": "Repository deletion is irreversible. Use the GitHub web UI with explicit confirmation."
     },
     {
@@ -75,7 +84,9 @@
       "phase": "PreToolUse",
       "action": "review",
       "severity": "high",
-      "match": { "tool_name": "Bash" },
+      "match": {
+        "tool_name": "Bash"
+      },
       "patterns": [
         {
           "id": "rm-rf",
@@ -96,7 +107,9 @@
       "phase": "PreToolUse",
       "action": "review",
       "severity": "high",
-      "match": { "tool_name": "Bash" },
+      "match": {
+        "tool_name": "Bash"
+      },
       "patterns": [
         {
           "id": "drop-truncate",
@@ -158,7 +171,9 @@
       "phase": "PreToolUse",
       "action": "review",
       "severity": "high",
-      "match": { "tool_name": "Bash" },
+      "match": {
+        "tool_name": "Bash"
+      },
       "patterns": [
         {
           "id": "docker-push",
@@ -178,17 +193,63 @@
       ]
     },
     {
-      "id": "secret-file-read",
-      "name": "Review reading secret files",
+      "id": "secret-file-read-raw",
+      "name": "Review raw read of secret files",
       "enabled": true,
       "phase": "PreToolUse",
       "action": "review",
-      "severity": "medium",
+      "severity": "high",
       "match": {
-        "tool_names": ["Bash", "Read"],
-        "command_regex": "(^|[\\s/])\\.env(\\.(local|prod|production|staging|test))?(\\s|$|\")|[\\s/](id_rsa|id_ed25519|\\.aws/credentials|\\.kube/config|\\.npmrc|\\.pypirc)(\\s|$|\")"
+        "tool_names": [
+          "Bash",
+          "Read"
+        ],
+        "command_regex": "(^|[\\s/])\\.env(\\.(local|prod|production|staging|test))?(\\s|$|\\\")|[\\s/](id_rsa|id_ed25519|\\.aws/credentials|\\.kube/config|\\.npmrc|\\.pypirc)(\\s|$|\\\")",
+        "command_not_regex": "(<redacted>|REDACTED|redacted|sed\\s+['\\\"]s/=|awk\\s+-F=|cut\\s+-d=)"
       },
-      "message": "This accesses a file that likely contains real secrets or credentials."
+      "message": "This accesses a file that likely contains real secrets or credentials, and the command does not appear to redact or limit the output. Review carefully before allowing."
+    },
+    {
+      "id": "secret-file-read-redacted",
+      "name": "Review redacted preview of secret files",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "low",
+      "match": {
+        "tool_names": [
+          "Bash"
+        ],
+        "command_regex": "(^|[\\s/])\\.env(\\.(local|prod|production|staging|test))?(\\s|$|\\\")|[\\s/](id_rsa|id_ed25519|\\.aws/credentials|\\.kube/config|\\.npmrc|\\.pypirc)(\\s|$|\\\")",
+        "command_contains": [
+          "<redacted>",
+          "<REDACTED>",
+          "REDACTED",
+          "redacted",
+          "sed 's/=",
+          "awk -F="
+        ]
+      },
+      "message": "This reads a secret file, but the command appears to redact values before output. Review anyway \u2014 shell pipelines can be wrong, fail to match, or be changed later, and the agent is still accessing a secret file."
+    },
+    {
+      "id": "secret-file-read-keynames",
+      "name": "Review key-name-only inspection of secret files",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "low",
+      "match": {
+        "tool_names": [
+          "Bash"
+        ],
+        "command_regex": "(^|[\\s/])\\.env(\\.(local|prod|production|staging|test))?(\\s|$|\\\")|[\\s/](id_rsa|id_ed25519|\\.aws/credentials|\\.kube/config|\\.npmrc|\\.pypirc)(\\s|$|\\\")",
+        "command_contains": [
+          "cut -d="
+        ],
+        "command_not_regex": "(<redacted>|REDACTED|redacted|sed\\s+['\\\"]s/=|awk\\s+-F=)"
+      },
+      "message": "This reads a secret file but appears to extract only variable names, not values. Still flagged for review since the command could be changed to print values."
     },
     {
       "id": "mcp-mutation",
@@ -210,7 +271,9 @@
       "phase": "PostToolUse",
       "action": "redact",
       "severity": "high",
-      "match": { "output_secret_scan": true },
+      "match": {
+        "output_secret_scan": true
+      },
       "message": "Common secret-like values were redacted before entering context."
     },
     {
@@ -220,8 +283,34 @@
       "phase": "PostToolUse",
       "action": "sanitize",
       "severity": "high",
-      "match": { "output_injection_scan": true },
+      "match": {
+        "output_injection_scan": true
+      },
       "message": "Suspicious instruction-like text was removed from untrusted tool output."
+    },
+    {
+      "id": "firewall.flow.secret_then_exfil",
+      "name": "Secret read followed by external send",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": {
+        "flow_rule": true
+      },
+      "message": "A secret was found in recent tool output. Sending data externally immediately after raises a risk of credential exfiltration."
+    },
+    {
+      "id": "firewall.flow.injection_then_shell",
+      "name": "Prompt injection followed by shell command",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": {
+        "flow_rule": true
+      },
+      "message": "A prompt injection attempt was detected in recent tool output. Running a shell command immediately after could execute attacker-controlled instructions."
     }
   ]
 }

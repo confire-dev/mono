@@ -132,6 +132,11 @@ func validateRuleMatch(m RuleMatch) error {
 			return fmt.Errorf("invalid command_regex: %w", err)
 		}
 	}
+	if m.CommandNotRegex != "" {
+		if _, err := regexp.Compile("(?i)" + m.CommandNotRegex); err != nil {
+			return fmt.Errorf("invalid command_not_regex: %w", err)
+		}
+	}
 	if m.ToolNameRegex != "" {
 		if _, err := regexp.Compile("(?i)" + m.ToolNameRegex); err != nil {
 			return fmt.Errorf("invalid tool_name_regex: %w", err)

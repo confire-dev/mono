@@ -1,100 +1,65 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { WithCorners } from './corner-squares'
-
-function highlightLine(line: string): string {
-  const esc = line
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-  return esc
-    .replace(/(\/\/[^\n]*)/g, '<span style="color:var(--confire-code-comment)">$1</span>')
-    .replace(
-      /("(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`|'(?:[^'\\]|\\.)*')/g,
-      '<span style="color:var(--confire-code-string)">$1</span>',
-    )
-    .replace(
-      /\b(const|let|var|function|return|await|async|import|export|default|if|else|true|false|null)\b/g,
-      '<span style="color:var(--confire-code-keyword)">$1</span>',
-    )
-    .replace(/\b(\d+(?:\.\d+)?)\b(?![^<]*>)/g, '<span style="color:var(--confire-code-number)">$1</span>')
-}
+import { CodeHighlighted, ShikiProvider } from '@cloudflare/kumo/code'
 
 export function CodeBlock({
   code,
+  lang = 'bash',
   fileTabs,
   activeFile = 0,
   onFileChange,
   className,
 }: {
   code: string
+  lang?: string
   fileTabs?: string[]
   activeFile?: number
   onFileChange?: (index: number) => void
   className?: string
 }) {
-  const [copied, setCopied] = React.useState(false)
-  const lines = code.split('\n')
-
-  function copy() {
-    void navigator.clipboard?.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
-
   return (
-    <div
-      className={cn(
-        'flex h-full flex-col overflow-hidden bg-confire-code font-mono',
-        className,
-      )}
-    >
-      {fileTabs && fileTabs.length > 0 && (
-        <div className="flex shrink-0 gap-0 border-b border-confire-border-subtle px-4">
-          {fileTabs.map((tab, i) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => onFileChange?.(i)}
-              className={cn(
-                'cursor-pointer border-none bg-transparent px-4 py-2.5 font-sans text-xs transition-colors',
-                i === activeFile
-                  ? 'border-b-2 border-confire-accent font-semibold text-confire-text'
-                  : 'border-b-2 border-transparent text-confire-code-tab-inactive hover:text-confire-dim',
-              )}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="relative flex-1 overflow-y-auto py-4">
-        {lines.map((line, i) => (
-          <div key={i} className="flex min-h-[22px] leading-[22px]">
-            <span className="w-12 shrink-0 select-none pl-4 font-mono text-xs text-confire-code-line tabular-nums">
-              {String(i + 1).padStart(2, '0')}
-            </span>
-            <span
-              className="pr-12 font-mono text-[13px] whitespace-pre text-confire-code-text"
-              dangerouslySetInnerHTML={{ __html: highlightLine(line) }}
-            />
+    <ShikiProvider languages={['bash', 'typescript', 'javascript', 'json', 'sh']}>
+      <div
+        className={cn(
+          'flex h-full flex-col overflow-hidden bg-confire-code font-mono',
+          className,
+        )}
+      >
+        {fileTabs && fileTabs.length > 0 && (
+          <div className="flex shrink-0 gap-0 border-b border-confire-border-subtle px-4">
+            {fileTabs.map((tab, i) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => onFileChange?.(i)}
+                className={cn(
+                  'cursor-pointer border-none bg-transparent px-4 py-2.5 font-sans text-xs transition-colors',
+                  i === activeFile
+                    ? 'border-b-2 border-confire-accent font-semibold text-confire-text'
+                    : 'border-b-2 border-transparent text-confire-code-tab-inactive hover:text-confire-dim',
+                )}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
-        ))}
+        )}
 
-        <button
-          type="button"
-          onClick={copy}
-          className={cn(
-            'absolute right-3.5 bottom-3.5 cursor-pointer rounded-md border border-confire-border-soft bg-confire-card-2 px-2.5 py-1.5 font-sans text-[13px] transition-colors',
-            copied ? 'text-confire-green' : 'text-confire-caption hover:text-confire-dim',
-          )}
-          aria-label={copied ? 'Copied' : 'Copy code'}
+        {/* force-dark: override shiki dual-theme to always use dark colors */}
+        <div
+          className="relative flex-1 overflow-y-auto [&_code_span]:![color:var(--shiki-dark)] [&_pre]:!bg-transparent"
+          data-theme="dark"
         >
-          {copied ? '✓' : '⧉'}
-        </button>
+          <CodeHighlighted
+            code={code}
+            language={lang}
+            showCopyButton
+            className="!rounded-none !border-0 !bg-transparent"
+          />
+        </div>
       </div>
-    </div>
+    </ShikiProvider>
   )
 }
 
@@ -143,8 +108,9 @@ export function HorizontalTabs({
 export interface VerticalTabItem {
   title: string
   description: string
+  lang?: string
   code?: string
-  files?: { name: string; code: string }[]
+  files?: { name: string; lang?: string; code: string }[]
 }
 
 export function VerticalTabsCode({
@@ -159,6 +125,7 @@ export function VerticalTabsCode({
   const current = tabs[active]
   const fileTabs = current?.files?.map((f) => f.name)
   const code = current?.files?.[activeFile]?.code ?? current?.code ?? ''
+  const lang = current?.files?.[activeFile]?.lang ?? current?.lang ?? 'bash'
 
   return (
     <WithCorners cols={2} rows={1}>
@@ -166,6 +133,7 @@ export function VerticalTabsCode({
         <div className="overflow-hidden border-b border-confire-border md:min-h-[280px] md:border-b-0 md:border-r">
           <CodeBlock
             code={code}
+            lang={lang}
             fileTabs={fileTabs}
             activeFile={activeFile}
             onFileChange={setActiveFile}

@@ -1,54 +1,87 @@
-/* Confire brand overrides for Starlight */
+/* Confire brand overrides for Starlight — matches platform global.css */
 
 :root {
-  --sl-color-accent-low:   #4a2400;
+  --sl-color-accent-low:   #3a1800;
   --sl-color-accent:       #f4811f;
   --sl-color-accent-high:  #ffd0a0;
 
   --sl-color-white:        #ffffff;
   --sl-color-gray-1:       #eaeaea;
-  --sl-color-gray-2:       #c2c2c2;
-  --sl-color-gray-3:       #8b8b8b;
-  --sl-color-gray-4:       #585858;
-  --sl-color-gray-5:       #383838;
-  --sl-color-gray-6:       #272727;
-  --sl-color-black:        #181818;
+  --sl-color-gray-2:       #a1a1aa;
+  --sl-color-gray-3:       #888888;
+  --sl-color-gray-4:       #555560;
+  --sl-color-gray-5:       #252525;
+  --sl-color-gray-6:       #181818;
+  --sl-color-black:        #111111;
 
   --sl-nav-height:         3.5rem;
+  --sl-font:               'Geist', 'Inter', system-ui, sans-serif;
+  --sl-font-mono:          'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 }
 
-/* Slightly warmer dark background */
 [data-theme='dark'] {
-  --sl-color-bg:           #16151a;
-  --sl-color-bg-nav:       #1e1c22;
-  --sl-color-bg-sidebar:   #1a1820;
-  --sl-color-bg-inline-code: #2a2730;
+  --sl-color-bg:              #111111;
+  --sl-color-bg-nav:          #111111;
+  --sl-color-bg-sidebar:      #111111;
+  --sl-color-bg-inline-code:  #141414;
+  --sl-color-hairline-light:  #1e1e1e;
+  --sl-color-hairline-medium: #252525;
+  --sl-color-text:            #ffffff;
+  --sl-color-text-accent:     #f4811f;
 }
 
-/* Keep font stack clean */
-:root {
-  --sl-font: 'Inter', system-ui, sans-serif;
-  --sl-font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+/* Nav / header border */
+header.header {
+  border-bottom: 1px solid #1e1e1e !important;
+  background: #111111 !important;
 }
 
-/* Site header */
-.site-title {
-  font-weight: 700;
-  letter-spacing: -0.01em;
+/* Sidebar */
+.sidebar-pane {
+  border-inline-end: 1px solid #1e1e1e !important;
+  background: #111111 !important;
+}
+
+/* Main content area */
+.main-frame {
+  background: #111111;
+}
+
+/* Content panel background */
+.content-panel {
+  background: #111111;
+}
+
+/* Right-of-content (TOC) panel */
+.right-sidebar {
+  border-inline-start: 1px solid #1e1e1e !important;
 }
 
 /* Inline code */
 code:not(pre > code) {
+  background: #141414 !important;
+  border: 1px solid #252525;
   border-radius: 4px;
   padding: 1px 5px;
 }
 
-/* Nicer aside / callout styling */
-.starlight-aside {
-  border-radius: 6px;
+/* Code blocks */
+.expressive-code .frame {
+  border: 1px solid #252525 !important;
+  border-radius: 6px !important;
 }
 
-/* Sidebar section headers: plain labels, not collapsible dropdowns */
+.expressive-code pre {
+  background: #141414 !important;
+}
+
+/* Callout / aside */
+.starlight-aside {
+  border-radius: 6px;
+  border-color: #252525;
+}
+
+/* Sidebar section labels — non-collapsible */
 details:has(.group-label) > summary {
   cursor: default;
   pointer-events: none;
@@ -56,4 +89,51 @@ details:has(.group-label) > summary {
 }
 details:has(.group-label) > summary .caret {
   display: none;
+}
+
+/* Active sidebar link */
+a[aria-current='page'] {
+  color: #f4811f !important;
+  background: rgba(244, 129, 31, 0.08) !important;
+}
+
+/* Pagination buttons */
+.pagination-links a {
+  border-color: #252525;
+  background: #181818;
+}
+.pagination-links a:hover {
+  border-color: #f4811f;
+}
+
+/* Table of contents active item */
+.toc a[aria-current='true'] {
+  color: #f4811f;
+}
+
+/* Search button */
+site-search button {
+  border-color: #252525 !important;
+  background: #181818 !important;
+}
+
+/* Mobile menu */
+.mobile-sidebar-toggle {
+  color: #a1a1aa;
+}
+
+/* Hide dark/light mode toggle — dark only */
+starlight-theme-select {
+  display: none !important;
+}
+
+/* Site title text — always white */
+.site-title {
+  color: #ffffff !important;
+}
+
+/* Logo image sizing */
+.site-title img {
+  height: 1.5rem;
+  width: auto;
 }

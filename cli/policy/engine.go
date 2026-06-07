@@ -86,6 +86,11 @@ func matchesPreTool(rule Rule, event intercept.InterceptEvent) bool {
 	tool := event.Tool
 	m := rule.Match
 
+	// Flow rules are evaluated by firewall.CheckFlowRules, not here.
+	if m.FlowRule {
+		return false
+	}
+
 	// MCP-only gate.
 	if m.MCPOnly && !tool.IsMCP {
 		return false
@@ -117,19 +122,32 @@ func matchesPreTool(rule Rule, event intercept.InterceptEvent) bool {
 			return false
 		}
 	}
-	if m.CommandRegex != "" {
-		re, err := regexp.Compile("(?i)" + m.CommandRegex)
-		if err != nil {
-			return false
-		}
+	if m.CommandRegex != "" || m.CommandNotRegex != "" {
 		// For Bash, match against the command string.
 		// For Read/other tools, match against the full input JSON string.
 		target := cmd
 		if target == "" {
 			target = fmt.Sprintf("%v", tool.Input)
 		}
-		if !re.MatchString(target) {
-			return false
+
+		if m.CommandRegex != "" {
+			re, err := regexp.Compile("(?i)" + m.CommandRegex)
+			if err != nil {
+				return false
+			}
+			if !re.MatchString(target) {
+				return false
+			}
+		}
+
+		if m.CommandNotRegex != "" {
+			notRe, err := regexp.Compile("(?i)" + m.CommandNotRegex)
+			if err != nil {
+				return false
+			}
+			if notRe.MatchString(target) {
+				return false
+			}
 		}
 	}
 

@@ -4,11 +4,16 @@ compatibility_date = "2025-05-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
+WORKER_URL = "https://api.dev.confire.dev"
 PUBLIC_WORKER_URL = "https://api.dev.confire.dev"
+DOCS_SITE_URL = "https://dev.confire.dev"
 
 # Production environment (confire.dev)
 [env.production]
 name = "confire-platform"
 
 [env.production.vars]
+WORKER_URL = "https://api.confire.dev"
 PUBLIC_WORKER_URL = "https://api.confire.dev"
+DOCS_SITE_URL = "https://confire.dev"
+

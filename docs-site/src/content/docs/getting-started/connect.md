@@ -1,71 +1,81 @@
 ---
-title: Connect your agents
-description: Point Claude Code, Cursor, or VS Code at the Confire proxy.
+title: Connect your agent
+description: Install Confire hooks into Claude Code, Cursor, or VS Code.
 ---
 
-Once the proxy is running (`confire start`), tell your agent to route its MCP traffic through it.
+The installer runs `confire setup` automatically, but you can re-run
+it any time — for example, to add a second agent or switch from
+global to local scope.
 
-## Claude Code
-
-Add Confire as an MCP server in your Claude Code config (`.claude/settings.json` or `~/.claude/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "confire": {
-      "command": "confire",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-The `confire mcp` sub-command starts an MCP stdio transport that forwards to the proxy.
-
-For a detailed walk-through see the [Claude Code client guide →](/clients/claude-code)
-
-## Cursor
-
-In Cursor settings, add a new MCP server pointing at the Confire HTTP proxy:
-
-```json
-{
-  "mcpServers": {
-    "confire": {
-      "url": "http://localhost:4747/mcp"
-    }
-  }
-}
-```
-
-For a detailed walk-through see the [Cursor client guide →](/clients/cursor)
-
-## VS Code (Copilot)
-
-In your workspace `.vscode/settings.json`:
-
-```json
-{
-  "github.copilot.mcpServers": {
-    "confire": {
-      "url": "http://localhost:4747/mcp"
-    }
-  }
-}
-```
-
-For a detailed walk-through see the [VS Code client guide →](/clients/vscode)
-
-## Verify the connection
-
-After connecting, run a quick sanity check:
+## Run setup
 
 ```bash
-confire test
+confire setup
 ```
 
-This sends a test request through the proxy and prints what the firewall would do with it.
+This opens an interactive prompt. You'll pick a scope and select
+which agents to hook.
+
+**Global** installs hooks into your user-level settings file and
+applies to every project. **Local** writes to `.claude/settings.json`
+(or the equivalent) in the nearest git root and applies only to that
+repo.
+
+After setup, restart your agent for the hook to take effect.
+
+## What setup installs
+
+For Claude Code, `confire setup` adds a `PostToolUse` hook entry to
+your settings file:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [{ "type": "command", "command": "confire hook" }]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [{ "type": "command", "command": "confire hook" }]
+      }
+    ]
+  }
+}
+```
+
+Every tool call — before it runs and after it finishes — passes
+through `confire hook`, which forwards the event to the daemon.
+
+For Cursor and VS Code, setup writes equivalent hook entries to
+their respective settings files.
+
+## Start the daemon
+
+```bash
+confire start
+```
+
+The daemon runs in the background and handles all firewall evaluation
+and optimization. Setup starts it automatically, but run this if you
+stopped it with `confire stop`.
+
+## Log in for remote optimizers
+
+Local optimizers (Bash, Read, WebFetch) work without an account.
+Remote optimizers for Figma, GitHub, and all other MCP-connected
+tools require a Confire account:
+
+```bash
+confire login
+```
+
+This opens a browser to authenticate. Once logged in, remote
+optimizers activate automatically when the relevant tools are called.
 
 ## Next step
 
-[Test your first policy →](/getting-started/first-policy)
+[Verify your setup →](../verify)

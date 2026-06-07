@@ -1,6 +1,4 @@
 import type { Env } from './types.js'
-import { handleOptimize }        from './handlers/optimize.js'
-import { handleOptimizerApi }    from './handlers/optimize-api.js'
 import { handleSessionStart }    from './handlers/session.js'
 import { handleGenerateKey, handleMe, handleRevokeKey, handleRevokeSelf } from './handlers/auth.js'
 import { handleCreateCheckout }       from './handlers/checkout.js'
@@ -11,6 +9,7 @@ import { handleStripeWebhook }   from './handlers/stripe.js'
 import { syncPlansToKV }         from './lib/plans.js'
 import { handleSupabaseWebhook } from './handlers/db-webhook.js'
 import { handleGetPolicy, handlePatchPolicyGroups } from './handlers/policy.js'
+import { handleGetRules }        from './handlers/rules.js'
 
 const ALLOWED_ORIGINS = new Set([
   'https://confire.dev',
@@ -51,27 +50,25 @@ export default {
 
 async function route(request: Request, url: URL, method: string, env: Env): Promise<Response> {
 
-    // ── Optimizer (core product) ─────────────────────────────────────────
-    if (method === 'POST' && url.pathname === '/optimize') {
-      return handleOptimize(request, env)
-    }
-    // ── Standalone Optimizer API (pre-LLM context reduction) ─────────────
-    // Gated by OPTIMIZER_API_ENABLED env var — returns 404 until launched.
-    // To enable: set OPTIMIZER_API_ENABLED="true" in wrangler.toml or via
-    //   wrangler secret put OPTIMIZER_API_ENABLED
-    if (method === 'POST' && url.pathname === '/v1/optimize') {
-      if (env.OPTIMIZER_API_ENABLED !== 'true') {
-        return new Response('Not Found', { status: 404 })
-      }
-      return handleOptimizerApi(request, env)
-    }
     if (method === 'POST' && url.pathname === '/session/start') {
       return handleSessionStart(request, env)
     }
 
-    // ── Telemetry ingestion (CLI → Supabase truth + Amplitude analytics) ─
+    // ── Telemetry / security event ingestion ─────────────────────────────
     if (method === 'POST' && url.pathname === '/v1/events') {
       return handleTelemetry(request, env)
+    }
+
+    // ── Firewall rules bundle ─────────────────────────────────────────────
+    // Clients pull the latest rule bundle at session start. KV-cached (1h TTL).
+    if (method === 'GET' && url.pathname === '/v1/rules') {
+      return handleGetRules(request, env)
+    }
+
+    // ── Attack pattern reporting ──────────────────────────────────────────
+    // Accepts new attack pattern submissions from clients for review.
+    if (method === 'POST' && url.pathname === '/v1/report') {
+      return Response.json({ ok: true }, { status: 202 })
     }
 
     // ── Auth & account ────────────────────────────────────────────────────
@@ -113,19 +110,17 @@ async function route(request: Request, url: URL, method: string, env: Env): Prom
     }
 
     // ── Supabase DB webhook (plans table changes → re-sync KV) ───────────
-    // Fired automatically by Supabase whenever a row in `plans` is changed.
-    // No manual sync needed — the DB pushes changes to the Worker.
     if (method === 'POST' && url.pathname === '/webhooks/supabase') {
       return handleSupabaseWebhook(request, env)
     }
 
-    // ── Admin: manual plan sync — disabled (use Supabase webhook instead) ──
-    // if (method === 'POST' && url.pathname === '/admin/plans/sync') { ... }
-
     // ── Health ────────────────────────────────────────────────────────────
     if (method === 'GET' && url.pathname === '/health') {
-      return Response.json({ ok: true, version: '0.1.0', env: env.ENVIRONMENT })
+      return Response.json({ ok: true, version: '0.2.0', env: env.ENVIRONMENT })
     }
 
     return new Response('Not Found', { status: 404 })
 }
+
+// keep unused import happy — syncPlansToKV is called by supabase webhook handler
+export { syncPlansToKV }

@@ -4,11 +4,8 @@ import "testing"
 
 func TestCapabilitiesFor_CursorDefaults(t *testing.T) {
 	caps := Config{}.CapabilitiesFor("cursor")
-	if caps.OptimizeNative {
-		t.Fatal("cursor should not optimize native tools by default")
-	}
-	if !caps.OptimizeMCP || !caps.PostToolSteer {
-		t.Fatalf("unexpected cursor caps: %+v", caps)
+	if !caps.PostToolSteer {
+		t.Fatalf("cursor should use post-tool steer by default: %+v", caps)
 	}
 	if caps.NativeOutputReplaceable {
 		t.Fatal("cursor native output is not replaceable")
@@ -16,14 +13,14 @@ func TestCapabilitiesFor_CursorDefaults(t *testing.T) {
 }
 
 func TestCapabilitiesFor_Override(t *testing.T) {
-	native := true
+	steer := false
 	cfg := Config{
 		Hosts: map[string]HostSettings{
-			"cursor": {OptimizeNative: &native},
+			"cursor": {PostToolSteer: &steer},
 		},
 	}
 	caps := cfg.CapabilitiesFor("cursor")
-	if !caps.OptimizeNative {
-		t.Fatal("expected config override to enable native optimize for cursor")
+	if caps.PostToolSteer {
+		t.Fatal("expected config override to disable post-tool steer for cursor")
 	}
 }

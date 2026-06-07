@@ -62,13 +62,13 @@ jobs:
             echo "Building ${OS}/${ARCH}..."
             CGO_ENABLED=0 GOOS="${OS}" GOARCH="${ARCH}" \
               go build -trimpath -ldflags "${LDFLAGS}" \
-              -o "dist/confire" .
-            tar -czf "dist/confire_${VERSION}_${OS}_${ARCH}.tar.gz" -C dist confire
-            rm dist/confire
+              -o "dist/confire-dev" .
+            tar -czf "dist/confire-dev_${VERSION}_${OS}_${ARCH}.tar.gz" -C dist confire-dev
+            rm dist/confire-dev
           done
 
           cd dist
-          sha256sum confire_*.tar.gz > checksums.txt
+          sha256sum confire-dev_*.tar.gz > checksums.txt
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - name: Publish to R2
@@ -81,7 +81,7 @@ jobs:
           BUCKET="confire-releases"
           DIST="../cli/dist"
 
-          for FILE in "${DIST}"/confire_*.tar.gz "${DIST}/checksums.txt"; do
+          for FILE in "${DIST}"/confire-dev_*.tar.gz "${DIST}/checksums.txt"; do
             BASENAME="$(basename "${FILE}")"
             echo "Uploading dev/releases/${VERSION}/${BASENAME}..."
             pnpm exec wrangler r2 object put --remote \
@@ -89,8 +89,20 @@ jobs:
               --file "${FILE}"
           done
 
+          # Install script with dev URLs pre-baked
+          sed \
+            -e 's|https://get.confire.dev|https://get.dev.confire.dev|g' \
+            -e 's|https://releases.confire.dev|https://get.dev.confire.dev/releases|g' \
+            -e 's|https://confire.dev|https://dev.confire.dev|g' \
+            -e 's|^BINARY="confire"$|BINARY="confire-dev"|' \
+            ../scripts/install.sh > /tmp/dev-install.sh
+          pnpm exec wrangler r2 object put --remote \
+            "${BUCKET}/dev/install.sh" \
+            --file /tmp/dev-install.sh \
+            --content-type "text/x-shellscript"
+
           echo "{\"version\":\"${VERSION}\"}" > /tmp/dev-latest.json
-          pnpm exec wrangler r2 object put \
+          pnpm exec wrangler r2 object put --remote \
             "${BUCKET}/dev/latest.json" \
             --file /tmp/dev-latest.json \
             --content-type "application/json"

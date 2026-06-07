@@ -24,7 +24,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 // safe to call createBrowserClient() at module level here.
 let _singleton: SupabaseClient | null = null
 
-export function getSupabaseClient(): SupabaseClient {
+export function getSupabaseClient(): SupabaseClient | null {
   if (!_singleton) {
     _singleton = createBrowserClient()
   }

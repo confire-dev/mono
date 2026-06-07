@@ -89,6 +89,12 @@ type RuleMatch struct {
 	// CommandRegex is a regex applied to the Bash command input.
 	CommandRegex string `json:"command_regex,omitempty"`
 
+	// CommandNotRegex excludes the match if this regex matches the Bash command
+	// input. Used to carve out lower-risk variants from a broader CommandRegex —
+	// e.g. a redacted secret-file preview shouldn't fire the same high-severity
+	// rule as a raw dump of the same file.
+	CommandNotRegex string `json:"command_not_regex,omitempty"`
+
 	// MCPServer restricts to a specific MCP server name.
 	MCPServer string `json:"mcp_server,omitempty"`
 
@@ -107,6 +113,11 @@ type RuleMatch struct {
 	// InputParamScan enables risk-scoring of MCP tool input parameter names.
 	// Used by the mcp.risk_classifier group.
 	InputParamScan bool `json:"input_param_scan,omitempty"`
+
+	// FlowRule marks a rule as a cross-tool chain rule evaluated by
+	// firewall.CheckFlowRules, not by the standard per-call engine.
+	// Rules with FlowRule: true never match in EvaluatePreTool.
+	FlowRule bool `json:"flow_rule,omitempty"`
 }
 
 // MatchResult is returned when a rule fires.

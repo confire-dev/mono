@@ -1,19 +1,18 @@
 import type { InterceptEvent, InterceptResult } from './types.js'
-import { runOptimizers } from './optimizers/index.js'
-import { buildReadPreResult } from './optimizers/read.js'
+import { classify } from './security/classifier.js'
+import { extractText } from './security/extract.js'
 
-// handle is the single entry-point for both the Worker and (in the future) the Go daemon
-// when it falls back to the bundled local optimizer.
-// It routes by phase and delegates to the optimizer registry.
+// handle is the single entry-point for all InterceptEvents.
+// The Worker is now a sync/reporting backend — it classifies security events
+// and returns passthrough for normal tool calls.
 export function handle(event: InterceptEvent): InterceptResult {
-  // pre-compact is disabled in v1 — ships dark
   if (event.phase === 'context.pre-compact') {
     return { kind: 'passthrough' }
   }
 
   switch (event.phase) {
     case 'tool.pre':
-      return handleToolPre(event)
+      return { kind: 'passthrough' }
     case 'tool.post':
       return handleToolPost(event)
     case 'session.start':
@@ -21,24 +20,22 @@ export function handle(event: InterceptEvent): InterceptResult {
     case 'tool.batch.post':
     case 'turn.stop':
     case 'prompt.submit':
-      // These phases are handled at the daemon level (notifications, stats, warming).
-      // The Worker just returns passthrough for them — the daemon adds additionalContext.
       return { kind: 'passthrough' }
     default:
       return { kind: 'passthrough' }
   }
 }
 
-function handleToolPre(event: InterceptEvent): InterceptResult {
-  // Read: inject limit before the file is even read
-  if (event.tool?.name === 'Read') {
-    const pre = buildReadPreResult(event)
-    if (pre) return pre
-  }
-  return { kind: 'passthrough' }
-}
-
 function handleToolPost(event: InterceptEvent): InterceptResult {
   if (!event.tool?.output) return { kind: 'passthrough' }
-  return runOptimizers(event)
+
+  const text = extractText(event.tool.output)
+  if (!text) return { kind: 'passthrough' }
+
+  const result = classify(text)
+  if (result.risk === 'NONE') return { kind: 'passthrough' }
+
+  // High-risk tool output — flag but don't replace (daemon handles sanitization locally)
+  // The worker's role is classification and telemetry, not content mutation.
+  return { kind: 'passthrough' }
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { createBrowserClient } from '@/lib/supabase'
+import { EarlyAccessForm } from '@/components/marketing/EarlyAccessForm'
 import {
   BodySm,
   BentoGrid,
@@ -279,7 +279,7 @@ function Hero() {
 
 const STATS = [
   { value: 'Built-in',    label: 'risky action guardrails'    },
-  { value: '40-95%',      label: 'reduction on noisy tool outputs' },
+  { value: '5 layers',    label: 'of output protection'           },
   { value: 'Local-first', label: 'policy evaluation'          },
   { value: 'Sanitized',   label: 'before cloud optimization'  },
 ]
@@ -454,7 +454,7 @@ function Capabilities() {
         <SectionLabel number="03">Capabilities</SectionLabel>
         <SectionTitle
           title="Context control and tool safety in one local layer."
-          subtitle="Every capability runs on your machine. Cloud optimization receives only sanitized, redacted content."
+          subtitle="Every capability runs on your machine. The cloud receives only sanitized, redacted metadata — never raw tool output."
         />
 
         <BentoGrid
@@ -486,9 +486,9 @@ function Capabilities() {
             {
               content: (
                 <div>
-                  <ChartLineUpIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
-                  <H3 className="mb-2">Context Optimizer</H3>
-                  <BodySm>Turn noisy tool output into cleaner agent-ready context. Works on Bash logs, WebFetch pages, GitHub PRs, Figma outputs, API JSON, and generic MCP responses.</BodySm>
+                  <ShieldCheckIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
+                  <H3 className="mb-2">Context Firewall</H3>
+                  <BodySm>Redacts secrets, removes injections, and trims noise from every tool output before it enters context. Works on Bash logs, WebFetch pages, GitHub PRs, Figma outputs, and MCP responses.</BodySm>
                 </div>
               ),
             },
@@ -537,7 +537,7 @@ const CLIENTS = [
     features: [
       'PreToolUse risky action review',
       'PostToolUse output sanitization',
-      'Output optimization before working context',
+      'Context firewall: redaction, injection removal, noise trimming',
       'Built-in and custom rules',
       'Local policy evaluation',
     ],
@@ -725,16 +725,19 @@ function Setup() {
             {
               title: 'Install the CLI',
               description: 'One command. macOS and Linux supported at launch.',
+              lang: 'bash',
               code: installCode,
             },
             {
               title: 'Connect your agents',
               description: 'Log in and hook Confire into each supported client.',
+              lang: 'bash',
               code: connectCode,
             },
             {
               title: 'Test a policy',
               description: 'Verify that firewall rules are active.',
+              lang: 'bash',
               code: testCode,
             },
           ]}
@@ -749,110 +752,72 @@ function Setup() {
 const PLANS = [
   {
     name: 'Free',
-    tagline: 'for trying Confire with your AI coding agent',
+    tagline: 'Available now — try Confire’s local context and tool firewall for Claude Code, Cursor, and VS Code.',
     price: '$0',
     period: '/month',
     features: [
       'Claude Code full firewall',
       'Cursor + VS Code MCP gateway',
-      'Built-in risky action review',
-      'Built-in MCP mutation review',
+      'Tool Firewall + Context Firewall',
       'Secret redaction',
-      'Prompt-injection sanitization',
-      'Universal fallback optimizer',
-      'Basic local optimizers',
-      '500 remote optimizations/month',
+      'Injection guard',
+      'Local optimizers',
       'Basic savings stats',
     ],
     cta: 'Start free',
   },
   {
     name: 'Dev',
-    tagline: 'for daily AI coding with Confire always on',
+    tagline: 'Early access — for daily AI coding with higher limits, custom dashboard guardrails, policy sync, and full history.',
     price: '$10',
-    period: '/month',
+    period: '/mo soon',
     features: [
       'Everything in Free',
-      '5,000 remote optimizations/month',
+      'Higher remote optimization limits',
       'Custom dashboard guardrails',
-      'Remote policy sync to local CLI',
-      'Growing source-specific optimizer library',
-      'Updated firewall and risk rules',
-      'Larger input payloads',
-      'Optimization history',
-      'Firewall history',
-      'Tool-use guidance',
-      'Early access to new clients and adapters',
+      'Policy sync',
+      'Firewall + optimization history',
     ],
-    cta: 'Start Dev',
+    cta: 'Request early access',
     featured: true,
   },
   {
     name: 'Team',
-    tagline: 'for teams that need shared control',
-    price: 'Coming soon',
+    tagline: 'Planned — shared policies, audit logs, team dashboard, and centralized control for agent-using engineering teams.',
+    price: 'Planned',
     features: [
-      'Shared policies',
-      'Team dashboard',
-      'Centralized billing',
-      'Audit logs',
-      'Admin-managed rules',
-      'Self-hosted / private deployment options',
+      'Everything in Dev',
+      'Shared policy management',
+      'Team usage dashboard',
+      'Audit controls',
+      'SSO / SAML',
     ],
     cta: 'Join waitlist',
   },
 ]
 
 function Pricing() {
-  const [ctaLoading, setCtaLoading] = useState<string | null>(null)
+  const [earlyAccessOpen, setEarlyAccessOpen] = useState(false)
+  const [earlyAccessPlan, setEarlyAccessPlan] = useState<'dev' | 'team'>('dev')
+  const [planError, setPlanError] = useState(false)
 
-  async function handlePlanCta(planSlug: string) {
+  useEffect(() => {
+    setPlanError(new URLSearchParams(window.location.search).get('error') === 'invalid_plan')
+  }, [])
+
+  function handlePlanCta(planSlug: string) {
     if (planSlug === 'free') {
       window.location.href = '/login'
       return
     }
-    if (planSlug === 'team') {
-      window.location.href = 'mailto:team@confire.dev'
-      return
-    }
-
-    setCtaLoading(planSlug)
-    try {
-      const supabase = createBrowserClient()
-      const { data: { session } } = await supabase.auth.getSession()
-
-      if (!session) {
-        window.location.href = `/login?plan=${encodeURIComponent(planSlug)}`
-        return
-      }
-
-      const workerBase = (import.meta as any).env?.PUBLIC_WORKER_URL ?? ''
-      const res = await fetch(`${workerBase}/api/checkout/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          planSlug,
-          interval: 'monthly',
-          successUrl: `${window.location.origin}/billing/success`,
-          cancelUrl:  `${window.location.origin}/pricing`,
-        }),
-      })
-      const data = await res.json() as { checkoutUrl?: string; redirect?: string }
-      if (data.redirect)    window.location.href = data.redirect
-      else if (data.checkoutUrl) window.location.href = data.checkoutUrl
-    } finally {
-      setCtaLoading(null)
-    }
+    setEarlyAccessPlan(planSlug === 'team' ? 'team' : 'dev')
+    setEarlyAccessOpen(true)
   }
 
   const plansWithHandlers = PLANS.map(plan => {
     const slug = plan.name === 'Dev' ? 'dev' : plan.name === 'Team' ? 'team' : 'free'
     return {
       ...plan,
-      cta: ctaLoading === slug ? 'Loading…' : plan.cta,
       onCta: () => handlePlanCta(slug),
     }
   })
@@ -861,16 +826,27 @@ function Pricing() {
     <Section>
       <Container>
         <SectionTitle
-          title="Start free. Upgrade when your agent is connected to real tools."
+          title="Free local firewall for AI coding agents. Dev opens soon."
         />
+
+        {planError && (
+          <p className="mx-auto mb-6 max-w-lg rounded-md border border-red-500/50 bg-red-500/10 px-4 py-2 text-center text-sm text-red-400">
+            That plan is no longer available. Continue on Free or request early access below.
+          </p>
+        )}
 
         <PricingSection plans={plansWithHandlers} />
 
-        <p className="mt-6 text-center text-xs text-confire-border-strong">
-          Claude Code supports full hook-based firewall mode. Cursor and VS Code support
-          MCP gateway mode for tools routed through Confire. Remote optimizations receive
-          sanitized/redacted content only.
+        <p className="mx-auto mt-6 max-w-lg text-center text-xs text-confire-border-strong">
+          Confire is free during the public validation phase. Dev early access is
+          opening for power users who want custom rules, higher limits, and full history.
         </p>
+
+        <EarlyAccessForm
+          open={earlyAccessOpen}
+          onOpenChange={setEarlyAccessOpen}
+          planInterest={earlyAccessPlan}
+        />
       </Container>
     </Section>
   )
@@ -998,7 +974,7 @@ const FOOTER_COLUMNS = [
     heading: 'Product',
     links: [
       { label: 'Overview',   href: '/'           },
-      { label: 'Pricing',    href: '/pricing'     },
+      { label: 'Pricing',    href: '/#pricing'    },
       { label: 'Dashboard',  href: '/dashboard'   },
       { label: 'CLI',        href: '/docs/cli'    },
     ],

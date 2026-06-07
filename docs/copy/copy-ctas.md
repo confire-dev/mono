@@ -100,7 +100,7 @@ Tell a Claude Code or Cursor user: confire.dev`
 ## Meta Descriptions (Double as CTAs in SERPs)
 
 **Homepage:**  
-`Confire is a context optimizer for Claude Code, Cursor, and Cline. Cut token costs on Bash logs, GitHub responses, and web fetches without changing how you work.`
+`Confire is a context firewall for Claude Code, Cursor, and Cline. Reviews risky tool calls and cleans noisy outputs before they reach your agent.`
 
 **Pricing:**  
 `Start free with 500 optimized calls/month. Upgrade to Dev or Pro as your AI agent usage grows. No surprise bills.`

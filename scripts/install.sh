@@ -14,6 +14,7 @@ set -e
 BINARY="confire"
 GET_URL="${CONFIRE_GET_URL:-https://get.confire.dev}"
 RELEASES_URL="${CONFIRE_RELEASES_URL:-https://releases.confire.dev}"
+PLATFORM_URL="${CONFIRE_PLATFORM_URL:-https://confire.dev}"
 
 VERSION=""
 INSTALL_DIR="${CONFIRE_INSTALL_DIR:-}"
@@ -31,12 +32,6 @@ while [ $# -gt 0 ]; do
     *) printf "Unknown option: %s\n" "$1" >&2; exit 1 ;;
   esac
 done
-
-# ── License notice ──────────────────────────────────────────────────────────
-printf "\n"
-printf "Confire is proprietary software owned by Trana, Inc.\n"
-printf "By installing, you agree to the applicable Confire license terms.\n"
-printf "See: %s/terms\n\n" "$GET_URL"
 
 # ── Platform detection ───────────────────────────────────────────────────────
 OS="$(uname -s)"
@@ -199,18 +194,22 @@ fi
 rm -rf "$TMP_DIR"
 
 # ── Post-install ──────────────────────────────────────────────────────────────
-if ! command -v confire >/dev/null 2>&1; then
-  if [ -x "$DEST" ]; then
-    printf "\nconfire installed to %s\n" "$DEST"
-    printf "\nAdd it to your PATH:\n"
-    printf "  export PATH=\"\$PATH:%s\"\n\n" "$INSTALL_DIR"
-  else
-    printf "Installation failed — binary not found at %s.\n" "$DEST" >&2
-    exit 1
-  fi
+if [ ! -x "$DEST" ]; then
+  printf "Installation failed — binary not found at %s.\n" "$DEST" >&2
+  exit 1
+fi
+
+if ! command -v "$BINARY" >/dev/null 2>&1; then
+  printf "\n%s installed to %s\n" "$BINARY" "$DEST"
+  printf "\nAdd it to your PATH:\n"
+  printf "  export PATH=\"\$PATH:%s\"\n\n" "$INSTALL_DIR"
 else
-  INSTALLED_VERSION="$(confire version 2>/dev/null | head -1 || echo 'unknown')"
+  INSTALLED_VERSION="$("$BINARY" version 2>/dev/null | head -1 || echo 'unknown')"
   printf "\n%s\n\n" "$INSTALLED_VERSION"
-  confire setup || true
-  confire start
+  if [ -t 0 ]; then
+    "$BINARY" setup || true
+  else
+    "$BINARY" setup </dev/tty || true
+  fi
+  "$BINARY" start
 fi

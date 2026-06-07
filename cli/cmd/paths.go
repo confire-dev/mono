@@ -46,6 +46,12 @@ func daemonPIDPath() string {
 	return filepath.Join(confireDir(), "daemon.pid")
 }
 
+func sessionLabelsPath(sessionID string) string {
+	dir := filepath.Join(confireDir(), "sessions")
+	os.MkdirAll(dir, 0700)
+	return filepath.Join(dir, sessionID+".jsonl")
+}
+
 func apiKeyEnv() string {
 	return os.Getenv("CONFIRE_KEY")
 }

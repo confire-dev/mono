@@ -70,7 +70,10 @@ func formatBlockMessage(m *policy.MatchResult, e intercept.InterceptEvent) strin
 
 Rule:    %s
 Blocked: %s — %s
-Reason:  %s`,
+Reason:  %s
+
+This action has been blocked. If you believe this is a mistake,
+ask the user to run ` + "`confire bypass-next`" + ` to allow it.`,
 		m.Rule.Name,
 		e.Tool.Name,
 		inputExcerpt(e.Tool, 120),
@@ -86,9 +89,9 @@ Claude is about to run: %s — %s
 Risk:              %s severity
 Why this matters:  %s
 
-ACTION REQUIRED — ask the user:
-"Confire flagged this command. Do you want me to run it anyway?
-If yes: run 'confire bypass-next' in your terminal, then tell me to retry."`,
+ACTION REQUIRED:
+Explain why this action is needed, then ask the user for approval.
+If the user approves, they can run ` + "`confire bypass-next`" + ` and ask you to retry.`,
 		m.Rule.Name,
 		e.Tool.Name,
 		inputExcerpt(e.Tool, 120),

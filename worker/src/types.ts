@@ -47,12 +47,10 @@ export type ResultKind =
   | 'replace-input'
   | 'add-context'
   | 'compact'
-
-export interface InterceptStats {
-  beforeBytes: number
-  afterBytes: number
-  optimizer: string
-}
+  | 'sanitize'
+  | 'block'
+  | 'review'
+  | 'warn'
 
 export interface InterceptResult {
   kind: ResultKind
@@ -62,14 +60,20 @@ export interface InterceptResult {
   stats?: InterceptStats
 }
 
+export interface InterceptStats {
+  beforeBytes: number
+  afterBytes: number
+  optimizer: string
+}
+
 // ── Cloudflare Worker bindings ─────────────────────────────────────────────
 
 export interface Env {
-  // Cloudflare KV — content-hash optimizer cache + event idempotency
+  // Cloudflare KV — rules cache + event idempotency
   CACHE: KVNamespace
   // Cloudflare Analytics Engine — real-time usage counters
   AE?: AnalyticsEngineDataset
-  // Cloudflare Rate Limiting — per-user request throttling (one binding per plan tier)
+  // Cloudflare Rate Limiting
   RL_FREE?: RateLimit
   RL_DEV?: RateLimit
   RL_PRO?: RateLimit
@@ -77,18 +81,15 @@ export interface Env {
   SUPABASE_URL?: string
   SUPABASE_ANON_KEY?: string
   SUPABASE_SERVICE_KEY?: string
-  // Amplitude — behavioral analytics only (never billing decisions)
+  // Amplitude — behavioral analytics only
   AMPLITUDE_KEY?: string
   // Stripe — checkout creation + webhooks
   STRIPE_SECRET_KEY?: string
   STRIPE_WEBHOOK_SECRET?: string
-  // STRIPE_TOPUP_PRICE_ID removed — top-up price is stored in billing_items table
-  // Supabase — database webhooks (set in wrangler secrets)
+  // Supabase — database webhooks
   SUPABASE_WEBHOOK_SECRET?: string
   // Environment tag
   ENVIRONMENT: string
-  // Feature flags (set in wrangler.toml [vars] or via wrangler secret put)
-  OPTIMIZER_API_ENABLED?: string  // "true" to enable POST /v1/optimize
 }
 
 // ── Worker wire formats ────────────────────────────────────────────────────
@@ -106,49 +107,43 @@ export interface SessionStartResponse {
   pullRules: boolean
 }
 
-export interface OptimizeRequest {
-  event: InterceptEvent
-  apiKey: string
+// ── Security event types ───────────────────────────────────────────────────
+
+export type EventType =
+  | 'PROMPT_INJECTION'
+  | 'HIDDEN_TEXT'
+  | 'SECRET_REDACTED'
+  | 'CREDENTIAL_LURE'
+  | 'DESTRUCTIVE_CMD'
+  | 'SECRET_FILE_ACCESS'
+  | 'MUTATING_MCP'
+  | 'SOCIAL_ENGINEERING'
+
+export type RiskLevel = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+
+export type ActionTaken = 'ALLOWED' | 'WARNED' | 'REVIEW_REQUIRED' | 'BLOCKED' | 'SANITIZED'
+
+export interface SecurityEvent {
+  tool_name: string
+  event_type: EventType
+  risk_level: RiskLevel
+  action_taken: ActionTaken
+  pattern_matched?: string
+  bypassed?: boolean
+  session_id: string
 }
 
-export interface OptimizeResponse {
-  result: InterceptResult
-  // Optional warning sent to the daemon for display (80%/100% limit nudge, payload too large)
-  _warning?: string
+export interface ProvenanceEvent {
+  tool_name: string
+  trust_level: 'internal' | 'external_trusted' | 'external_untrusted'
+  sanitized: boolean
+  redaction_count: number
+  flags?: string[]
+  session_id: string
 }
 
-// ── Standalone Optimizer API (/v1/optimize) ────────────────────────────────
-// General-purpose optimization endpoint — not tied to Claude Code hooks.
-// Callers send any text/JSON before passing it to Groq, OpenAI, Gemini, etc.
-
-export type OptimizerType =
-  | 'auto'       // default — generic noise stripping
-  | 'json'       // → generic optimizer
-  | 'html'       // → webfetch optimizer
-  | 'search'     // → websearch optimizer (Brave/Exa/Tavily JSON)
-  | 'bash'       // → bash optimizer (log/test output)
-  | 'github'     // → github optimizer
-  | 'slack'      // → slack optimizer
-  | 'figma'      // → figma optimizer
-  | 'jira'       // → jira optimizer
-  | 'notion'     // → notion optimizer
-  | 'confluence' // → confluence optimizer
-  | 'clickup'    // → clickup optimizer
-  | 'amplitude'  // → amplitude optimizer
-  | 'zapier'     // → zapier optimizer
-  | 'playwright' // → playwright optimizer
-
-export interface OptimizerApiRequest {
-  content: string           // text, JSON, HTML, markdown — anything
-  type?: OptimizerType      // hint for which optimizer to use (default: 'auto')
-}
-
-export interface OptimizerApiResponse {
-  result: string            // optimized content (unchanged if no reduction found)
-  optimized: boolean        // false = content returned as-is
-  input_chars: number
-  output_chars: number
-  reduction_pct: number     // 0–100
-  optimizer: string         // which optimizer ran
-  cached: boolean
+export interface BypassEvent {
+  tool_name?: string
+  reason?: string
+  session_id: string
 }

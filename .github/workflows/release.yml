@@ -133,6 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write  # required for cosign keyless signing
     steps:
       - uses: actions/checkout@v4
 
@@ -142,9 +143,14 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Checksums
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Checksums and sign
         working-directory: dist
-        run: sha256sum confire_*.tar.gz > checksums.txt
+        run: |
+          sha256sum confire_*.tar.gz > checksums.txt
+          cosign sign-blob --bundle checksums.txt.bundle checksums.txt
 
       - uses: pnpm/action-setup@v4
 

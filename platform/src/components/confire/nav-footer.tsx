@@ -224,7 +224,7 @@ const defaultFooterColumns: FooterColumn[] = [
   {
     heading: 'Product',
     links: [
-      { label: 'Pricing', href: '/pricing' },
+      { label: 'Pricing', href: '/#pricing' },
       { label: 'Dashboard', href: '/dashboard' },
       { label: 'CLI', href: '/docs/cli' },
     ],

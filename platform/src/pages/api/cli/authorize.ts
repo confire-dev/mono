@@ -1,53 +1,57 @@
 import type { APIRoute } from 'astro'
 import { createSupabaseServer } from '@/lib/supabase'
 
+async function sha256(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+function secureRandom(bytes: number): string {
+  const arr = new Uint8Array(bytes)
+  crypto.getRandomValues(arr)
+  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 export const POST: APIRoute = async ({ request, cookies }) => {
   const supabase = createSupabaseServer(request, cookies)
 
-  // Verify the user is authenticated
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return Response.json({ error: 'unauthorized' }, { status: 401 })
+  if (!user) return Response.json({ error: 'unauthorized' }, { status: 401 })
+
+  const { deviceId, deviceName, callbackURL } = await request.json() as {
+    deviceId?: string; deviceName?: string; callbackURL?: string
   }
 
-  // Get the session JWT to pass to the worker
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.access_token) {
-    return Response.json({ error: 'no active session' }, { status: 401 })
-  }
-
-  const { deviceId, deviceName, callbackURL } = await request.json() as { deviceId?: string; deviceName?: string; callbackURL?: string }
-
-  // Only allow callbacks to localhost (CLI callback server)
   if (!callbackURL?.match(/^http:\/\/(127\.0\.0\.1|localhost):\d+/)) {
     return Response.json({ error: 'invalid callback URL' }, { status: 400 })
   }
 
-  // Call the worker to generate the API key
-  const workerURL = import.meta.env.PUBLIC_WORKER_URL ?? 'http://localhost:8787'
-  const res = await fetch(`${workerURL}/api/keys/generate`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-      ...(deviceId   ? { 'X-Confire-Device':      deviceId   } : {}),
-      ...(deviceName ? { 'X-Confire-Device-Name':  deviceName } : {}),
-    },
-  })
-
-  if (!res.ok) {
-    const text = await res.text()
-    return Response.json({ error: `worker error: ${text}` }, { status: 502 })
+  // Upsert profile using the user's own session (RLS-safe, no service key needed)
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .upsert({ id: user.id, email: user.email }, { onConflict: 'id' })
+  if (profileError) {
+    return Response.json({ error: `profile error: ${profileError.message}` }, { status: 500 })
   }
 
-  const data = await res.json() as {
-    apiKey: string
-    message: string
-    user: { email: string }
+  // Generate API key
+  const rawKey = `cf_live_${secureRandom(32)}`
+  const hash   = await sha256(rawKey)
+
+  const { error: keyError } = await supabase.from('api_keys').insert({
+    user_id:    user.id,
+    key_hash:   hash,
+    key_prefix: rawKey.slice(0, 12),
+    key_suffix: rawKey.slice(-4),
+    device_id:  deviceName ?? deviceId ?? null,
+  })
+  if (keyError) {
+    return Response.json({ error: `key error: ${keyError.message}` }, { status: 500 })
   }
 
   return Response.json({
-    apiKey:   data.apiKey,
-    email:    data.user.email,
-    message:  data.message,
+    apiKey:  rawKey,
+    email:   user.email,
+    message: `✓ Logged in as ${user.email}`,
   })
 }

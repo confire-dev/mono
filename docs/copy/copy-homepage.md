@@ -24,8 +24,8 @@ Claude Code supports full hook-based firewall mode. Cursor and VS Code support M
 
 **Hero stat callout (visual block below CTA):**
 ```
-40–95%
-token reduction on tool call outputs
+5 layers
+of output protection per tool call
 ```
 
 ---
