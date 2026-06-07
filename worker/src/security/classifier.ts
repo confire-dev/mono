@@ -134,7 +134,7 @@ function checkDecodedBase64(payload: string): ClassifyResult {
     const blob = m[1]
     if (!blob) continue
     try {
-      const decoded = Buffer.from(blob, 'base64').toString('utf8')
+      const decoded = atob(blob)
       // Only scan if decoded text is printable ASCII (avoids binary garbage)
       if (!/^[\x20-\x7e\n\r\t]+$/.test(decoded)) continue
       const inner = classify(decoded)

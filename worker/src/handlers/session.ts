@@ -22,6 +22,6 @@ export async function handleSessionStart(request: Request, env: Env): Promise<Re
 }
 
 function buildNotification(): string {
-  // One line max — confire is an optimizer, it must not add noise.
+  // One line max — confire is a firewall, it must not add noise.
   return `✓ Confire active · optimizing all tool outputs`
 }

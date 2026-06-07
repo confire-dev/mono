@@ -113,6 +113,11 @@ type RuleMatch struct {
 	// InputParamScan enables risk-scoring of MCP tool input parameter names.
 	// Used by the mcp.risk_classifier group.
 	InputParamScan bool `json:"input_param_scan,omitempty"`
+
+	// FlowRule marks a rule as a cross-tool chain rule evaluated by
+	// firewall.CheckFlowRules, not by the standard per-call engine.
+	// Rules with FlowRule: true never match in EvaluatePreTool.
+	FlowRule bool `json:"flow_rule,omitempty"`
 }
 
 // MatchResult is returned when a rule fires.

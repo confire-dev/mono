@@ -15,17 +15,18 @@ import (
 
 const defaultWorkerURL = "https://api.confire.dev"
 
-type optimizeRequest struct {
+type firewallRequest struct {
 	Event  intercept.InterceptEvent `json:"event"`
 	APIKey string                   `json:"apiKey"`
 }
 
-type optimizeResponse struct {
+type firewallResponse struct {
 	Result  intercept.InterceptResult `json:"result"`
 	Warning string                    `json:"_warning,omitempty"`
 }
 
 // WorkerTransport ships InterceptEvents to the Cloudflare Worker over HTTPS/HTTP2.
+// Used for cloud-side security event processing and telemetry.
 // Every request is HMAC-signed (see signer.go) and carries a device ID.
 // TLS is enforced — MinVersion TLS 1.2, InsecureSkipVerify is never set.
 type WorkerTransport struct {
@@ -63,12 +64,12 @@ func NewWorker(baseURL, apiKey, deviceID string) *WorkerTransport {
 }
 
 func (t *WorkerTransport) Send(event intercept.InterceptEvent) (intercept.InterceptResult, error) {
-	body, err := json.Marshal(optimizeRequest{Event: event, APIKey: t.apiKey})
+	body, err := json.Marshal(firewallRequest{Event: event, APIKey: t.apiKey})
 	if err != nil {
 		return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, t.baseURL+"/optimize", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, t.baseURL+"/v1/firewall", bytes.NewReader(body))
 	if err != nil {
 		return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, err
 	}
@@ -91,12 +92,12 @@ func (t *WorkerTransport) Send(event intercept.InterceptEvent) (intercept.Interc
 			fmt.Errorf("worker: HTTP %d", resp.StatusCode)
 	}
 
-	var out optimizeResponse
+	var out firewallResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, err
 	}
 
-	// Surface upgrade nudge to stderr — never blocks the developer.
+	// Surface advisory messages to stderr — never blocks the developer.
 	if out.Warning != "" {
 		fmt.Fprintf(t.errOut, "[confire] %s\n", out.Warning)
 	}
@@ -104,4 +105,3 @@ func (t *WorkerTransport) Send(event intercept.InterceptEvent) (intercept.Interc
 	return out.Result, nil
 }
 
-func (t *WorkerTransport) Mode() OptimizerMode { return OptimizerModeRemote }

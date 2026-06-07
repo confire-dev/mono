@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 
@@ -89,7 +88,6 @@ func runClaudeCodeHook(raw map[string]any) error {
 	if !shouldWrite {
 		return nil
 	}
-	logSavings(input.ToolName, result)
 	return json.NewEncoder(os.Stdout).Encode(out)
 }
 
@@ -134,7 +132,6 @@ func runVSCodeHook(raw map[string]any) error {
 	if !shouldWrite {
 		return nil
 	}
-	logSavings(input.ToolName, result)
 	return json.NewEncoder(os.Stdout).Encode(out)
 }
 
@@ -182,7 +179,6 @@ func runCursorHook(raw map[string]any) error {
 	if !shouldWrite {
 		return nil
 	}
-	logSavings(input.ToolName, result)
 	return json.NewEncoder(os.Stdout).Encode(out)
 }
 
@@ -193,17 +189,6 @@ func sendToDaemon(event intercept.InterceptEvent) intercept.InterceptResult {
 		return intercept.InterceptResult{Kind: intercept.ResultPassthrough}
 	}
 	return result
-}
-
-func logSavings(toolName string, result intercept.InterceptResult) {
-	if result.Stats == nil || result.Stats.BeforeBytes == 0 {
-		return
-	}
-	pct := float64(result.Stats.BeforeBytes-result.Stats.AfterBytes) /
-		float64(result.Stats.BeforeBytes) * 100
-	fmt.Fprintf(os.Stderr, "[confire] %s: %d → %d bytes (%.0f%%) [%s]\n",
-		toolName, result.Stats.BeforeBytes, result.Stats.AfterBytes,
-		pct, result.Stats.Optimizer)
 }
 
 // remarshal round-trips a decoded map back through JSON into a typed struct.

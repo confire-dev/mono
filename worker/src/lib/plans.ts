@@ -43,46 +43,30 @@ export interface Plan {
   }
 
   limits: {
-    cloudOptimizationsMonthly: number
-    cloudTokensMonthly: number
-    maxRawTokensPerOptimization: number
     maxPayloadBytes: number
     retainedHistoryDays: number
     cliSessions: number
   }
 
   credits: {
-    includedMonthly: number  // monthly included credits (also used by seed trigger)
-    annual?: number           // total credits for annual subscribers per period
+    includedMonthly: number
+    annual?: number
     rollover: boolean
     allowManualGrants: boolean
     allowPurchases: boolean
   }
 
   features: {
-    localOptimization: boolean
-    remoteOptimization: boolean
+    firewallEnabled: boolean
     usageDashboard: boolean
     advancedUsageDashboard: boolean
     cliSessionManagement: boolean
-    payloadCapture: boolean
     exportData: boolean
-    priorityOptimizerUpdates: boolean
-    customOptimizers: boolean
     ssoSaml: boolean
-    optimizationHistory: boolean
-    earlyAccessAdapters: boolean
-    sessionMemoryGuard: boolean
-    preCompactOptimizer: boolean
-    localMemoryPacks: boolean
     // firewallGroupToggles: paid users can customise which MCP firewall rule groups are active.
-    // Value comes from the `plans` table in Supabase — not hardcoded here.
     firewallGroupToggles: boolean
-  }
-
-  optimizers: {
-    local:  string[]
-    remote: string[]
+    securityEventHistory: boolean
+    provenanceTracking: boolean
   }
 
   telemetry: {

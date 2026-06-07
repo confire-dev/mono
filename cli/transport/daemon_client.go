@@ -42,4 +42,3 @@ func (t *DaemonTransport) Send(event intercept.InterceptEvent) (intercept.Interc
 	return result, nil
 }
 
-func (t *DaemonTransport) Mode() OptimizerMode { return OptimizerModeRemote }

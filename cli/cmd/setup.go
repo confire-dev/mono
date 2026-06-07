@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -158,16 +157,16 @@ func runSetup() error {
 		}
 	}
 
-	// Auto-start the daemon so optimization is active immediately.
+	// Auto-start the daemon so the firewall is active immediately.
 	if anyInstalled {
-		fmt.Printf("\n  %sStarting optimizer...%s\n\n", bold, reset)
+		fmt.Printf("\n  %sStarting firewall...%s\n\n", bold, reset)
 		if isDaemonRunning() {
-			fmt.Printf("  %s✓%s  Optimizer already running\n", green, reset)
+			fmt.Printf("  %s✓%s  Firewall already running\n", green, reset)
 		} else if err := launchDaemon(); err != nil {
-			fmt.Printf("  %s○%s  Could not auto-start optimizer — run %sconfire start%s manually\n",
+			fmt.Printf("  %s○%s  Could not auto-start firewall — run %sconfire start%s manually\n",
 				gray, reset, cyan, reset)
 		} else {
-			fmt.Printf("  %s✓%s  Optimizer started\n", green, reset)
+			fmt.Printf("  %s✓%s  Firewall started\n", green, reset)
 		}
 
 		cfg := config.Load()
@@ -228,73 +227,4 @@ func shortenPath(p string) string {
 		return "." + rel
 	}
 	return p
-}
-
-func buildOptimizerList(mcpServers map[string]string) []optimizerItem {
-	items := make([]optimizerItem, len(DEFAULT_OPTIMIZERS))
-	copy(items, DEFAULT_OPTIMIZERS)
-	for name := range mcpServers {
-		lower := strings.ToLower(name)
-		if lower == "figma" || lower == "figma-desktop" {
-			continue
-		}
-		items = append(items, optimizerItem{
-			id:          "mcp-" + lower,
-			label:       name + " (MCP) ✦",
-			description: "platform-specific optimizer (paid)",
-			phase:       "tool.post",
-			enabled:     true,
-		})
-	}
-	return items
-}
-
-func discoverMCPServers() map[string]string {
-	servers := make(map[string]string)
-	home, _ := os.UserHomeDir()
-	paths := []string{filepath.Join(home, ".claude", "mcp.json")}
-	if cwd, err := os.Getwd(); err == nil {
-		paths = append(paths, filepath.Join(cwd, ".mcp.json"))
-	}
-	for _, p := range paths {
-		data, err := os.ReadFile(p)
-		if err != nil {
-			continue
-		}
-		var raw struct {
-			MCPServers map[string]map[string]interface{} `json:"mcpServers"`
-		}
-		if err := json.Unmarshal(data, &raw); err != nil {
-			continue
-		}
-		for name, cfg := range raw.MCPServers {
-			url, _ := cfg["url"].(string)
-			if url == "" {
-				url, _ = cfg["command"].(string)
-			}
-			servers[name] = url
-		}
-	}
-	return servers
-}
-
-// ── Optimizer inventory (used by setup display) ────────────────────────────
-
-type optimizerItem struct {
-	id          string
-	label       string
-	description string
-	phase       string
-	enabled     bool
-	isSoon      bool
-}
-
-var DEFAULT_OPTIMIZERS = []optimizerItem{
-	{id: "bash",        label: "Bash",       description: "trim logs, keep failures (60-95%)",        phase: "tool.post",     enabled: true},
-	{id: "read",        label: "Read",       description: "cap large file reads (pre + post)",         phase: "tool.pre+post", enabled: true},
-	{id: "webfetch",    label: "WebFetch",   description: "strip HTML/CSS noise (80-90%)",             phase: "tool.post",     enabled: true},
-	{id: "generic",     label: "Generic",    description: "universal JSON noise stripping (fallback)", phase: "tool.post",     enabled: true},
-	{id: "figma",       label: "Figma ✦",    description: "JSX → section map (98% reduction)",        phase: "tool.post",     enabled: true},
-	{id: "mcp-generic", label: "MCP tools ✦", description: "platform-specific optimizers",            phase: "tool.post",     enabled: true},
-	{id: "pre-compact", label: "Pre-compact", description: "context compaction",                       phase: "context.pre-compact", enabled: false, isSoon: true},
 }

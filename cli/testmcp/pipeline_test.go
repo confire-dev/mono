@@ -2,7 +2,6 @@ package testmcp_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -240,70 +239,6 @@ func TestSanitize_SafeOutputPassthrough(t *testing.T) {
 
 	if result.Kind != intercept.ResultPassthrough {
 		t.Errorf("expected passthrough for safe output, got %s", result.Kind)
-	}
-}
-
-// ── MCPNormalizeHandler tests ─────────────────────────────────────────────────
-
-func TestNormalize_NullFieldsPruned(t *testing.T) {
-	// Build output directly — bypass MCP content envelope so the normalizer
-	// sees the actual map structure (nulls, empty slices, etc.).
-	output := map[string]any{
-		"id":          "user-123",
-		"name":        "Alice",
-		"email":       "alice@example.com",
-		"phone":       nil,
-		"address":     nil,
-		"preferences": map[string]any{},
-		"tags":        []any{},
-		"metadata":    nil,
-		"billing":     map[string]any{"plan": nil, "card": nil},
-	}
-
-	h := intercept.NewMCPNormalizeHandler()
-	event := makeEvent("test-server", "get_profile", output)
-	result, _ := h.Run(event)
-
-	if result.Kind == intercept.ResultPassthrough {
-		t.Fatal("expected normalization (nulls should be pruned), got passthrough")
-	}
-
-	b, _ := jsonMarshal(result.ToolOutput)
-	out := string(b)
-	if strings.Contains(out, `"phone":null`) || strings.Contains(out, `"address":null`) {
-		t.Error("null fields were not pruned from output")
-	}
-	if !strings.Contains(out, `"name"`) {
-		t.Error("required field 'name' was incorrectly removed")
-	}
-}
-
-func TestNormalize_LargeArrayTruncated(t *testing.T) {
-	// Build a 50-item array directly so the normalizer receives the real structure.
-	items := make([]any, 50)
-	for i := range items {
-		items[i] = map[string]any{
-			"id":   fmt.Sprintf("rec-%03d", i),
-			"name": fmt.Sprintf("Record %d with enough text to make the payload substantial", i),
-		}
-	}
-	output := map[string]any{"records": items, "total": 50}
-
-	h := intercept.NewMCPNormalizeHandler()
-	event := makeEvent("test-server", "list_all_records", output)
-	result, _ := h.Run(event)
-
-	if result.Kind == intercept.ResultPassthrough {
-		t.Fatal("expected normalization for large output, got passthrough")
-	}
-	if result.Stats == nil || result.Stats.AfterBytes >= result.Stats.BeforeBytes {
-		t.Errorf("output was not reduced: before=%d after=%d",
-			result.Stats.BeforeBytes, result.Stats.AfterBytes)
-	}
-
-	b, _ := jsonMarshal(result.ToolOutput)
-	if !strings.Contains(string(b), "_confire_truncated") {
-		t.Error("expected _confire_truncated marker in truncated array")
 	}
 }
 

@@ -1,5 +1,5 @@
 import type { Env } from '../types.js'
-import { upsertProfile, getProfileById, generateApiKey, validateApiKey, revokeApiKey, revokeCurrentKey, getUsageThisPeriod, getCreditBalance } from '../lib/supabase.js'
+import { upsertProfile, getProfileById, generateApiKey, validateApiKey, revokeApiKey, revokeCurrentKey } from '../lib/supabase.js'
 import { getPlan } from '../lib/plans.js'
 import { trackEvent } from '../lib/analytics.js'
 
@@ -34,8 +34,7 @@ export async function handleGenerateKey(request: Request, env: Env): Promise<Res
   const deviceId   = request.headers.get('X-Confire-Device') ?? undefined
   const deviceName = request.headers.get('X-Confire-Device-Name') ?? undefined
   const apiKey     = await generateApiKey(cfg, user.id, deviceId, deviceName)
-  const plan   = await getPlan(user.plan, env)
-  const usage  = await getUsageThisPeriod(cfg, user.id, plan.id)
+  const plan = await getPlan(user.plan, env)
 
   trackEvent(env.AE, env.AMPLITUDE_KEY, {
     userId: user.id, email: user.email, eventType: 'api_key_generated',
@@ -43,13 +42,8 @@ export async function handleGenerateKey(request: Request, env: Env): Promise<Res
 
   return Response.json({
     apiKey,
-    user:  { email: user.email, plan: plan.name },
-    usage: { used: usage.cloudOptimizationsUsed, limit: plan.limits.cloudOptimizationsMonthly },
-    message: [
-      `✓ Logged in as ${user.email}`,
-      `${plan.name} plan`,
-      `${usage.cloudOptimizationsUsed}/${plan.limits.cloudOptimizationsMonthly} cloud optimizations used`,
-    ].join(' · '),
+    user:    { email: user.email, plan: plan.name },
+    message: `✓ Logged in as ${user.email} · ${plan.name} plan`,
   })
 }
 
@@ -106,11 +100,7 @@ export async function handleMe(request: Request, env: Env): Promise<Response> {
   }
   if (!user) return Response.json({ error: 'invalid key' }, { status: 401 })
 
-  const plan    = await getPlan(user.plan, env)
-  const usage   = await getUsageThisPeriod(cfg, user.id, plan.id)
-  const credits = await getCreditBalance(cfg, user.id)
-  const purchasedCredits = credits?.purchased_credits ?? 0
-  const planLimit = plan.limits.cloudOptimizationsMonthly
+  const plan = await getPlan(user.plan, env)
 
   return Response.json({
     email:                           user.email,
@@ -120,10 +110,6 @@ export async function handleMe(request: Request, env: Env): Promise<Response> {
     billing_interval:                user.billing_interval ?? null,
     subscription_current_period_end: user.subscription_current_period_end ?? null,
     cancel_at_period_end:            user.cancel_at_period_end ?? false,
-    used:                            usage.cloudOptimizationsUsed,
-    limit:                           planLimit,
-    purchasedCredits,
-    effectiveLimit:                  planLimit + purchasedCredits,
     limits:                          plan.limits,
     features:                        plan.features,
   })

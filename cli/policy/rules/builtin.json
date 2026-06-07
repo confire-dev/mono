@@ -287,6 +287,30 @@
         "output_injection_scan": true
       },
       "message": "Suspicious instruction-like text was removed from untrusted tool output."
+    },
+    {
+      "id": "firewall.flow.secret_then_exfil",
+      "name": "Secret read followed by external send",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": {
+        "flow_rule": true
+      },
+      "message": "A secret was found in recent tool output. Sending data externally immediately after raises a risk of credential exfiltration."
+    },
+    {
+      "id": "firewall.flow.injection_then_shell",
+      "name": "Prompt injection followed by shell command",
+      "enabled": true,
+      "phase": "PreToolUse",
+      "action": "review",
+      "severity": "high",
+      "match": {
+        "flow_rule": true
+      },
+      "message": "A prompt injection attempt was detected in recent tool output. Running a shell command immediately after could execute attacker-controlled instructions."
     }
   ]
 }

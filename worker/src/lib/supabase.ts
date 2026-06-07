@@ -101,65 +101,7 @@ export async function validateApiKey(cfg: SupabaseConfig, rawKey: string): Promi
   return profiles[0] ?? null
 }
 
-// ── Usage & credits ────────────────────────────────────────────────────────
-
-// UsagePeriod is the current period's usage numbers, from the usage_periods table.
-export interface UsagePeriod {
-  id: string
-  cloudOptimizationsUsed: number
-  cloudTokensUsed: number
-  localOptimizationsCount: number
-  savedTokens: number
-}
-
-// getUsageThisPeriod fetches the current active usage_period for the user.
-// If no period exists for the current month, creates one.
-// Replaces the old checkUsage / monthly_usage approach.
-// The caller uses canUseRemoteOptimizer() from entitlement.ts to decide if allowed.
-export async function getUsageThisPeriod(
-  cfg: SupabaseConfig,
-  userId: string,
-  planId: string,
-): Promise<UsagePeriod> {
-  // Call the DB stored procedure which gets-or-creates the current period
-  const res = await sbFetch(cfg, 'POST', '/rest/v1/rpc/get_or_create_active_period', {
-    p_user_id: userId,
-    p_plan_id: planId,
-  })
-
-  if (!res.ok) {
-    // Fallback: return zeros (allow the call, don't block on DB error)
-    return { id: '', cloudOptimizationsUsed: 0, cloudTokensUsed: 0, localOptimizationsCount: 0, savedTokens: 0 }
-  }
-
-  const periodId = (await res.json()) as string
-
-  const periodRes = await sbFetch(cfg, 'GET',
-    `/rest/v1/usage_periods?id=eq.${periodId}&select=id,cloud_optimizations_used,cloud_tokens_used,local_optimizations_count,saved_tokens&limit=1`)
-
-  if (!periodRes.ok) {
-    return { id: periodId, cloudOptimizationsUsed: 0, cloudTokensUsed: 0, localOptimizationsCount: 0, savedTokens: 0 }
-  }
-
-  const rows = await periodRes.json() as Array<{
-    id: string
-    cloud_optimizations_used: number
-    cloud_tokens_used: number
-    local_optimizations_count: number
-    saved_tokens: number
-  }>
-
-  const r = rows[0]
-  if (!r) return { id: periodId, cloudOptimizationsUsed: 0, cloudTokensUsed: 0, localOptimizationsCount: 0, savedTokens: 0 }
-
-  return {
-    id:                      r.id,
-    cloudOptimizationsUsed:  r.cloud_optimizations_used,
-    cloudTokensUsed:         r.cloud_tokens_used,
-    localOptimizationsCount: r.local_optimizations_count,
-    savedTokens:             r.saved_tokens,
-  }
-}
+// ── Security event recording ───────────────────────────────────────────────
 
 // getCreditBalance returns the user's credit pool (included + bonus + purchased).
 export async function getCreditBalance(
@@ -190,75 +132,59 @@ export async function consumePurchasedCredits(
   return (await res.json()) as boolean
 }
 
-// Legacy UsageInfo — keep for auth.ts compatibility (will be removed next pass)
-export interface UsageInfo {
-  ok: boolean
-  used: number
-  limit: number
-  plan: Plan
-  total_credits: number
-}
-
-// recordOptimization increments the active usage_period and writes a tool call summary.
-export async function recordOptimization(
+// recordSecurityEvent writes a security event to the security_events table.
+export async function recordSecurityEvent(
   cfg: SupabaseConfig,
   params: {
     userId: string
-    planId: string
     sessionId: string
-    toolType: string
-    integration: string
-    optimizer: string
-    rawBytes: number
-    optimizedBytes: number
-    durationMs?: number
-    wasCached: boolean
-    analyticsConsented: boolean
-    usePurchasedCredit?: boolean
+    toolName: string
+    eventType: string
+    riskLevel: string
+    actionTaken: string
+    patternMatched?: string
+    bypassed?: boolean
   }
 ): Promise<void> {
-  const bytesSaved  = params.rawBytes - params.optimizedBytes
-  const rawTokens   = Math.round(params.rawBytes / 4)   // ~4 bytes per token
-  const savedTokens = Math.round(bytesSaved / 4)
-
-  // Local optimizers run entirely on-device — no cloud resources consumed,
-  // no credits charged. Cloud optimizers (Figma, GitHub, etc.) count against limits.
-  const isLocal = params.optimizer.startsWith('local/')
-
-  // 1. Increment the active usage_period
-  const usageRes = await sbFetch(cfg, 'POST', '/rest/v1/rpc/increment_usage_period', {
-    p_user_id:          params.userId,
-    p_plan_id:          params.planId,
-    p_cloud_opts:       isLocal ? 0 : 1,
-    p_cloud_tokens:     isLocal ? 0 : rawTokens,
-    p_saved_tokens:     savedTokens,
-  })
-  if (!usageRes.ok) {
-    const msg = await usageRes.text().catch(() => usageRes.statusText)
-    throw new Error(`increment_usage_period failed (${usageRes.status}): ${msg}`)
-  }
-
-  // 1b. Over plan limit — deduct from purchased top-up pool
-  if (!isLocal && params.usePurchasedCredit) {
-    await consumePurchasedCredits(cfg, params.userId, 1, params.sessionId || undefined)
-  }
-
-  // 2. Write per-call detail (powers the dashboard)
-  const summaryRes = await sbFetch(cfg, 'POST', '/rest/v1/tool_call_summaries', {
+  await sbFetch(cfg, 'POST', '/rest/v1/security_events', {
     user_id:         params.userId,
-    cli_session_id:  params.sessionId || null,
-    tool_type:       params.toolType,
-    integration:     params.integration,
-    optimizer:       params.optimizer,
-    raw_bytes:       params.rawBytes,
-    optimized_bytes: params.optimizedBytes,
-    was_cached:      params.wasCached,
-    credits_used:    isLocal ? 0 : 1,
+    session_id:      params.sessionId || null,
+    tool_name:       params.toolName,
+    event_type:      params.eventType,
+    risk_level:      params.riskLevel,
+    action_taken:    params.actionTaken,
+    pattern_matched: params.patternMatched ?? null,
+    bypassed:        params.bypassed ?? false,
   })
-  if (!summaryRes.ok) {
-    const msg = await summaryRes.text().catch(() => summaryRes.statusText)
-    throw new Error(`tool_call_summaries insert failed (${summaryRes.status}): ${msg}`)
+}
+
+// recordProvenanceEvent writes a provenance label to the provenance_events table.
+// Only metadata is stored — no raw tool output or secret values.
+export async function recordProvenanceEvent(
+  cfg: SupabaseConfig,
+  params: {
+    userId: string
+    sessionId: string
+    toolName: string
+    trustLevel: string
+    sanitized: boolean
+    redactionCount: number
+    flags: string[]
+    mcpServer?: string
+    originDomain?: string
   }
+): Promise<void> {
+  await sbFetch(cfg, 'POST', '/rest/v1/provenance_events', {
+    user_id:        params.userId,
+    session_id:     params.sessionId || null,
+    tool_name:      params.toolName,
+    trust_level:    params.trustLevel,
+    sanitized:      params.sanitized,
+    redaction_count: params.redactionCount,
+    flags:          params.flags,
+    mcp_server:     params.mcpServer ?? null,
+    origin_domain:  params.originDomain ?? null,
+  })
 }
 
 // ── Top-up credits ────────────────────────────────────────────────────────────
