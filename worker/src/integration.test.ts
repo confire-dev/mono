@@ -279,6 +279,84 @@ describe('optimizer: generic (unknown MCP tool)', () => {
   })
 })
 
+// ── optimizer chain: multi-tool task integrity ───────────────────────────
+//
+// Simulates a real model task: "What broke after the latest auth deploy?"
+//
+//   Step 1  linear_search_issues  → find the in-progress auth issue, get its ID + URL
+//   Step 2  github_get_pr         → fetch the PR for that issue, get author + diff
+//   Step 3  execute_sql           → query affected users, need all rows + timestamps
+//   Step 4  sentry_search_issues  → find errors since deploy, need IDs + culprits
+//
+// Each optimizer runs blind. The assertions verify the exact values a model
+// would extract from step N and pass as input to step N+1. If any of these
+// fail, the chain silently breaks — the model can't continue the task.
+
+describe('optimizer chain: multi-tool task integrity', () => {
+  function optimized(toolName: string, file: string, mcpServer?: string): string {
+    const raw = fixture(file)
+    const event = makeEvent(toolName, raw, { isMcp: true, mcpServer })
+    const result = handle(event)
+    return result.kind === 'replace-output'
+      ? (extractText(result.toolOutput) ?? raw)
+      : raw
+  }
+
+  it('step 1: Linear — issue ID, URL, assignee survive for PR lookup', () => {
+    const out = optimized('linear_search_issues', 'optimizer/linear-issues.txt', 'linear')
+    // Model extracts these to look up the GitHub PR and know who owns the issue
+    expect(out).toContain('ENG-142')                               // issue ID → used in PR search
+    expect(out).toContain('https://linear.app/acme/issue/ENG-142') // URL → model can navigate
+    expect(out).toContain('In Progress')                           // status → model knows it's active
+    expect(out).toContain('jane@acme.com')                         // assignee → model knows who to ping
+    expect(out).not.toContain('apiMetrics')                        // telemetry gone — never needed
+  })
+
+  it('step 2: GitHub PR — number, author, title, body survive for DB + Sentry queries', () => {
+    const out = optimized('mcp__github__pull_request_read', 'optimizer/github-pr-files.json')
+    // Model extracts PR number to query the deployments table, author to correlate with users
+    expect(out).toContain('4521')                    // PR number → model queries: WHERE pr_id = 4521
+    expect(out).toContain('alice-dev')               // author → model looks up alice in user table
+    expect(out).toContain('feat: add OAuth')         // title → model understands what shipped
+    expect(out).toContain('OAuth')                   // body survives → model reads what changed
+    expect(out).toContain('PKCE')                    // implementation detail in body → survives
+  })
+
+  it('step 3: Postgres — every row and every timestamp survive for user correlation', () => {
+    const out = optimized('execute_sql', 'optimizer/postgres-query.txt', 'postgres')
+    // Model needs ALL rows — a missing user means a silently missed affected customer
+    expect(out).toContain('alice@example.com')       // row 1 — alice matches PR author from step 2
+    expect(out).toContain('bob@example.com')         // row 2
+    expect(out).toContain('carol@example.com')       // row 3
+    expect(out).toContain('dave@example.com')        // row 4
+    expect(out).toContain('eve@example.com')         // row 5
+    expect(out).toContain('2024-01-15T10:30:00Z')    // timestamp readable → model can correlate with deploy time
+    expect(out).not.toContain('datetime.datetime')   // Python repr cleaned up
+  })
+
+  it('step 4: Sentry — issue IDs, culprits, user counts survive for diagnosis', () => {
+    const out = optimized('search_issues', 'optimizer/sentry-issues.txt', 'sentry')
+    // Model extracts issue ID to call get_issue_details, culprit to know which file to look at
+    expect(out).toContain('ACME-123')                             // ID → model calls get_issue_details('ACME-123')
+    expect(out).toContain('TypeError: Cannot read properties')    // error message → model understands the failure
+    expect(out).toContain('checkout/views.py')                    // culprit → model knows which file broke
+    expect(out).toContain('47')                                   // affected users → model assesses severity
+    expect(out).toContain('jane@acme.com')                        // assignee matches Linear ENG-142 from step 1
+    expect(out).not.toContain('Next Steps')                       // Sentry coaching stripped
+  })
+
+  it('cross-step: jane@acme.com appears in both Linear (step 1) and Sentry (step 4)', () => {
+    // This is the key cross-tool correlation — same person owns the in-progress issue
+    // AND is assigned to the production error. If either optimizer stripped the assignee
+    // field, the model would miss this connection entirely.
+    const linear = optimized('linear_search_issues', 'optimizer/linear-issues.txt', 'linear')
+    const sentry = optimized('search_issues', 'optimizer/sentry-issues.txt', 'sentry')
+    expect(linear).toContain('jane@acme.com')
+    expect(sentry).toContain('jane@acme.com')
+    // Both present → model can surface: "jane owns both ENG-142 and ACME-123"
+  })
+})
+
 // ── security: classifier integration ────────────────────────────────────
 
 describe('security: classifier catches attacks embedded in tool output', () => {
