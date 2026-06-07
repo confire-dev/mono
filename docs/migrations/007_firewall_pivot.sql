@@ -4,6 +4,8 @@
 -- ── Drop optimizer columns ────────────────────────────────────────────────────
 
 ALTER TABLE tool_call_summaries
+  DROP COLUMN IF EXISTS saved_bytes,
+  DROP COLUMN IF EXISTS reduction_ratio,
   DROP COLUMN IF EXISTS raw_bytes,
   DROP COLUMN IF EXISTS optimized_bytes,
   DROP COLUMN IF EXISTS optimizer,

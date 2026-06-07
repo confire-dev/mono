@@ -1,15 +1,11 @@
 -- Migration 008: Optimizer removal + schema cleanup
 --
--- Drops remaining optimizer-only columns and stored procedures that survived
--- migration 007. Adds mcp_server and origin_domain to provenance_events
+-- Drops remaining optimizer-only columns (cli_sessions, monthly_usage) and
+-- stored procedures that survived migration 007. Adds mcp_server and
+-- origin_domain to provenance_events
 -- (required by recordProvenanceEvent() in the Worker).
 
 -- ── Drop remaining optimizer columns ─────────────────────────────────────────
-
--- tool_call_summaries: drop computed columns that depended on dropped raw_bytes/optimized_bytes
-ALTER TABLE tool_call_summaries
-  DROP COLUMN IF EXISTS saved_bytes,
-  DROP COLUMN IF EXISTS reduction_ratio;
 
 -- cli_sessions: drop optimizer tracking columns
 ALTER TABLE cli_sessions
