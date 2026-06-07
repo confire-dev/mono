@@ -7,7 +7,7 @@
 
 import type { Env } from '../types.js'
 import { authenticate } from '../lib/auth.js'
-import { recordSecurityEvent, upsertCliSession, closeCliSession, writeAudit } from '../lib/supabase.js'
+import { recordSecurityEvent, recordProvenanceEvent, upsertCliSession, closeCliSession, writeAudit } from '../lib/supabase.js'
 import { trackEvent } from '../lib/analytics.js'
 import { sanitizeToolType } from '../lib/buckets.js'
 import { cacheKey, cacheGet, cachePut } from '../lib/cache.js'
@@ -27,6 +27,11 @@ interface TelemetryEvent {
   pattern_matched?:    string
   sanitized?:          boolean
   secrets_redacted?:   number
+  // Provenance event fields
+  trust_level?:        string
+  flags?:              string[]
+  mcp_server?:         string
+  origin_domain?:      string
   analytics_consented: boolean
   // Session end fields
   total_tool_calls?:   number
@@ -41,6 +46,7 @@ type EventType =
   | 'session_start'
   | 'session_end'
   | 'security_event'
+  | 'provenance_event'
   | 'hook_installed'
   | 'daemon_started'
 
@@ -116,6 +122,22 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
       }
       if (event.analytics_consented) {
         maybeTrack(env, event, user.email, user.plan, 'security_event')
+      }
+      break
+
+    case 'provenance_event':
+      if (cfg && event.tool_type && event.trust_level) {
+        await recordProvenanceEvent(cfg, {
+          userId:         user.id,
+          sessionId:      event.session_id ?? '',
+          toolName:       event.tool_type,
+          trustLevel:     event.trust_level,
+          sanitized:      event.sanitized ?? false,
+          redactionCount: event.secrets_redacted ?? 0,
+          flags:          event.flags ?? [],
+          ...(event.mcp_server    ? { mcpServer:    event.mcp_server }    : {}),
+          ...(event.origin_domain ? { originDomain: event.origin_domain } : {}),
+        })
       }
       break
 

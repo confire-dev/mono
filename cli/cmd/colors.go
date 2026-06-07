@@ -1,7 +1,5 @@
 package cmd
 
-// ANSI terminal color codes for stderr output.
-// Never embed these in Reason/Context fields that go to the model.
 const (
 	colorReset  = "\033[0m"
 	colorOrange = "\033[38;5;208m"

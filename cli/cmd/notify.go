@@ -14,8 +14,10 @@ func sessionSummary(sess *sessionStats, cfg config.Config) string {
 		return ""
 	}
 	// Only print if there was security activity worth surfacing.
-	if sess.blockedCalls == 0 && sess.reviewedCalls == 0 &&
-		sess.sanitizedCalls == 0 && sess.secretsRedacted == 0 {
+	hasActivity := sess.blockedCalls > 0 || sess.reviewedCalls > 0 ||
+		sess.sanitizedCalls > 0 || sess.secretsRedacted > 0 ||
+		sess.mcpUnknownCalls > 0 || sess.externalUntrustedCalls > 0
+	if !hasActivity {
 		return ""
 	}
 
@@ -34,6 +36,15 @@ func sessionSummary(sess *sessionStats, cfg config.Config) string {
 	}
 	if sess.secretsRedacted > 0 {
 		lines = append(lines, fmt.Sprintf("   🔑 secrets redacted: %d", sess.secretsRedacted))
+	}
+	if sess.externalUntrustedCalls > 0 || sess.mcpUnknownCalls > 0 {
+		lines = append(lines, "   trust distribution:")
+		if sess.externalUntrustedCalls > 0 {
+			lines = append(lines, fmt.Sprintf("     external_untrusted: %d", sess.externalUntrustedCalls))
+		}
+		if sess.mcpUnknownCalls > 0 {
+			lines = append(lines, fmt.Sprintf("     mcp_unknown:        %d", sess.mcpUnknownCalls))
+		}
 	}
 	lines = append(lines, fmt.Sprintf("   total tool calls: %d", sess.totalCalls))
 	return strings.Join(lines, "\n")

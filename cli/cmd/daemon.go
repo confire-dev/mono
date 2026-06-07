@@ -17,9 +17,11 @@ import (
 
 	"github.com/confire-dev/confire/auth"
 	"github.com/confire-dev/confire/config"
+	"github.com/confire-dev/confire/firewall"
 	"github.com/confire-dev/confire/guardrail"
 	"github.com/confire-dev/confire/intercept"
 	"github.com/confire-dev/confire/policy"
+	"github.com/confire-dev/confire/provenance"
 	"github.com/confire-dev/confire/sanitize"
 	"github.com/confire-dev/confire/transport"
 	"github.com/spf13/cobra"
@@ -61,6 +63,18 @@ type sessionStats struct {
 	warnedCalls     int
 	sanitizedCalls  int
 	secretsRedacted int
+	// Provenance trust distribution (Phase 2)
+	mcpUnknownCalls        int
+	externalUntrustedCalls int
+	// Ring buffer of recent provenance labels for cross-tool flow detection (Phase 3)
+	recentLabels []provenance.ProvenanceLabel
+}
+
+func (s *sessionStats) getRecentLabels() []provenance.ProvenanceLabel {
+	if s == nil {
+		return nil
+	}
+	return s.recentLabels
 }
 
 type daemonState struct {
@@ -87,13 +101,15 @@ func (ds *daemonState) onSessionStart(event intercept.InterceptEvent) {
 	}
 }
 
-func (ds *daemonState) onToolResult(event intercept.InterceptEvent, report intercept.SanitizeReport) {
+func (ds *daemonState) onToolResult(event intercept.InterceptEvent, report intercept.SanitizeReport) provenance.ProvenanceLabel {
+	label := provenance.Classify(event, report)
+
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 	sess := ds.sessions[event.Session.ID]
 	if sess == nil {
 		if event.Session.ID == "" {
-			return
+			return label
 		}
 		sess = &sessionStats{
 			startedAt:   time.Now(),
@@ -110,6 +126,19 @@ func (ds *daemonState) onToolResult(event intercept.InterceptEvent, report inter
 	if report.InjectionFound {
 		sess.sanitizedCalls++
 	}
+	// Track trust distribution.
+	switch label.TrustLevel {
+	case provenance.TrustMCPUnknown:
+		sess.mcpUnknownCalls++
+	case provenance.TrustExternalUntrusted:
+		sess.externalUntrustedCalls++
+	}
+	// Maintain ring buffer for cross-tool flow detection (cap 10).
+	if len(sess.recentLabels) >= 10 {
+		sess.recentLabels = sess.recentLabels[1:]
+	}
+	sess.recentLabels = append(sess.recentLabels, label)
+	return label
 }
 
 func (ds *daemonState) onSessionEnd(event intercept.InterceptEvent) {
@@ -139,19 +168,24 @@ type telemetryPayload struct {
 	SessionID          string `json:"session_id,omitempty"`
 	ToolType           string `json:"tool_type,omitempty"`
 	// Security event fields
-	RiskLevel       string `json:"risk_level,omitempty"`
-	ActionTaken     string `json:"action_taken,omitempty"`
-	PatternMatched  string `json:"pattern_matched,omitempty"`
-	Sanitized       bool   `json:"sanitized,omitempty"`
-	SecretsRedacted int    `json:"secrets_redacted,omitempty"`
+	RiskLevel      string `json:"risk_level,omitempty"`
+	ActionTaken    string `json:"action_taken,omitempty"`
+	PatternMatched string `json:"pattern_matched,omitempty"`
+	Sanitized      bool   `json:"sanitized,omitempty"`
+	SecretsRedacted int   `json:"secrets_redacted,omitempty"`
+	// Provenance event fields
+	TrustLevel  string   `json:"trust_level,omitempty"`
+	Flags       []string `json:"flags,omitempty"`
+	MCPServer   string   `json:"mcp_server,omitempty"`
+	OriginDomain string  `json:"origin_domain,omitempty"`
 	AnalyticsConsented bool `json:"analytics_consented"`
 	// Session end only
-	TotalToolCalls  int `json:"total_tool_calls,omitempty"`
-	BlockedCalls    int `json:"blocked_calls,omitempty"`
-	ReviewedCalls   int `json:"reviewed_calls,omitempty"`
-	WarnedCalls     int `json:"warned_calls,omitempty"`
-	SanitizedCalls  int `json:"sanitized_calls,omitempty"`
-	SecretsTotal    int `json:"secrets_total,omitempty"`
+	TotalToolCalls int `json:"total_tool_calls,omitempty"`
+	BlockedCalls   int `json:"blocked_calls,omitempty"`
+	ReviewedCalls  int `json:"reviewed_calls,omitempty"`
+	WarnedCalls    int `json:"warned_calls,omitempty"`
+	SanitizedCalls int `json:"sanitized_calls,omitempty"`
+	SecretsTotal   int `json:"secrets_total,omitempty"`
 }
 
 func (ds *daemonState) postSecurityEvent(event intercept.InterceptEvent, result intercept.InterceptResult) {
@@ -204,6 +238,53 @@ func (ds *daemonState) postSessionEnd(sess *sessionStats) {
 		SecretsTotal:       sess.secretsRedacted,
 		AnalyticsConsented: ds.cfg.Telemetry,
 	})
+}
+
+func (ds *daemonState) postProvenanceEvent(label provenance.ProvenanceLabel) {
+	if ds.apiKey == "" {
+		return
+	}
+	sanitized := false
+	for _, f := range label.Flags {
+		if f == provenance.FlagSanitized {
+			sanitized = true
+			break
+		}
+	}
+	ds.postEvent(telemetryPayload{
+		EventID:            newEventID(),
+		EventType:          "provenance_event",
+		CLIVersion:         buildVersion,
+		SessionID:          label.SessionID,
+		Integration:        label.Client,
+		ToolType:           label.SourceTool,
+		TrustLevel:         string(label.TrustLevel),
+		Flags:              label.Flags,
+		MCPServer:          label.MCPServer,
+		OriginDomain:       label.OriginDomain,
+		Sanitized:          sanitized,
+		SecretsRedacted:    label.RedactionsCount,
+		AnalyticsConsented: ds.cfg.Telemetry,
+	})
+}
+
+// writeProvenanceLabel appends a provenance label to the session JSONL store.
+// Only metadata is written — no raw tool output or secret values.
+func writeProvenanceLabel(label provenance.ProvenanceLabel) {
+	if label.SessionID == "" {
+		return
+	}
+	data, err := json.Marshal(label)
+	if err != nil {
+		return
+	}
+	path := sessionLabelsPath(label.SessionID)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	f.Write(append(data, '\n')) //nolint:errcheck
 }
 
 func (ds *daemonState) postSessionStart(event intercept.InterceptEvent) {
@@ -288,7 +369,7 @@ func runDaemon() error {
 		deviceID:    deviceID,
 		cfg:         cfg,
 		guardrail:   guardrail.New(policyEngine, mode),
-		mcpRisk:     &intercept.MCPRiskHandler{},
+		mcpRisk:     intercept.NewMCPRiskHandler(provenance.TrustedMCPServers),
 		mcpSanitize: &intercept.MCPSanitizeHandler{},
 	}
 
@@ -356,6 +437,19 @@ func handleConn(conn net.Conn, state *daemonState) {
 			return
 		}
 		if state.cfg.IsFirewallEnabled() && state.guardrail != nil {
+			// Cross-tool flow detection runs first against recent provenance labels.
+			state.mu.Lock()
+			recentLabels := append([]provenance.ProvenanceLabel(nil), state.sessions[event.Session.ID].getRecentLabels()...)
+			state.mu.Unlock()
+			mode := policy.Mode(state.cfg.EffectiveMode())
+			if flowResult := firewall.CheckFlowRules(recentLabels, event, mode); flowResult.Kind != intercept.ResultPassthrough {
+				state.onFirewallResult(event, flowResult)
+				logFirewallResult(event, flowResult)
+				go state.postSecurityEvent(event, flowResult)
+				json.NewEncoder(conn).Encode(flowResult)
+				return
+			}
+
 			result, _ := state.guardrail.Run(event)
 			// MCP risk classifier runs after the policy guardrail.
 			if result.Kind == intercept.ResultPassthrough && state.mcpRisk != nil && state.mcpRisk.Matches(event) {
@@ -385,7 +479,9 @@ func handleConn(conn net.Conn, state *daemonState) {
 		}
 	}
 
-	state.onToolResult(event, sanitizeReport)
+	label := state.onToolResult(event, sanitizeReport)
+	go writeProvenanceLabel(label)
+	go state.postProvenanceEvent(label)
 
 	result := intercept.InterceptResult{Kind: intercept.ResultPassthrough}
 
