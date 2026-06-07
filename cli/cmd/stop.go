@@ -13,7 +13,7 @@ import (
 
 var stopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "Stop the Confire optimizer",
+	Short: "Stop the Confire firewall",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runStop()
 	},
@@ -25,19 +25,19 @@ func init() {
 
 func runStop() error {
 	if !isDaemonRunning() {
-		fmt.Println("Optimizer is not running.")
+		fmt.Println("Firewall is not running.")
 		return nil
 	}
 
 	if err := stopDaemon(); err != nil {
-		return fmt.Errorf("failed to stop optimizer: %w", err)
+		return fmt.Errorf("failed to stop firewall: %w", err)
 	}
 
 	// Wait for the socket to disappear.
 	for i := 0; i < 20; i++ {
 		time.Sleep(100 * time.Millisecond)
 		if !isDaemonRunning() {
-			fmt.Println("✓ Optimizer stopped.")
+			fmt.Println("✓ Firewall stopped.")
 			return nil
 		}
 	}

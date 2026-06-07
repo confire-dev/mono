@@ -25,15 +25,13 @@ Keys:
   notifications.big_save_tokens  <N>       (tokens, default 50000)
   analytics.enabled              true | false
   worker_url                     <URL>
-  hosts.<id>.optimize_native     true | false   (per host, e.g. cursor)
-  hosts.<id>.optimize_mcp        true | false
-  hosts.<id>.post_tool_steer     true | false
+  hosts.<id>.post_tool_steer     true | false   (per host, e.g. cursor)
 
 Examples:
   confire config                                 # show all
   confire config get notifications.style
   confire config set notifications.enabled=false
-  confire config set hosts.cursor.optimize_native=false
+  confire config set hosts.cursor.post_tool_steer=false
   confire config set notifications.big_save_tokens=20000`,
 	RunE: runConfig,
 }
@@ -200,16 +198,6 @@ func getHostField(cfg config.Config, key string) (string, bool) {
 		return "(default)", true
 	}
 	switch field {
-	case "optimize_native":
-		if o.OptimizeNative == nil {
-			return boolStr(hosts.DefaultCapabilities(hostID).OptimizeNative), true
-		}
-		return boolStr(*o.OptimizeNative), true
-	case "optimize_mcp":
-		if o.OptimizeMCP == nil {
-			return boolStr(hosts.DefaultCapabilities(hostID).OptimizeMCP), true
-		}
-		return boolStr(*o.OptimizeMCP), true
 	case "post_tool_steer":
 		if o.PostToolSteer == nil {
 			return boolStr(hosts.DefaultCapabilities(hostID).PostToolSteer), true
@@ -238,10 +226,6 @@ func setHostField(cfg *config.Config, key, val string) error {
 	}
 	o := cfg.Hosts[hostID]
 	switch field {
-	case "optimize_native":
-		o.OptimizeNative = &b
-	case "optimize_mcp":
-		o.OptimizeMCP = &b
 	case "post_tool_steer":
 		o.PostToolSteer = &b
 	default:

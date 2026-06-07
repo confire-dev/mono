@@ -10,14 +10,14 @@ import (
 
 var resetCmd = &cobra.Command{
 	Use:   "reset",
-	Short: "Remove Confire hooks and stop the optimizer (leaves the binary installed)",
-	Long: `Removes Confire hooks from your AI agent's settings and stops the optimizer daemon.
+	Short: "Remove Confire hooks and stop the firewall (leaves the binary installed)",
+	Long: `Removes Confire hooks from your AI agent's settings and stops the firewall daemon.
 
 Confire remains installed — run 'confire setup' any time to re-enable it.
 To remove Confire completely, delete the binary.
 
 Examples:
-  confire reset            remove from all settings + stop optimizer
+  confire reset            remove from all settings + stop firewall
   confire reset --local    remove only from this project
   confire reset --global   remove only from global settings`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -90,11 +90,11 @@ func runReset() error {
 
 	// Stop the daemon if it's running.
 	if isDaemonRunning() {
-		fmt.Printf("\n  %sStopping optimizer...%s\n\n", bold, reset)
+		fmt.Printf("\n  %sStopping firewall...%s\n\n", bold, reset)
 		if err := stopDaemon(); err != nil {
-			fmt.Printf("  %s✗%s  Could not stop optimizer: %v\n", red, reset, err)
+			fmt.Printf("  %s✗%s  Could not stop firewall: %v\n", red, reset, err)
 		} else {
-			fmt.Printf("  %s✓%s  Optimizer stopped\n", green, reset)
+			fmt.Printf("  %s✓%s  Firewall stopped\n", green, reset)
 		}
 	}
 

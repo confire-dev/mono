@@ -1,19 +1,15 @@
 // POST /v1/events — the Worker's trusted ingestion boundary.
 //
-// The CLI sends raw metrics here. The Worker:
+// The CLI sends security and session events here. The Worker:
 //   1. Validates the API key (authenticates the caller)
-//   2. Writes exact values to Supabase (billing truth / user dashboard)
-//   3. Optionally forwards bucketed, sanitized values to Amplitude (analytics)
-//
-// The CLI is NOT trusted to self-report billing state.
-// "analytics_consented: false" suppresses Amplitude but NOT Supabase writes.
-// Supabase writes are required for the product to work (billing, dashboard, limits).
+//   2. Writes to Supabase (dashboard, security audit trail)
+//   3. Optionally forwards sanitized values to Amplitude (analytics)
 
 import type { Env } from '../types.js'
 import { authenticate } from '../lib/auth.js'
-import { recordOptimization, upsertCliSession, closeCliSession, writeAudit } from '../lib/supabase.js'
+import { recordSecurityEvent, upsertCliSession, closeCliSession, writeAudit } from '../lib/supabase.js'
 import { trackEvent } from '../lib/analytics.js'
-import { byteBucket, reductionBucket, durationBucket, sanitizeToolType } from '../lib/buckets.js'
+import { sanitizeToolType } from '../lib/buckets.js'
 import { cacheKey, cacheGet, cachePut } from '../lib/cache.js'
 
 // ── Wire format from the CLI daemon ─────────────────────────────────────────
@@ -23,30 +19,30 @@ interface TelemetryEvent {
   event_type:          EventType
   cli_version?:        string
   integration?:        string    // 'claude_code', 'cursor', …
-  session_id?:         string    // Claude Code session_id
-  tool_type?:          string    // 'figma', 'bash', 'github_pr', …
-  optimizer?:          string    // which optimizer handled it
-  raw_bytes?:          number
-  optimized_bytes?:    number
-  duration_ms?:        number
-  was_cached?:         boolean
-  analytics_consented: boolean   // false = skip Amplitude only; Supabase still writes
+  session_id?:         string
+  tool_type?:          string
+  // Security event fields
+  risk_level?:         string
+  action_taken?:       string
+  pattern_matched?:    string
+  sanitized?:          boolean
+  secrets_redacted?:   number
+  analytics_consented: boolean
+  // Session end fields
+  total_tool_calls?:   number
+  blocked_calls?:      number
+  reviewed_calls?:     number
+  warned_calls?:       number
+  sanitized_calls?:    number
+  secrets_total?:      number
 }
 
 type EventType =
   | 'session_start'
   | 'session_end'
-  | 'tool_call_optimized'
-  | 'tool_call_passthrough'
+  | 'security_event'
   | 'hook_installed'
   | 'daemon_started'
-
-interface SessionEndPayload {
-  total_tool_calls:  number
-  optimized_calls:   number
-  raw_bytes:         number
-  optimized_bytes:   number
-}
 
 export async function handleTelemetry(request: Request, env: Env): Promise<Response> {
   // ── 1. Auth ──────────────────────────────────────────────────────────────
@@ -65,12 +61,11 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
   }
 
   // ── 3. Idempotency check via KV cache ────────────────────────────────────
-  // Prevent the daemon from double-counting on retry.
   if (event.event_id && env.CACHE) {
     const idempKey = `evt:${event.event_id}`
     const seen = await env.CACHE.get(idempKey)
     if (seen) return Response.json({ ok: true, deduplicated: true })
-    env.CACHE.put(idempKey, '1', { expirationTtl: 604_800 }).catch(() => {}) // 7 days — covers retry window
+    env.CACHE.put(idempKey, '1', { expirationTtl: 604_800 }).catch(() => {})
   }
 
   const cfg = env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY
@@ -82,51 +77,45 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
 
     case 'session_start':
       if (cfg && event.session_id) {
-        const deviceId   = request.headers.get('X-Confire-Device')
-        const cliVersion = event.cli_version
+        const deviceId    = request.headers.get('X-Confire-Device')
+        const cliVersion  = event.cli_version
         const integration = event.integration
         await upsertCliSession(cfg, event.session_id, user.id, {
-          ...(deviceId   ? { deviceId }   : {}),
-          ...(cliVersion ? { cliVersion } : {}),
+          ...(deviceId    ? { deviceId }    : {}),
+          ...(cliVersion  ? { cliVersion }  : {}),
           ...(integration ? { integration } : {}),
         })
       }
       maybeTrack(env, event, user.email, user.plan, 'cli_session_started')
       break
 
-    case 'session_end': {
-      const endData = event as unknown as Record<string, number>
+    case 'session_end':
       if (cfg && event.session_id) {
         await closeCliSession(cfg, event.session_id, {
-          totalCalls:     endData['total_tool_calls']     ?? 0,
-          optimizedCalls: endData['optimized_calls']      ?? 0,
-          rawBytes:       endData['raw_bytes_total']      ?? 0,
-          optimizedBytes: endData['optimized_bytes_total'] ?? 0,
+          totalCalls:     event.total_tool_calls ?? 0,
+          optimizedCalls: 0,
+          rawBytes:       0,
+          optimizedBytes: 0,
         })
       }
       maybeTrack(env, event, user.email, user.plan, 'cli_session_ended')
       break
-    }
 
-    case 'tool_call_optimized':
-      if (cfg && event.raw_bytes != null && event.optimized_bytes != null) {
-        await recordOptimization(cfg, {
-          userId:             user.id,
-          planId:             user.plan ?? 'free',
-          sessionId:          event.session_id ?? '',
-          toolType:           event.tool_type ?? 'unknown',
-          integration:        event.integration ?? 'claude_code',
-          optimizer:          event.optimizer ?? 'unknown',
-          rawBytes:           event.raw_bytes ?? 0,
-          optimizedBytes:     event.optimized_bytes ?? 0,
-          ...(event.duration_ms != null ? { durationMs: event.duration_ms } : {}),
-          wasCached:          event.was_cached ?? false,
-          analyticsConsented: event.analytics_consented,
+    case 'security_event':
+      if (cfg && event.tool_type && event.risk_level && event.action_taken) {
+        await recordSecurityEvent(cfg, {
+          userId:         user.id,
+          sessionId:      event.session_id ?? '',
+          toolName:       event.tool_type,
+          eventType:      event.risk_level === 'HIGH' ? 'PROMPT_INJECTION' : 'DESTRUCTIVE_CMD',
+          riskLevel:      event.risk_level,
+          actionTaken:    event.action_taken,
+          ...(event.pattern_matched ? { patternMatched: event.pattern_matched } : {}),
+          bypassed:       false,
         })
       }
-      // Amplitude only if user consented to analytics
       if (event.analytics_consented) {
-        maybeTrack(env, event, user.email, user.plan, 'tool_call_optimized')
+        maybeTrack(env, event, user.email, user.plan, 'security_event')
       }
       break
 
@@ -146,7 +135,7 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
   return Response.json({ ok: true })
 }
 
-// ── Amplitude forwarding with bucketed, sanitized values ─────────────────
+// ── Amplitude forwarding ──────────────────────────────────────────────────
 
 function maybeTrack(
   env: Env,
@@ -157,20 +146,12 @@ function maybeTrack(
 ): void {
   if (!event.analytics_consented) return
 
-  const rawBytes = event.raw_bytes ?? 0
-  const optBytes = event.optimized_bytes ?? 0
-  const ratio    = rawBytes > 0 ? (rawBytes - optBytes) / rawBytes : 0
-
   trackEvent(env.AE, env.AMPLITUDE_KEY, {
-    userId:   email,    // Amplitude identifies by email (no PII in properties)
+    userId:    email,
     email,
     eventType: amplitudeEventType,
     toolName:  event.tool_type ? sanitizeToolType(event.tool_type) : undefined,
-    optimizer: event.optimizer,
-    // Bucketed — never raw values in Amplitude
-    beforeBytes: rawBytes > 0 ? parseInt(byteBucket(rawBytes)) || rawBytes : undefined,
-    afterBytes:  optBytes > 0 ? parseInt(byteBucket(optBytes)) || optBytes : undefined,
-    sessionId:   undefined,  // never send session_id to Amplitude
-    host:        event.integration ?? 'claude_code',
+    sessionId: undefined,
+    host:      event.integration ?? 'claude_code',
   })
 }

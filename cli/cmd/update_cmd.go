@@ -81,7 +81,7 @@ func runUpdate() error {
 	// 4. Stop the daemon if it is running — we will restart it after the swap.
 	wasRunning := isDaemonRunning()
 	if wasRunning {
-		fmt.Print("Stopping optimizer... ")
+		fmt.Print("Stopping firewall... ")
 		if err := stopDaemon(); err != nil {
 			fmt.Printf("warning: %v\n", err)
 		} else {
@@ -132,7 +132,7 @@ func runUpdate() error {
 
 	// 8. Restart the daemon with the new binary.
 	if wasRunning {
-		fmt.Print("Restarting optimizer... ")
+		fmt.Print("Restarting firewall... ")
 		if err := launchDaemon(); err != nil {
 			fmt.Printf("warning: could not restart: %v\n", err)
 			fmt.Println("Run `confire start` to restart manually.")

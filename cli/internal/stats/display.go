@@ -8,14 +8,12 @@ import (
 // PrintJSON renders stats as machine-readable JSON.
 func PrintJSON(session SessionStats, today, month, allTime Stats, tools []ToolStat, sync SyncCounts) {
 	type statJSON struct {
-		Requests    int64 `json:"requests"`
-		TokensSaved int64 `json:"tokens_saved"`
+		Requests int64 `json:"requests"`
 	}
 	type toolJSON struct {
-		Tool         string  `json:"tool"`
-		Share        float64 `json:"share_pct"`
-		AvgReduction float64 `json:"avg_reduction_pct"`
-		Requests     int64   `json:"requests"`
+		Tool     string  `json:"tool"`
+		Share    float64 `json:"share_pct"`
+		Requests int64   `json:"requests"`
 	}
 	type syncJSON struct {
 		Synced    int64 `json:"synced"`
@@ -34,18 +32,17 @@ func PrintJSON(session SessionStats, today, month, allTime Stats, tools []ToolSt
 	var topTools []toolJSON
 	for _, t := range tools {
 		topTools = append(topTools, toolJSON{
-			Tool:         t.ToolName,
-			Share:        t.SharePct,
-			AvgReduction: t.AvgReduction,
-			Requests:     t.RequestCount,
+			Tool:     t.ToolName,
+			Share:    t.SharePct,
+			Requests: t.RequestCount,
 		})
 	}
 
 	out := output{
-		Session:  statJSON{session.RequestCount, session.TokensSaved},
-		Today:    statJSON{today.RequestCount, today.TokensSaved},
-		Month:    statJSON{month.RequestCount, month.TokensSaved},
-		AllTime:  statJSON{allTime.RequestCount, allTime.TokensSaved},
+		Session:  statJSON{session.RequestCount},
+		Today:    statJSON{today.RequestCount},
+		Month:    statJSON{month.RequestCount},
+		AllTime:  statJSON{allTime.RequestCount},
 		TopTools: topTools,
 		Sync:     syncJSON{sync.Synced, sync.Pending, sync.NoAccount},
 	}
@@ -57,5 +54,4 @@ func PrintJSON(session SessionStats, today, month, allTime Stats, tools []ToolSt
 // SessionStats holds in-memory stats for the current daemon session.
 type SessionStats struct {
 	RequestCount int64
-	TokensSaved  int64
 }

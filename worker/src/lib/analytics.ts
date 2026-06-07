@@ -7,9 +7,8 @@ export interface AnalyticsEvent {
   email: string
   eventType: string
   toolName?: string | undefined
-  optimizer?: string | undefined
-  beforeBytes?: number | undefined
-  afterBytes?: number | undefined
+  riskLevel?: string | undefined
+  actionTaken?: string | undefined
   sessionId?: string | undefined
   host?: string | undefined
 }
@@ -25,35 +24,22 @@ export function trackEvent(
   if (amplitudeKey) sendAmplitude(amplitudeKey, event).catch(() => {})
 }
 
-// writeAnalyticsEngine writes a data point to the Cloudflare Analytics Engine.
-// The dataset binding (AE) is configured in wrangler.toml.
 async function writeAnalyticsEngine(ae: AnalyticsEngineDataset, event: AnalyticsEvent): Promise<void> {
-  const savedPct = event.beforeBytes && event.afterBytes
-    ? Math.round((1 - event.afterBytes / event.beforeBytes) * 100)
-    : 0
-
   ae.writeDataPoint({
     blobs: [
       event.userId,
       event.eventType,
       event.toolName ?? '',
-      event.optimizer ?? '',
+      event.riskLevel ?? '',
       event.host ?? 'claude-code',
       event.sessionId ?? '',
     ],
-    doubles: [
-      event.beforeBytes ?? 0,
-      event.afterBytes ?? 0,
-      savedPct,
-    ],
+    doubles: [],
     indexes: [event.userId],
   })
 }
 
-// sendAmplitude posts to Amplitude's HTTP API v2.
-// Amplitude is used for user-level funnel analysis and retention.
 async function sendAmplitude(apiKey: string, event: AnalyticsEvent): Promise<void> {
-  const bytesSaved = (event.beforeBytes ?? 0) - (event.afterBytes ?? 0)
   await fetch('https://api2.amplitude.com/2/httpapi', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -65,10 +51,8 @@ async function sendAmplitude(apiKey: string, event: AnalyticsEvent): Promise<voi
         time: Date.now(),
         event_properties: {
           tool_name:    event.toolName,
-          optimizer:    event.optimizer,
-          before_bytes: event.beforeBytes,
-          after_bytes:  event.afterBytes,
-          bytes_saved:  bytesSaved,
+          risk_level:   event.riskLevel,
+          action_taken: event.actionTaken,
           session_id:   event.sessionId,
           host:         event.host ?? 'claude-code',
         },

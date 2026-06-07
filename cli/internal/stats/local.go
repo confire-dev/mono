@@ -1,4 +1,4 @@
-// Package stats manages local optimization statistics stored in SQLite.
+// Package stats manages local statistics stored in SQLite.
 // Privacy principle: only counts are stored — no content, no code, no responses.
 // The database is owned entirely by the user and never read remotely.
 package stats
@@ -74,27 +74,20 @@ func NewEventID() string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
-// Request is one optimization event to record.
+// Request is one firewall event to record.
 type Request struct {
-	EventID     string // UUID shared with Worker for idempotent sync
-	ToolName    string // canonical family name: "bash", "figma", "github", …
-	Optimizer   string // which optimizer ran: "local/bash", "github", …
-	BytesBefore int
-	BytesAfter  int
-	Host        string // "claude_code", "cursor", …
-	SyncStatus  string // StatusPending | StatusSynced | StatusNoAccount
+	EventID    string // UUID shared with Worker for idempotent sync
+	ToolName   string // canonical family name: "bash", "figma", "github", …
+	Host       string // "claude_code", "cursor", …
+	SyncStatus string // StatusPending | StatusSynced | StatusNoAccount
 }
 
 // SyncRow is a pending-sync record returned by PendingSync.
 type SyncRow struct {
-	EventID      string
-	ToolName     string
-	Optimizer    string
-	TokensBefore int64
-	TokensAfter  int64
-	TokensSaved  int64
-	Host         string
-	CreatedAt    string
+	EventID   string
+	ToolName  string
+	Host      string
+	CreatedAt string
 }
 
 // SyncCounts breaks down requests by sync status.
@@ -104,13 +97,9 @@ type SyncCounts struct {
 	NoAccount int64
 }
 
-// RecordRequest writes one optimization event and updates the daily summary.
+// RecordRequest writes one firewall event.
 // Best-effort: errors are returned but callers may ignore them.
 func (s *DB) RecordRequest(r Request) error {
-	tokensBefore := r.BytesBefore / 4
-	tokensAfter := r.BytesAfter / 4
-	tokensSaved := tokensBefore - tokensAfter
-
 	syncStatus := r.SyncStatus
 	if syncStatus == "" {
 		syncStatus = StatusPending
@@ -118,24 +107,20 @@ func (s *DB) RecordRequest(r Request) error {
 
 	if _, err := s.db.Exec(`
 		INSERT INTO requests
-		  (event_id, tool_name, optimizer, tokens_before, tokens_after, tokens_saved,
-		   cost_saved_usd, host, sync_status)
-		VALUES (?, ?, ?, ?, ?, ?, 0.0, ?, ?)`,
-		r.EventID, r.ToolName, r.Optimizer,
-		tokensBefore, tokensAfter, tokensSaved,
-		r.Host, syncStatus,
+		  (event_id, tool_name, host, sync_status)
+		VALUES (?, ?, ?, ?)`,
+		r.EventID, r.ToolName, r.Host, syncStatus,
 	); err != nil {
 		return err
 	}
 
 	date := time.Now().Format("2006-01-02")
 	_, err := s.db.Exec(`
-		INSERT INTO daily_summary (date, request_count, tokens_saved_total, cost_saved_total)
-		VALUES (?, 1, ?, 0.0)
+		INSERT INTO daily_summary (date, request_count)
+		VALUES (?, 1)
 		ON CONFLICT(date) DO UPDATE SET
-		  request_count      = request_count + 1,
-		  tokens_saved_total = tokens_saved_total + excluded.tokens_saved_total`,
-		date, tokensSaved,
+		  request_count = request_count + 1`,
+		date,
 	)
 	return err
 }
@@ -153,8 +138,7 @@ func (s *DB) MarkSynced(eventID string) error {
 // Called at daemon startup to retry offline events.
 func (s *DB) PendingSync(limit int) ([]SyncRow, error) {
 	rows, err := s.db.Query(`
-		SELECT event_id, tool_name, optimizer,
-		       tokens_before, tokens_after, tokens_saved, host, created_at
+		SELECT event_id, tool_name, host, created_at
 		FROM requests
 		WHERE sync_status = ?
 		ORDER BY created_at ASC
@@ -168,9 +152,7 @@ func (s *DB) PendingSync(limit int) ([]SyncRow, error) {
 	var out []SyncRow
 	for rows.Next() {
 		var r SyncRow
-		if err := rows.Scan(&r.EventID, &r.ToolName, &r.Optimizer,
-			&r.TokensBefore, &r.TokensAfter, &r.TokensSaved,
-			&r.Host, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.EventID, &r.ToolName, &r.Host, &r.CreatedAt); err != nil {
 			continue
 		}
 		out = append(out, r)
@@ -210,7 +192,6 @@ func (s *DB) GetSyncCounts() (SyncCounts, error) {
 // Stats is an aggregated count for a time period.
 type Stats struct {
 	RequestCount int64
-	TokensSaved  int64
 }
 
 // Today returns stats for the current calendar day.
@@ -218,9 +199,9 @@ func (s *DB) Today() (Stats, error) {
 	date := time.Now().Format("2006-01-02")
 	var st Stats
 	err := s.db.QueryRow(`
-		SELECT COALESCE(request_count,0), COALESCE(tokens_saved_total,0)
+		SELECT COALESCE(request_count,0)
 		FROM daily_summary WHERE date = ?`, date,
-	).Scan(&st.RequestCount, &st.TokensSaved)
+	).Scan(&st.RequestCount)
 	if err == sql.ErrNoRows {
 		return Stats{}, nil
 	}
@@ -232,9 +213,9 @@ func (s *DB) ThisMonth() (Stats, error) {
 	month := time.Now().Format("2006-01")
 	var st Stats
 	err := s.db.QueryRow(`
-		SELECT COALESCE(SUM(request_count),0), COALESCE(SUM(tokens_saved_total),0)
+		SELECT COALESCE(SUM(request_count),0)
 		FROM daily_summary WHERE date LIKE ?`, month+"-%",
-	).Scan(&st.RequestCount, &st.TokensSaved)
+	).Scan(&st.RequestCount)
 	return st, err
 }
 
@@ -242,9 +223,9 @@ func (s *DB) ThisMonth() (Stats, error) {
 func (s *DB) AllTime() (Stats, error) {
 	var st Stats
 	err := s.db.QueryRow(`
-		SELECT COALESCE(SUM(request_count),0), COALESCE(SUM(tokens_saved_total),0)
+		SELECT COALESCE(SUM(request_count),0)
 		FROM daily_summary`,
-	).Scan(&st.RequestCount, &st.TokensSaved)
+	).Scan(&st.RequestCount)
 	return st, err
 }
 
@@ -253,10 +234,10 @@ func (s *DB) TodayByTool(tool string) (Stats, error) {
 	date := time.Now().Format("2006-01-02")
 	var st Stats
 	err := s.db.QueryRow(`
-		SELECT COALESCE(COUNT(*),0), COALESCE(SUM(tokens_saved),0)
+		SELECT COALESCE(COUNT(*),0)
 		FROM requests WHERE date(created_at) = ? AND tool_name = ?`,
 		date, tool,
-	).Scan(&st.RequestCount, &st.TokensSaved)
+	).Scan(&st.RequestCount)
 	return st, err
 }
 
@@ -265,10 +246,10 @@ func (s *DB) ThisMonthByTool(tool string) (Stats, error) {
 	month := time.Now().Format("2006-01")
 	var st Stats
 	err := s.db.QueryRow(`
-		SELECT COALESCE(COUNT(*),0), COALESCE(SUM(tokens_saved),0)
+		SELECT COALESCE(COUNT(*),0)
 		FROM requests WHERE strftime('%Y-%m', created_at) = ? AND tool_name = ?`,
 		month, tool,
-	).Scan(&st.RequestCount, &st.TokensSaved)
+	).Scan(&st.RequestCount)
 	return st, err
 }
 
@@ -276,9 +257,9 @@ func (s *DB) ThisMonthByTool(tool string) (Stats, error) {
 func (s *DB) AllTimeByTool(tool string) (Stats, error) {
 	var st Stats
 	err := s.db.QueryRow(`
-		SELECT COALESCE(COUNT(*),0), COALESCE(SUM(tokens_saved),0)
+		SELECT COALESCE(COUNT(*),0)
 		FROM requests WHERE tool_name = ?`, tool,
-	).Scan(&st.RequestCount, &st.TokensSaved)
+	).Scan(&st.RequestCount)
 	return st, err
 }
 
@@ -286,7 +267,6 @@ func (s *DB) AllTimeByTool(tool string) (Stats, error) {
 type ToolStat struct {
 	ToolName     string
 	RequestCount int64
-	AvgReduction float64 // 0–100 (percentage)
 	SharePct     float64 // share of total requests this period
 }
 
@@ -296,10 +276,7 @@ func (s *DB) TopToolsThisMonth(limit int) ([]ToolStat, error) {
 	rows, err := s.db.Query(`
 		SELECT
 		  tool_name,
-		  COUNT(*)                                                        AS cnt,
-		  AVG(CASE WHEN tokens_before > 0
-		        THEN CAST(tokens_saved AS REAL) / CAST(tokens_before AS REAL) * 100
-		        ELSE 0.0 END)                                             AS avg_reduction
+		  COUNT(*) AS cnt
 		FROM requests
 		WHERE strftime('%Y-%m', created_at) = ?
 		GROUP BY tool_name
@@ -315,7 +292,7 @@ func (s *DB) TopToolsThisMonth(limit int) ([]ToolStat, error) {
 	var total int64
 	for rows.Next() {
 		var t ToolStat
-		if err := rows.Scan(&t.ToolName, &t.RequestCount, &t.AvgReduction); err != nil {
+		if err := rows.Scan(&t.ToolName, &t.RequestCount); err != nil {
 			continue
 		}
 		tools = append(tools, t)
@@ -354,28 +331,20 @@ func ToolFamily(toolName string) string {
 
 // ── Schema + migrations ─────────────────────────────────────────────────────
 
-// schemaV1 is the initial schema. Fresh installs skip straight to latest.
 const schemaLatest = `
 CREATE TABLE IF NOT EXISTS requests (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  event_id      TEXT    NOT NULL DEFAULT '',
-  tool_name     TEXT    NOT NULL,
-  optimizer     TEXT    NOT NULL,
-  tokens_before INTEGER NOT NULL,
-  tokens_after  INTEGER NOT NULL,
-  tokens_saved  INTEGER NOT NULL,
-  cost_saved_usd REAL   NOT NULL DEFAULT 0,
-  host          TEXT    NOT NULL DEFAULT '',
-  sync_status   TEXT    NOT NULL DEFAULT 'pending',
-  synced_at     TEXT,
-  created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_id    TEXT    NOT NULL DEFAULT '',
+  tool_name   TEXT    NOT NULL,
+  host        TEXT    NOT NULL DEFAULT '',
+  sync_status TEXT    NOT NULL DEFAULT 'pending',
+  synced_at   TEXT,
+  created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS daily_summary (
-  date               TEXT PRIMARY KEY,
-  request_count      INTEGER NOT NULL DEFAULT 0,
-  tokens_saved_total INTEGER NOT NULL DEFAULT 0,
-  cost_saved_total   REAL    NOT NULL DEFAULT 0
+  date          TEXT PRIMARY KEY,
+  request_count INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_requests_event_id
@@ -393,8 +362,7 @@ func migrate(db *sql.DB) error {
 	db.QueryRow(`PRAGMA user_version`).Scan(&version)
 
 	if version == 0 {
-		// Fresh install OR pre-versioned DB — apply full schema, then patch
-		// any missing columns for databases that existed before versioning.
+		// Fresh install OR pre-versioned DB — apply full schema.
 		if _, err := db.Exec(schemaLatest); err != nil {
 			return err
 		}
@@ -404,13 +372,10 @@ func migrate(db *sql.DB) error {
 		db.Exec(`ALTER TABLE requests ADD COLUMN event_id TEXT NOT NULL DEFAULT ''`)
 		db.Exec(`ALTER TABLE requests ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending'`)
 		db.Exec(`ALTER TABLE requests ADD COLUMN synced_at TEXT`)
-		// Back-fill: old rows without event_id have empty string — they
-		// match the partial index exclusion (WHERE event_id != '') so they
-		// won't block the UNIQUE constraint.
 		// Rows written before sync_status existed get 'no_account' so they
 		// don't appear in the pending retry queue.
 		db.Exec(`UPDATE requests SET sync_status = 'no_account' WHERE sync_status = '' OR sync_status IS NULL`)
-		if _, err := db.Exec(`PRAGMA user_version = 2`); err != nil {
+		if _, err := db.Exec(`PRAGMA user_version = 3`); err != nil {
 			return err
 		}
 	}

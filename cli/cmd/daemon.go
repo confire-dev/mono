@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -17,12 +19,21 @@ import (
 	"github.com/confire-dev/confire/config"
 	"github.com/confire-dev/confire/guardrail"
 	"github.com/confire-dev/confire/intercept"
-	"github.com/confire-dev/confire/internal/stats"
 	"github.com/confire-dev/confire/policy"
 	"github.com/confire-dev/confire/sanitize"
 	"github.com/confire-dev/confire/transport"
 	"github.com/spf13/cobra"
 )
+
+func newEventID() string {
+	b := make([]byte, 16)
+	rand.Read(b) //nolint:errcheck
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return hex.EncodeToString(b[:4]) + "-" + hex.EncodeToString(b[4:6]) + "-" +
+		hex.EncodeToString(b[6:8]) + "-" + hex.EncodeToString(b[8:10]) + "-" +
+		hex.EncodeToString(b[10:])
+}
 
 var daemonCmd = &cobra.Command{
 	Use:    "daemon",
@@ -40,18 +51,10 @@ func init() {
 // ── Session tracking ──────────────────────────────────────────────────────────
 
 type sessionStats struct {
-	startedAt      time.Time
-	sessionID      string
-	integration    string
-	cliVersion     string
-	totalCalls     int
-	optimizedCalls int
-	rawBytes       int64
-	optimizedBytes int64
-	// Biggest single save this session (for the 🔥 summary)
-	biggestWinTool string
-	biggestWinRaw  int
-	biggestWinOpt  int
+	startedAt   time.Time
+	sessionID   string
+	integration string
+	totalCalls  int
 	// Firewall stats
 	blockedCalls    int
 	reviewedCalls   int
@@ -61,17 +64,14 @@ type sessionStats struct {
 }
 
 type daemonState struct {
-	mu           sync.Mutex
-	sessions     map[string]*sessionStats
-	apiKey       string
-	deviceID     string
-	cfg          config.Config
-	statsDB      *stats.DB
-	guardrail    *guardrail.Handler
-	mcpRisk      *intercept.MCPRiskHandler
-	mcpSanitize  *intercept.MCPSanitizeHandler
-	mcpNormalize *intercept.MCPNormalizeHandler
-	mcpStats     *intercept.MCPStatsWriter
+	mu          sync.Mutex
+	sessions    map[string]*sessionStats
+	apiKey      string
+	deviceID    string
+	cfg         config.Config
+	guardrail   *guardrail.Handler
+	mcpRisk     *intercept.MCPRiskHandler
+	mcpSanitize *intercept.MCPSanitizeHandler
 }
 
 func (ds *daemonState) onSessionStart(event intercept.InterceptEvent) {
@@ -87,7 +87,7 @@ func (ds *daemonState) onSessionStart(event intercept.InterceptEvent) {
 	}
 }
 
-func (ds *daemonState) onToolResult(event intercept.InterceptEvent, result intercept.InterceptResult) {
+func (ds *daemonState) onToolResult(event intercept.InterceptEvent, report intercept.SanitizeReport) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 	sess := ds.sessions[event.Session.ID]
@@ -95,7 +95,6 @@ func (ds *daemonState) onToolResult(event intercept.InterceptEvent, result inter
 		if event.Session.ID == "" {
 			return
 		}
-		// SessionStart hook not configured — create lazily so stats still record.
 		sess = &sessionStats{
 			startedAt:   time.Now(),
 			sessionID:   event.Session.ID,
@@ -104,46 +103,12 @@ func (ds *daemonState) onToolResult(event intercept.InterceptEvent, result inter
 		ds.sessions[event.Session.ID] = sess
 	}
 	sess.totalCalls++
-	if result.Kind == intercept.ResultReplaceOutput && result.Stats != nil {
-		sess.optimizedCalls++
-		sess.rawBytes += int64(result.Stats.BeforeBytes)
-		sess.optimizedBytes += int64(result.Stats.AfterBytes)
-		// Track biggest single save for session summary
-		savedBytes := result.Stats.BeforeBytes - result.Stats.AfterBytes
-		if savedBytes > sess.biggestWinRaw-sess.biggestWinOpt {
-			name := ""
-			if event.Tool != nil {
-				name = event.Tool.GetServerHint() // returns MCP server name or lowercase tool name
-			}
-			sess.biggestWinTool = normalizeToolName(name)
-			sess.biggestWinRaw  = result.Stats.BeforeBytes
-			sess.biggestWinOpt  = result.Stats.AfterBytes
-		}
-
-		// Record locally first (works offline). eventID ties this to the Worker post.
-		eventID := stats.NewEventID()
-		toolName := ""
-		if event.Tool != nil {
-			toolName = event.Tool.Name
-		}
-		// SyncStatus reflects whether this event can ever reach the Worker.
-		syncStatus := stats.StatusPending
-		if ds.apiKey == "" {
-			syncStatus = stats.StatusNoAccount
-		}
-		if ds.statsDB != nil {
-			ds.statsDB.RecordRequest(stats.Request{
-				EventID:     eventID,
-				ToolName:    stats.ToolFamily(toolName),
-				Optimizer:   result.Stats.Optimizer,
-				BytesBefore: result.Stats.BeforeBytes,
-				BytesAfter:  result.Stats.AfterBytes,
-				Host:        string(event.Host),
-				SyncStatus:  syncStatus,
-			})
-		}
-
-		go ds.postToolEvent(event, result, eventID)
+	if report.SecretsRedacted > 0 {
+		sess.secretsRedacted += report.SecretsRedacted
+		sess.sanitizedCalls++
+	}
+	if report.InjectionFound {
+		sess.sanitizedCalls++
 	}
 }
 
@@ -157,7 +122,6 @@ func (ds *daemonState) onSessionEnd(event intercept.InterceptEvent) {
 		return
 	}
 
-	// Print session summary using 🔥 formatting
 	if summary := sessionSummary(sess, ds.cfg); summary != "" {
 		fmt.Fprintf(os.Stderr, "\n%s\n\n", summary)
 	}
@@ -174,26 +138,29 @@ type telemetryPayload struct {
 	Integration        string `json:"integration,omitempty"`
 	SessionID          string `json:"session_id,omitempty"`
 	ToolType           string `json:"tool_type,omitempty"`
-	Optimizer          string `json:"optimizer,omitempty"`
-	RawBytes           int    `json:"raw_bytes,omitempty"`
-	OptimizedBytes     int    `json:"optimized_bytes,omitempty"`
-	DurationMs         int    `json:"duration_ms,omitempty"`
-	WasCached          bool   `json:"was_cached,omitempty"`
-	AnalyticsConsented bool   `json:"analytics_consented"`
+	// Security event fields
+	RiskLevel       string `json:"risk_level,omitempty"`
+	ActionTaken     string `json:"action_taken,omitempty"`
+	PatternMatched  string `json:"pattern_matched,omitempty"`
+	Sanitized       bool   `json:"sanitized,omitempty"`
+	SecretsRedacted int    `json:"secrets_redacted,omitempty"`
+	AnalyticsConsented bool `json:"analytics_consented"`
 	// Session end only
 	TotalToolCalls  int `json:"total_tool_calls,omitempty"`
-	OptimizedCalls  int `json:"optimized_calls,omitempty"`
-	TotalRawBytes   int `json:"raw_bytes_total,omitempty"`
-	TotalOptBytes   int `json:"optimized_bytes_total,omitempty"`
+	BlockedCalls    int `json:"blocked_calls,omitempty"`
+	ReviewedCalls   int `json:"reviewed_calls,omitempty"`
+	WarnedCalls     int `json:"warned_calls,omitempty"`
+	SanitizedCalls  int `json:"sanitized_calls,omitempty"`
+	SecretsTotal    int `json:"secrets_total,omitempty"`
 }
 
-func (ds *daemonState) postToolEvent(event intercept.InterceptEvent, result intercept.InterceptResult, eventID string) {
+func (ds *daemonState) postSecurityEvent(event intercept.InterceptEvent, result intercept.InterceptResult) {
 	if ds.apiKey == "" {
 		return
 	}
 	payload := telemetryPayload{
-		EventID:            eventID,
-		EventType:          "tool_call_optimized",
+		EventID:            newEventID(),
+		EventType:          "security_event",
 		CLIVersion:         buildVersion,
 		Integration:        string(event.Host),
 		SessionID:          event.Session.ID,
@@ -201,16 +168,22 @@ func (ds *daemonState) postToolEvent(event intercept.InterceptEvent, result inte
 	}
 	if event.Tool != nil {
 		payload.ToolType = resolveToolType(event.Tool)
-		payload.DurationMs = event.Tool.DurationMs
 	}
-	if result.Stats != nil {
-		payload.Optimizer      = result.Stats.Optimizer
-		payload.RawBytes       = result.Stats.BeforeBytes
-		payload.OptimizedBytes = result.Stats.AfterBytes
+	switch result.Kind {
+	case intercept.ResultBlock:
+		payload.RiskLevel = "HIGH"
+		payload.ActionTaken = "BLOCKED"
+	case intercept.ResultReview:
+		payload.RiskLevel = "MEDIUM"
+		payload.ActionTaken = "REVIEW_REQUIRED"
+	case intercept.ResultWarn:
+		payload.RiskLevel = "LOW"
+		payload.ActionTaken = "WARNED"
+	case intercept.ResultSanitize:
+		payload.ActionTaken = "SANITIZED"
+		payload.Sanitized = true
 	}
-	if ds.postEvent(payload) && ds.statsDB != nil {
-		ds.statsDB.MarkSynced(eventID)
-	}
+	ds.postEvent(payload)
 }
 
 func (ds *daemonState) postSessionEnd(sess *sessionStats) {
@@ -218,21 +191,19 @@ func (ds *daemonState) postSessionEnd(sess *sessionStats) {
 		return
 	}
 	ds.postEvent(telemetryPayload{
-		EventID:            stats.NewEventID(),
+		EventID:            newEventID(),
 		EventType:          "session_end",
 		CLIVersion:         buildVersion,
 		Integration:        sess.integration,
 		SessionID:          sess.sessionID,
 		TotalToolCalls:     sess.totalCalls,
-		OptimizedCalls:     sess.optimizedCalls,
-		TotalRawBytes:      int(sess.rawBytes),
-		TotalOptBytes:      int(sess.optimizedBytes),
+		BlockedCalls:       sess.blockedCalls,
+		ReviewedCalls:      sess.reviewedCalls,
+		WarnedCalls:        sess.warnedCalls,
+		SanitizedCalls:     sess.sanitizedCalls,
+		SecretsTotal:       sess.secretsRedacted,
 		AnalyticsConsented: ds.cfg.Telemetry,
 	})
-	// Flush any pending events now that we know the network is up.
-	if ds.statsDB != nil {
-		ds.syncPending()
-	}
 }
 
 func (ds *daemonState) postSessionStart(event intercept.InterceptEvent) {
@@ -240,46 +211,13 @@ func (ds *daemonState) postSessionStart(event intercept.InterceptEvent) {
 		return
 	}
 	ds.postEvent(telemetryPayload{
-		EventID:            stats.NewEventID(),
+		EventID:            newEventID(),
 		EventType:          "session_start",
 		CLIVersion:         buildVersion,
 		Integration:        string(event.Host),
 		SessionID:          event.Session.ID,
 		AnalyticsConsented: ds.cfg.Telemetry,
 	})
-}
-
-// periodicSync calls syncPending on a fixed interval until the daemon exits.
-func (ds *daemonState) periodicSync(interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for range ticker.C {
-		ds.syncPending()
-	}
-}
-
-// syncPending retries unsynced local stats rows against the Worker.
-func (ds *daemonState) syncPending() {
-	pending, err := ds.statsDB.PendingSync(200)
-	if err != nil || len(pending) == 0 {
-		return
-	}
-	for _, row := range pending {
-		payload := telemetryPayload{
-			EventID:            row.EventID,
-			EventType:          "tool_call_optimized",
-			CLIVersion:         buildVersion,
-			Integration:        row.Host,
-			ToolType:           row.ToolName,
-			Optimizer:          row.Optimizer,
-			RawBytes:           int(row.TokensBefore * 4),
-			OptimizedBytes:     int(row.TokensAfter * 4),
-			AnalyticsConsented: ds.cfg.Telemetry,
-		}
-		if ds.postEvent(payload) {
-			ds.statsDB.MarkSynced(row.EventID)
-		}
-	}
 }
 
 func (ds *daemonState) postEvent(payload telemetryPayload) bool {
@@ -305,7 +243,6 @@ func (ds *daemonState) postEvent(payload telemetryPayload) bool {
 	}
 	resp.Body.Close()
 	if resp.StatusCode == http.StatusUnauthorized {
-		// Key was revoked — stop sending events until user re-logs in.
 		ds.mu.Lock()
 		ds.apiKey = ""
 		ds.mu.Unlock()
@@ -331,7 +268,6 @@ func runDaemon() error {
 	}()
 	os.Chmod(socketPath, 0600)
 
-	// Write PID file so `confire stop` can signal us.
 	pidPath := daemonPIDPath()
 	os.WriteFile(pidPath, []byte(strconv.Itoa(os.Getpid())), 0600)
 
@@ -343,51 +279,24 @@ func runDaemon() error {
 		deviceID = d
 	}
 
-	statsDB, _ := stats.Open(statsDBPath())
-
-	// Initialize guardrail (PreToolUse firewall).
 	policyEngine := policy.NewEngine(policy.LoadRules())
 	mode := policy.Mode(cfg.EffectiveMode())
 
-	// MCP handlers — initialised once, shared across connections.
-	var mcpStatsWriter *intercept.MCPStatsWriter
-	if statsDB != nil {
-		if rawDB := statsDB.RawDB(); rawDB != nil {
-			_ = intercept.MigrateMCPSchema(rawDB)
-			mcpStatsWriter = intercept.NewMCPStatsWriter(rawDB)
-		}
-	}
-
 	state := &daemonState{
-		sessions:     make(map[string]*sessionStats),
-		apiKey:       apiKey,
-		deviceID:     deviceID,
-		cfg:          cfg,
-		statsDB:      statsDB,
-		guardrail:    guardrail.New(policyEngine, mode),
-		mcpRisk:      &intercept.MCPRiskHandler{},
-		mcpSanitize:  &intercept.MCPSanitizeHandler{},
-		mcpNormalize: intercept.NewMCPNormalizeHandler(),
-		mcpStats:     mcpStatsWriter,
-	}
-
-	if statsDB != nil {
-		defer statsDB.Close()
-	}
-
-	t := buildDaemonTransportWithKey(apiKey, deviceID)
-
-	// Sync pending events: on startup, then every 5 minutes.
-	if statsDB != nil && apiKey != "" {
-		go state.syncPending()
-		go state.periodicSync(5 * time.Minute)
+		sessions:    make(map[string]*sessionStats),
+		apiKey:      apiKey,
+		deviceID:    deviceID,
+		cfg:         cfg,
+		guardrail:   guardrail.New(policyEngine, mode),
+		mcpRisk:     &intercept.MCPRiskHandler{},
+		mcpSanitize: &intercept.MCPSanitizeHandler{},
 	}
 
 	fmt.Fprintf(os.Stderr, "[confire daemon] v%s listening on %s\n", buildVersion, socketPath)
 	if apiKey != "" {
-		fmt.Fprintf(os.Stderr, "[confire daemon] cloud mode → %s\n", workerURLEnv())
+		fmt.Fprintf(os.Stderr, "[confire daemon] firewall active → %s\n", workerURLEnv())
 	} else {
-		fmt.Fprintln(os.Stderr, "[confire daemon] no account — run `confire login` to enable optimization")
+		fmt.Fprintln(os.Stderr, "[confire daemon] no account — run `confire login` to enable cloud sync")
 	}
 
 	sigCh := make(chan os.Signal, 1)
@@ -403,11 +312,11 @@ func runDaemon() error {
 		if err != nil {
 			return nil
 		}
-		go handleConn(conn, t, state)
+		go handleConn(conn, state)
 	}
 }
 
-func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
+func handleConn(conn net.Conn, state *daemonState) {
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(30 * time.Second))
 
@@ -416,7 +325,7 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 		return
 	}
 
-	// Session lifecycle events → track state + async telemetry.
+	// Session lifecycle events.
 	switch event.Phase {
 	case intercept.PhaseSessionStart:
 		state.onSessionStart(event)
@@ -442,8 +351,6 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 		return
 
 	case intercept.PhaseToolPre:
-		// Firewall: evaluate before the tool executes.
-		// bypass-next flag allows one-shot override.
 		if policy.ConsumeBypassNext() {
 			json.NewEncoder(conn).Encode(intercept.InterceptResult{Kind: intercept.ResultPassthrough})
 			return
@@ -451,13 +358,16 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 		if state.cfg.IsFirewallEnabled() && state.guardrail != nil {
 			result, _ := state.guardrail.Run(event)
 			// MCP risk classifier runs after the policy guardrail.
-			// If guardrail already blocked/reviewed, skip the risk handler.
 			if result.Kind == intercept.ResultPassthrough && state.mcpRisk != nil && state.mcpRisk.Matches(event) {
 				if r, err := state.mcpRisk.Run(event); err == nil && r.Kind != intercept.ResultPassthrough {
 					result = r
 				}
 			}
 			state.onFirewallResult(event, result)
+			logFirewallResult(event, result)
+			if result.Kind != intercept.ResultPassthrough {
+				go state.postSecurityEvent(event, result)
+			}
 			json.NewEncoder(conn).Encode(result)
 		} else {
 			json.NewEncoder(conn).Encode(intercept.InterceptResult{Kind: intercept.ResultPassthrough})
@@ -465,64 +375,117 @@ func handleConn(conn net.Conn, t transport.Transport, state *daemonState) {
 		return
 	}
 
-	// PostToolUse and other tool phases — run sanitization then optimizer.
+	// PostToolUse — run security sanitization.
 	var sanitizeReport intercept.SanitizeReport
 	if state.cfg.IsFirewallEnabled() && event.Phase == intercept.PhaseToolPost {
-		// Generic sanitization for non-MCP tools (secrets + injection via sanitize pkg).
 		if event.Tool == nil || !event.Tool.IsMCP {
 			event, sanitizeReport = state.sanitizeOutput(event)
 		} else {
-			// MCP-specific pipeline: sanitize → normalize → record stats.
-			event, sanitizeReport = state.runMCPPostPipeline(event)
+			event, sanitizeReport = state.runMCPSanitizePipeline(event)
 		}
 	}
 
-	// Tool calls → optimize + track stats + notify (when enabled for this host).
-	var result intercept.InterceptResult
-	if shouldOptimizeEvent(event, state.cfg) {
-		result, _ = t.Send(event)
-	} else {
-		result = intercept.InterceptResult{Kind: intercept.ResultPassthrough}
-	}
-	state.onToolResult(event, result)
+	state.onToolResult(event, sanitizeReport)
 
-	// Format the 🔥 notification
+	result := intercept.InterceptResult{Kind: intercept.ResultPassthrough}
+
+	// If we sanitized content, return the cleaned output.
+	if sanitizeReport.HasFindings() && event.Tool != nil && event.Tool.Output != nil {
+		result = intercept.InterceptResult{
+			Kind:       intercept.ResultSanitize,
+			ToolOutput: event.Tool.Output,
+		}
+		go state.postSecurityEvent(event, result)
+	}
+
+	// Inject advisory context for PostToolSteer hosts.
 	toolName := ""
 	if event.Tool != nil {
 		toolName = event.Tool.Name
 	}
-	stderrLine, contextLine := notifyResult(result, toolName, state.cfg)
-
-	if stderrLine != "" {
-		fmt.Fprintln(os.Stderr, stderrLine)
-	}
-
-	// Standardized post-tool steer for hosts that cannot replace native output.
 	caps := state.cfg.CapabilitiesFor(event.Host)
 	if caps.PostToolSteer {
 		steerCtx := intercept.FormatPostToolSteer(intercept.PostToolSteerInput{
 			Host:                event.Host,
 			ToolName:            toolName,
 			NativeUnreplaceable: !caps.NativeOutputReplaceable && event.Tool != nil && !event.Tool.IsMCP,
-			OutputReplaced:      result.Kind == intercept.ResultReplaceOutput,
+			OutputReplaced:      result.Kind == intercept.ResultSanitize,
 			Report:              sanitizeReport,
-			Stats:               result.Stats,
-			ExtraContext:        contextLine,
+			Stats:               nil,
+			ExtraContext:        "",
 		})
 		if steerCtx != "" {
 			result.Context = intercept.JoinContext(steerCtx, result.Context)
 			if result.Kind == intercept.ResultPassthrough {
 				result.Kind = intercept.ResultAddContext
 			}
-		} else if contextLine != "" && result.Kind == intercept.ResultReplaceOutput {
-			result.Context = intercept.JoinContext(result.Context, contextLine)
 		}
-	} else if contextLine != "" && result.Kind == intercept.ResultReplaceOutput {
-		// Claude Code: big-save line only when output was replaced.
-		result.Context = contextLine
 	}
 
 	json.NewEncoder(conn).Encode(result)
+}
+
+// sanitizeOutput runs secret redaction and prompt-injection sanitization on non-MCP tool output.
+func (ds *daemonState) sanitizeOutput(event intercept.InterceptEvent) (intercept.InterceptEvent, intercept.SanitizeReport) {
+	report := intercept.SanitizeReport{}
+	if event.Tool == nil || event.Tool.Output == nil {
+		return event, report
+	}
+	text, ok := sanitize.OutputToString(event.Tool.Output)
+	if !ok || len(text) < 100 {
+		return event, report
+	}
+
+	modified := false
+
+	redacted, count, types := sanitize.Redact(text)
+	if count > 0 {
+		text = redacted
+		modified = true
+		report.SecretsRedacted = count
+		report.SecretTypes = types
+		fmt.Fprintf(os.Stderr, "[confire] ⚡ redacted %d secret(s) from %s output\n", count, event.Tool.Name)
+	}
+
+	sanitized, found, _ := sanitize.Sanitize(text)
+	if found {
+		text = sanitized
+		modified = true
+		report.InjectionFound = true
+		fmt.Fprintf(os.Stderr, "[confire] ⚡ %s sanitized / prompt injection removed\n", event.Tool.Name)
+	}
+
+	if modified {
+		toolCopy := *event.Tool
+		toolCopy.Output = text
+		event.Tool = &toolCopy
+	}
+	return event, report
+}
+
+// runMCPSanitizePipeline applies the MCP-specific PostToolUse security pipeline.
+func (ds *daemonState) runMCPSanitizePipeline(event intercept.InterceptEvent) (intercept.InterceptEvent, intercept.SanitizeReport) {
+	report := intercept.SanitizeReport{}
+	if event.Tool == nil || event.Tool.Output == nil {
+		return event, report
+	}
+
+	if ds.mcpSanitize != nil && ds.mcpSanitize.Matches(event) {
+		if r, err := ds.mcpSanitize.Run(event); err == nil && r.Kind != intercept.ResultPassthrough {
+			toolCopy := *event.Tool
+			toolCopy.Output = r.ToolOutput
+			event.Tool = &toolCopy
+			if r.Stats != nil && r.Stats.BeforeBytes > r.Stats.AfterBytes {
+				report.SecretsRedacted = 1
+			}
+			report.InjectionFound = r.Kind == intercept.ResultSanitize
+			if report.HasFindings() {
+				fmt.Fprintf(os.Stderr, "[confire] ⚡ %s sanitized / source: external\n", event.Tool.Name)
+			}
+		}
+	}
+
+	return event, report
 }
 
 // onFirewallResult tracks PreToolUse firewall decisions.
@@ -543,146 +506,46 @@ func (ds *daemonState) onFirewallResult(event intercept.InterceptEvent, result i
 	}
 }
 
-// sanitizeOutput runs secret redaction and prompt-injection sanitization
-// on the raw tool output before it goes to the optimizer.
-// Returns the (potentially modified) event and a report for post-tool steer.
-func (ds *daemonState) sanitizeOutput(event intercept.InterceptEvent) (intercept.InterceptEvent, intercept.SanitizeReport) {
-	report := intercept.SanitizeReport{}
-	if event.Tool == nil || event.Tool.Output == nil {
-		return event, report
+// logFirewallResult prints the new-format firewall decision line to stderr.
+func logFirewallResult(event intercept.InterceptEvent, result intercept.InterceptResult) {
+	toolName := ""
+	if event.Tool != nil {
+		toolName = event.Tool.Name
 	}
-	text, ok := sanitize.OutputToString(event.Tool.Output)
-	if !ok || len(text) < 100 {
-		return event, report
-	}
-
-	modified := false
-	sess := ds.sessions[event.Session.ID]
-
-	// Secret redaction.
-	redacted, count, types := sanitize.Redact(text)
-	if count > 0 {
-		text = redacted
-		modified = true
-		report.SecretsRedacted = count
-		report.SecretTypes = types
-		if sess != nil {
-			ds.mu.Lock()
-			sess.secretsRedacted += count
-			sess.sanitizedCalls++
-			ds.mu.Unlock()
-		}
-		fmt.Fprintf(os.Stderr, "[confire] redacted %d secret(s) from %s output\n", count, event.Tool.Name)
-	}
-
-	// Prompt-injection sanitization.
-	sanitized, found, _ := sanitize.Sanitize(text)
-	if found {
-		text = sanitized
-		modified = true
-		report.InjectionFound = true
-		if sess != nil {
-			ds.mu.Lock()
-			sess.sanitizedCalls++
-			ds.mu.Unlock()
-		}
-		fmt.Fprintf(os.Stderr, "[confire] sanitized prompt-injection pattern from %s output\n", event.Tool.Name)
-	}
-
-	if modified {
-		// Clone the tool to avoid mutating shared state.
-		toolCopy := *event.Tool
-		toolCopy.Output = text
-		event.Tool = &toolCopy
-	}
-	return event, report
-}
-
-// runMCPPostPipeline applies the MCP-specific PostToolUse pipeline:
-// sanitize (secrets + unicode + injection) → normalize (prune + truncate) → record stats.
-func (ds *daemonState) runMCPPostPipeline(event intercept.InterceptEvent) (intercept.InterceptEvent, intercept.SanitizeReport) {
-	report := intercept.SanitizeReport{}
-	if event.Tool == nil || event.Tool.Output == nil {
-		return event, report
-	}
-
-	// Pass 1: sanitize (secrets redaction, unicode strip, injection detection).
-	if ds.mcpSanitize != nil && ds.mcpSanitize.Matches(event) {
-		if r, err := ds.mcpSanitize.Run(event); err == nil && r.Kind != intercept.ResultPassthrough {
-			toolCopy := *event.Tool
-			toolCopy.Output = r.ToolOutput
-			event.Tool = &toolCopy
-			// Approximate: non-empty Stats means redactions occurred.
-			if r.Stats != nil && r.Stats.BeforeBytes > r.Stats.AfterBytes {
-				report.SecretsRedacted = 1 // at least one redaction happened
-			}
-			report.InjectionFound = r.Kind == intercept.ResultSanitize
+	switch result.Kind {
+	case intercept.ResultBlock:
+		fmt.Fprintf(os.Stderr, "[confire] 🚫 BLOCKED / %s / Run: confire bypass-next\n", toolName)
+	case intercept.ResultReview:
+		fmt.Fprintf(os.Stderr, "[confire] ⚠ REVIEW REQUIRED / %s / Run: confire bypass-next\n", toolName)
+	case intercept.ResultWarn:
+		fmt.Fprintf(os.Stderr, "[confire] ⚠ warning / %s\n", toolName)
+	case intercept.ResultPassthrough:
+		// Log allowed only for MCP tools to avoid noise on every Bash/Read call.
+		if event.Tool != nil && event.Tool.IsMCP {
+			fmt.Fprintf(os.Stderr, "[confire] ✓ %s — allowed\n", toolName)
 		}
 	}
-
-	// Pass 2: normalize (null pruner + array truncation + string budget).
-	if ds.mcpNormalize != nil && ds.mcpNormalize.Matches(event) {
-		if r, err := ds.mcpNormalize.Run(event); err == nil && r.Kind != intercept.ResultPassthrough {
-			toolCopy := *event.Tool
-			toolCopy.Output = r.ToolOutput
-			event.Tool = &toolCopy
-		}
-	}
-
-	// Pass 3: async stats recording.
-	if ds.mcpStats != nil && event.Tool != nil {
-		ds.mcpStats.RecordAsync(intercept.MCPToolEvent{
-			ServerID:       event.Tool.MCPServer,
-			ToolName:       event.Tool.Name,
-			Phase:          event.Phase,
-			Outcome:        "sanitize",
-			BytesIn:        event.Tool.DurationMs, // placeholder — real byte counts tracked in Stats
-			SecretsFound:   report.SecretsRedacted,
-			InjectionFlags: boolInt(report.InjectionFound),
-		})
-	}
-
-	return event, report
 }
 
-func boolInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
+// ── Session notifications ─────────────────────────────────────────────────────
 
-func shouldOptimizeEvent(event intercept.InterceptEvent, cfg config.Config) bool {
-	if event.Phase != intercept.PhaseToolPost || event.Tool == nil {
-		return false
-	}
-	caps := cfg.CapabilitiesFor(event.Host)
-	if event.Tool.IsMCP {
-		return caps.OptimizeMCP
-	}
-	return caps.OptimizeNative
-}
-
-// sessionStartNotification returns context (for Claude) and systemMessage (shown in Claude Code).
-// A healthy balanced session injects nothing into Claude — saving context is the product.
 func sessionStartNotification(state *daemonState) (contextMsg, systemMsg string) {
 	mode := state.cfg.EffectiveMode()
 
 	switch {
 	case state.apiKey == "":
-		msg := "⚠️ Confire: not logged in — cloud optimization disabled. Run `confire login`. Run `confire help` for commands."
+		msg := "⚠️ Confire: not logged in — run `confire login` to enable cloud sync."
 		return msg, msg
 	case mode == "strict":
-		msg := "[Confire] Strict mode active. Dangerous tool calls will be blocked, not just reviewed. Run `confire help` for commands."
+		msg := "[Confire] Strict mode active. Dangerous tool calls will be blocked. Run `confire help` for commands."
 		return msg, msg
 	case mode == "bypass":
-		msg := "[Confire] Bypass mode active. Firewall and optimization are disabled. Run `confire help` for commands."
+		msg := "[Confire] Bypass mode active. Firewall is disabled. Run `confire help` for commands."
 		return msg, msg
 	default:
 		if msg, ok := consumeWelcomePending(state); ok {
 			return msg, msg
 		}
-		// Healthy: silent in the agent UI (stderr only for developers).
 		if line := sessionStatusLine(state, mode); line != "" {
 			fmt.Fprintf(os.Stderr, "%s\n", line)
 		}
@@ -710,24 +573,6 @@ func consumeWelcomePending(state *daemonState) (string, bool) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-func buildDaemonTransportWithKey(apiKey, deviceID string) transport.Transport {
-	if apiKey == "" {
-		// No account → no optimization. Local runs as fallback only when the
-		// Worker can't help (quota exhausted, offline); it is not a free tier.
-		return transport.NewPassthrough()
-	}
-	worker := transport.NewWorker(workerURLEnv(), apiKey, deviceID)
-	// Local runs first (Bash/Read/WebFetch — zero latency, works on free plan).
-	// Cloud gets the remainder: MCP tools and anything local passes through.
-	return transport.NewLocalFirst(transport.NewLocal(""), worker)
-}
-
-func buildDaemonTransport() transport.Transport {
-	key := resolveAPIKey()
-	did, _ := auth.DeviceID()
-	return buildDaemonTransportWithKey(key, did)
-}
 
 func resolveAPIKey() string {
 	if k := apiKeyEnv(); k != "" {
