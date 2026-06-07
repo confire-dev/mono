@@ -19,7 +19,7 @@ func sessionSummary(sess *sessionStats, cfg config.Config) string {
 		return ""
 	}
 
-	lines := []string{"[confire] session summary"}
+	lines := []string{colorCyan + "[confire] session summary" + colorReset}
 	if sess.blockedCalls > 0 {
 		lines = append(lines, fmt.Sprintf("   🚫 blocked:    %d", sess.blockedCalls))
 	}

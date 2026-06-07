@@ -514,15 +514,17 @@ func logFirewallResult(event intercept.InterceptEvent, result intercept.Intercep
 	}
 	switch result.Kind {
 	case intercept.ResultBlock:
-		fmt.Fprintf(os.Stderr, "[confire] 🚫 BLOCKED / %s / Run: confire bypass-next\n", toolName)
+		fmt.Fprintf(os.Stderr, "%s[confire] BLOCKED%s %s — run: confire bypass-next\n", colorRed, colorReset, toolName)
 	case intercept.ResultReview:
-		fmt.Fprintf(os.Stderr, "[confire] ⚠ REVIEW REQUIRED / %s / Run: confire bypass-next\n", toolName)
+		fmt.Fprintf(os.Stderr, "%s[confire] REVIEW REQUIRED%s %s — run: confire bypass-next\n", colorOrange, colorReset, toolName)
 	case intercept.ResultWarn:
-		fmt.Fprintf(os.Stderr, "[confire] ⚠ warning / %s\n", toolName)
+		fmt.Fprintf(os.Stderr, "%s[confire] warning%s %s\n", colorYellow, colorReset, toolName)
+	case intercept.ResultSanitize:
+		fmt.Fprintf(os.Stderr, "%s[confire] sanitized%s %s\n", colorGreen, colorReset, toolName)
 	case intercept.ResultPassthrough:
 		// Log allowed only for MCP tools to avoid noise on every Bash/Read call.
 		if event.Tool != nil && event.Tool.IsMCP {
-			fmt.Fprintf(os.Stderr, "[confire] ✓ %s — allowed\n", toolName)
+			fmt.Fprintf(os.Stderr, "%s[confire] ✓%s %s — allowed\n", colorGreen, colorReset, toolName)
 		}
 	}
 }
