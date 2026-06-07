@@ -13,7 +13,7 @@ are included at no cost.
   hidden-unicode stripping
 - **Local optimizers** — Bash, Read, WebFetch, Generic fallback
 - **All supported agents** — Claude Code, Cursor, VS Code
-- **Basic stats** — token savings per session
+- **Basic stats** — security events and session activity per session
 
 Local optimizers run in the daemon binary with no network round-trip
 and no account. The firewall runs entirely on your machine.

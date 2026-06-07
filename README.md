@@ -1,6 +1,6 @@
 # Confire
 
-AI agent context optimizer. Intercepts tool call responses before they reach the model, strips noise, returns lean signal.
+Context firewall for AI coding agents. Reviews risky tool calls before they run and sanitizes tool output before it reaches the model.
 
 ## Monorepo layout
 
@@ -83,18 +83,26 @@ pnpm --filter platform run build
 
 ## How it works
 
+Two pillars — Tool Firewall (PreToolUse) and Context Firewall (PostToolUse):
+
 ```
+Claude Code is about to run a tool call
+  ↓ Claude Code calls `confire hook` (stdin: PreToolUse JSON)
+  ↓ hook → daemon — evaluates built-in + custom policy rules
+  ↓ Risky action? → block / require review / warn
+  ↓ daemon → hook → Claude Code (stdout: decision)
+
 Claude Code finishes a tool call
-  ↓ Claude Code calls `confire hook` (stdin: tool response JSON)
-  ↓ hook → daemon (unix socket)
-  ↓ daemon → Worker (HTTP/2, if API key present)
-  ↓ Worker optimizes: Figma 98%, GitHub PR 87%, generic fallback
-  ↓ daemon → hook → Claude Code (stdout: hookSpecificOutput.updatedToolOutput)
-Claude sees lean context instead of noisy raw tool output
+  ↓ Claude Code calls `confire hook` (stdin: PostToolUse JSON)
+  ↓ hook → daemon — redact secrets, strip injections, trim noise
+  ↓ Labels each output with a provenance trust level
+  ↓ Detects cross-tool flow risks (e.g. untrusted read → shell exec)
+  ↓ daemon → hook → Claude Code (stdout: sanitized output)
+Claude sees clean, safe context instead of raw tool output
 ```
 
-Local (no API key): Bash/Read/WebFetch/Generic optimizers only — free, offline, unlimited.  
-Remote (API key + daemon): all platform optimizers — Figma, GitHub, Jira, Slack, etc.
+Local (no API key): full tool firewall + context sanitization — free, offline, unlimited.  
+Remote (API key + daemon): custom rules synced from the dashboard, security event history, and team policy.
 
 ## Project docs
 

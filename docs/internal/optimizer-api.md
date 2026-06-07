@@ -1,4 +1,4 @@
-# Optimizer API — Product Concept & Architecture
+# Context Optimization API — Product Concept & Architecture
 
 > **Status: not yet launched.**
 > The endpoint exists in the Worker but returns 404 until `OPTIMIZER_API_ENABLED="true"` is set.

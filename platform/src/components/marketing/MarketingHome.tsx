@@ -279,7 +279,7 @@ function Hero() {
 
 const STATS = [
   { value: 'Built-in',    label: 'risky action guardrails'    },
-  { value: '40-95%',      label: 'reduction on noisy tool outputs' },
+  { value: '5 layers',    label: 'of output protection'           },
   { value: 'Local-first', label: 'policy evaluation'          },
   { value: 'Sanitized',   label: 'before cloud optimization'  },
 ]
@@ -454,7 +454,7 @@ function Capabilities() {
         <SectionLabel number="03">Capabilities</SectionLabel>
         <SectionTitle
           title="Context control and tool safety in one local layer."
-          subtitle="Every capability runs on your machine. Cloud optimization receives only sanitized, redacted content."
+          subtitle="Every capability runs on your machine. The cloud receives only sanitized, redacted metadata — never raw tool output."
         />
 
         <BentoGrid
@@ -486,9 +486,9 @@ function Capabilities() {
             {
               content: (
                 <div>
-                  <ChartLineUpIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
-                  <H3 className="mb-2">Context Optimizer</H3>
-                  <BodySm>Turn noisy tool output into cleaner agent-ready context. Works on Bash logs, WebFetch pages, GitHub PRs, Figma outputs, API JSON, and generic MCP responses.</BodySm>
+                  <ShieldCheckIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
+                  <H3 className="mb-2">Context Firewall</H3>
+                  <BodySm>Redacts secrets, removes injections, and trims noise from every tool output before it enters context. Works on Bash logs, WebFetch pages, GitHub PRs, Figma outputs, and MCP responses.</BodySm>
                 </div>
               ),
             },
@@ -537,7 +537,7 @@ const CLIENTS = [
     features: [
       'PreToolUse risky action review',
       'PostToolUse output sanitization',
-      'Output optimization before working context',
+      'Context firewall: redaction, injection removal, noise trimming',
       'Built-in and custom rules',
       'Local policy evaluation',
     ],

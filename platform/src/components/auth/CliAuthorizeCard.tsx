@@ -12,12 +12,12 @@ const PERMISSIONS = [
   {
     label: 'Account & Analytics',
     count: 2,
-    items: ['Read account usage data', 'View token savings and statistics'],
+    items: ['Read account usage data', 'View security event history'],
   },
   {
-    label: 'Optimization Engine',
+    label: 'Context Firewall',
     count: 3,
-    items: ['Process tool calls for optimization', 'Apply context compression rules', 'Read optimization configuration'],
+    items: ['Apply security passes (redaction, injection detection)', 'Apply context optimization (noise trimming)', 'Read firewall rules and config'],
   },
   {
     label: 'Billing & Subscription',

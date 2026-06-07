@@ -98,10 +98,7 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
     case 'session_end':
       if (cfg && event.session_id) {
         await closeCliSession(cfg, event.session_id, {
-          totalCalls:     event.total_tool_calls ?? 0,
-          optimizedCalls: 0,
-          rawBytes:       0,
-          optimizedBytes: 0,
+          totalCalls: event.total_tool_calls ?? 0,
         })
       }
       maybeTrack(env, event, user.email, user.plan, 'cli_session_ended')

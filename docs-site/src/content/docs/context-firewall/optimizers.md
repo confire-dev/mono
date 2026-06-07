@@ -1,11 +1,12 @@
 ---
 title: Optimizers
-description: How Confire trims noise from tool output before it enters context.
+description: How the Context Firewall reduces noise through source-aware optimization.
 ---
 
-Confire routes each tool call's output to the most specific optimizer
-available. If no optimizer matches, the Generic fallback runs.
-Optimization only replaces output when the result is strictly
+The Context Firewall includes an optimization layer that trims noise from tool
+output before it enters context. Confire routes each tool call's output to
+the most specific optimizer available. If no optimizer matches, the Generic
+fallback runs. Optimization only replaces output when the result is strictly
 smaller than the original — Confire never inflates output.
 
 ## Local optimizers (free)

@@ -319,14 +319,11 @@ export async function upsertCliSession(
 export async function closeCliSession(
   cfg: SupabaseConfig,
   sessionId: string,
-  stats: { totalCalls: number; optimizedCalls: number; rawBytes: number; optimizedBytes: number }
+  stats: { totalCalls: number }
 ): Promise<void> {
   await sbFetch(cfg, 'PATCH', `/rest/v1/cli_sessions?id=eq.${encodeURIComponent(sessionId)}`, {
-    ended_at:        new Date().toISOString(),
+    ended_at:         new Date().toISOString(),
     total_tool_calls: stats.totalCalls,
-    optimized_calls: stats.optimizedCalls,
-    raw_bytes:       stats.rawBytes,
-    optimized_bytes: stats.optimizedBytes,
   })
 }
 

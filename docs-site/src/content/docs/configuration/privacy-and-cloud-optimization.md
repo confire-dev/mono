@@ -2,7 +2,7 @@
 title: Privacy and cloud optimization
 description: >-
   What data stays on your machine and what is sent to
-  Confire's cloud optimizer.
+  Confire's cloud for analytics and policy sync.
 ---
 
 Confire is local-first. Most processing happens in the daemon

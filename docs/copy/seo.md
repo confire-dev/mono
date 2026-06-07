@@ -87,17 +87,17 @@ confire.dev/
 
 ### Homepage (/)
 
-**Target keywords:** confire, ai agent optimizer, claude code optimizer, reduce ai agent token cost  
+**Target keywords:** confire, ai agent firewall, ai agent security, mcp firewall, prompt injection protection, claude code security  
 **Search intent:** Branded + solution-aware
 
-**Meta title:** `Confire — Reduce AI Agent Token Costs by Up to 95%`  
-**Meta description:** `Confire is a context optimizer for Claude Code, Cursor, and Cline. Cut token costs on Bash logs, GitHub responses, and web fetches without changing how you work.`
+**Meta title:** `Confire — Context Firewall for AI Coding Agents`  
+**Meta description:** `Confire is a context firewall for Claude Code, Cursor, and Cline. Reviews risky tool calls and cleans noisy outputs before they reach your agent.`
 
-**H1:** `Less noise in context. Cheaper, faster, sharper AI agents.`  
+**H1:** `Keep AI coding agents cleaner and safer.`  
 **H2 structure:**
-- What Confire does (value prop block)
-- How it works (3-step visual)
-- Results (data: 40–95% reduction stats)
+- What Confire does (two-pillar value prop block)
+- How it works (tool firewall + context firewall)
+- Capabilities (bento grid)
 - Integrations (Claude Code, Cursor, Cline badges)
 - Pricing
 
