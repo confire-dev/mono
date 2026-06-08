@@ -338,7 +338,7 @@ function OverviewPage({
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([day, count]) => [new Date(day).getTime(), count])
 
-  const usedPct = me ? Math.min(100, Math.round((me.used / me.effectiveLimit) * 100)) : 0
+  const sessionPct = me ? Math.min(100, Math.round((sessions.length / (me.limits?.cliSessions ?? 10)) * 100)) : 0
 
   // active integrations from recent CLI sessions
   const seenIntegrations = [...new Set(sessions.slice(0, 20).map((s: any) => s.integration).filter(Boolean))] as string[]
@@ -359,7 +359,6 @@ function OverviewPage({
         {seenIntegrations.includes('claude-code') && <StatusChip label="Claude Code" value="Full firewall" ok={true} />}
         {seenIntegrations.includes('cursor') && <StatusChip label="Cursor" value="MCP gateway" ok={true} />}
         {seenIntegrations.includes('vscode') && <StatusChip label="VS Code" value="MCP gateway" ok={true} />}
-        <StatusChip label="Cloud optimizer" value={me?.used > 0 ? 'Enabled' : 'Enabled'} ok={true} />
       </div>
 
       {/* 4 stat cards */}
@@ -440,15 +439,15 @@ function OverviewPage({
               <CardHeader title="Plan usage" />
               <div style={{ padding: '14px 20px 16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
-                  <span style={{ color: 'var(--confire-text-dim)' }}>Remote optimizations</span>
+                  <span style={{ color: 'var(--confire-text-dim)' }}>Sessions</span>
                   <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                    {me.used.toLocaleString()} / {me.effectiveLimit.toLocaleString()}
+                    {sessions.length.toLocaleString()} / {(me.limits?.cliSessions ?? 10).toLocaleString()}
                   </span>
                 </div>
                 <div style={{ height: 4, background: 'var(--confire-border)', borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}>
                   <div style={{
-                    height: '100%', width: `${usedPct}%`,
-                    background: usedPct >= 80 ? '#f87171' : '#f4811f',
+                    height: '100%', width: `${sessionPct}%`,
+                    background: sessionPct >= 80 ? '#f87171' : '#f4811f',
                     borderRadius: 3, transition: 'width 0.3s',
                   }} />
                 </div>
@@ -611,11 +610,11 @@ function Dashboard404({ path }: { path: string }) {
 // ── billing page ─────────────────────────────────────────────────────────────
 
 const DEV_FEATURES = [
-  '5,000 remote optimizations/month',
+  'Custom firewall rules',
   'Custom dashboard guardrails',
   'Remote policy sync to local CLI',
-  'Optimization history',
-  'Larger input payloads',
+  'Full security event history',
+  'Provenance tracking',
   'Tool-use guidance',
   'Early access to new clients',
 ]
@@ -660,9 +659,8 @@ function BillingPage({ me, apiKey, workerBase, onRequestEarlyAccess }: {
     }
   }
 
-  const isFree        = !me || me.plan === 'free'
-  const isAnnual      = me?.plan?.includes('annual') ?? false
-  const usedPct       = me ? Math.min(100, Math.round((me.used / me.effectiveLimit) * 100)) : 0
+  const isFree          = !me || me.plan === 'free'
+  const isAnnual        = me?.plan?.includes('annual') ?? false
   const isPendingCancel = me?.cancelAtPeriodEnd || cancelStep === 'done'
   const periodEndLabel  = cancelledUntil ?? me?.periodEnd ?? null
   const canCancel       = !isFree && me
@@ -741,33 +739,6 @@ function BillingPage({ me, apiKey, workerBase, onRequestEarlyAccess }: {
         )}
       </Card>
 
-      {/* Usage */}
-      {me && (
-        <Card>
-          <CardHeader title="Usage this period" />
-          <div style={{ padding: '14px 20px 18px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
-              <span style={{ color: 'var(--confire-text-dim)' }}>Remote optimizations</span>
-              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                {me.used.toLocaleString()} / {me.effectiveLimit.toLocaleString()}
-              </span>
-            </div>
-            <div style={{ height: 6, background: 'var(--confire-border)', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
-              <div style={{
-                height: '100%', width: `${usedPct}%`,
-                background: usedPct >= 80 ? '#f87171' : '#f4811f',
-                borderRadius: 3, transition: 'width 0.3s',
-              }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--confire-text-muted)' }}>
-              <span>{usedPct}% used</span>
-              {me.purchasedCredits > 0 && (
-                <span>+{me.purchasedCredits.toLocaleString()} purchased credits</span>
-              )}
-            </div>
-          </div>
-        </Card>
-      )}
 
       {/* Dev early access (free plan) */}
       {isFree && (
@@ -775,7 +746,7 @@ function BillingPage({ me, apiKey, workerBase, onRequestEarlyAccess }: {
           <CardHeader title="Dev — $10/month soon, early access now" />
           <div style={{ padding: '16px 20px 20px' }}>
             <p style={{ fontSize: 13, color: 'var(--confire-text-dim)', margin: '0 0 16px', lineHeight: 1.6 }}>
-              Dev is opening soon for power users who want custom guardrails, higher remote limits, and full history.
+              Dev is opening soon for power users who want custom firewall rules, full security event history, and provenance tracking.
               Request access and we'll email you when it's ready.
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px', marginBottom: 18 }}>
