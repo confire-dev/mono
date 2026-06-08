@@ -10,7 +10,7 @@
 
 **Wrong direction (fixed):** Framing Free as “security only” and Dev as “MCP optimizers unlock” — undersells Free and misstates the product.
 
-**Correct direction:** Free = try Confire across supported clients (full Claude Code firewall + Cursor/VS Code gateway + built-in rules + basic optimizers). Dev = daily use (limits, custom guardrails, updated library, history). Always footnote client modes.
+**Correct direction:** Free = try Confire across supported clients (full Claude Code firewall + Cursor/VS Code gateway + built-in rules + noise trimming). Dev = daily use (limits, custom guardrails, policy sync, history). Always footnote client modes.
 
 **Priority fixes:** Pricing page (done in `copy-pricing.md`), homepage hero, remove Cline/Pro references, add support footnote everywhere clients are listed.
 

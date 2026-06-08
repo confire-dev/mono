@@ -16,9 +16,9 @@ The pipeline runs in this order for every tool call:
 
 1. **Security passes** (MCP tools only): secret redaction,
    hidden-unicode stripping, prompt-injection detection
-2. **Optimization passes**: noise trimming, source-aware MCP normalization
+2. **Noise trimming passes**: source-aware cleanup to remove logs, boilerplate, and irrelevant output
 
-Security runs first. By the time any optimization runs, sensitive values
+Security runs first. By the time any noise trimming runs, sensitive values
 are already redacted.
 
 ## What the agent sees
@@ -31,20 +31,10 @@ describes what was found or changed.
 If none of the passes changed anything, the original output passes
 through unchanged. Confire is a no-op when there's nothing to do.
 
-## Local vs. remote
+## Where processing runs
 
-All security passes run locally in the daemon — no data leaves your
-machine for redaction, injection detection, or unicode stripping.
-
-Optimization passes are split:
-
-- **Local** (free): Bash, Read, WebFetch, Generic fallback — run in
-  the daemon binary, zero network, ~1ms
-- **Remote** (paid): Figma, GitHub, all MCP-connected tools — sent
-  to `api.confire.dev` for source-aware processing
-
-Only structured telemetry events are sent to the cloud. Tool output
-content is never forwarded.
+All passes — security and noise trimming — run locally in the daemon.
+No tool output leaves your machine.
 
 ## Related pages
 
@@ -53,4 +43,4 @@ content is never forwarded.
   instruction injection
 - [MCP output sanitization](../mcp-output-sanitization) — the full
   MCP security pipeline
-- [Optimizers](../optimizers) — how noise trimming works per tool type
+- [Noise trimming](../noise-trimming) — how output is cleaned per tool type

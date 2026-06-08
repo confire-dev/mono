@@ -144,5 +144,5 @@ Tell a Claude Code or Cursor user: confire.dev`
 1. `Less noise in context = cheaper, faster, sharper AI agents.` (primary)
 2. `Your agent should read signal, not noise.`
 3. `Context is expensive. Confire compresses what doesn't need to be there.`
-4. `The optimizer that sits between your tools and your model.`
+4. `The firewall that sits between your tools and your model.`
 5. `What your agent sees matters. Make it count.`

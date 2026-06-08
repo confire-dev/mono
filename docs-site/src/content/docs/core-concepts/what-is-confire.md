@@ -37,15 +37,12 @@ Confire intercepts at `PreToolUse` and `PostToolUse`. It never
 modifies source files, project state, or agent configuration — only
 tool inputs and outputs.
 
-## Local vs. remote processing
+## Local-first
 
-Core security passes and local context passes run entirely on your machine —
-no account required, no data leaves. Remote context passes (Figma, GitHub,
-all MCP tools) run in Confire's cloud at `api.confire.dev` and require
-a paid plan. When you're offline or the connection drops, local processing
-continues uninterrupted.
+All firewall decisions and context passes — security, noise trimming,
+MCP normalization — run in the daemon on your machine. No tool output
+leaves your machine.
 
-Policy rules are evaluated locally in all modes. Your tool calls and
-tool output are never forwarded to the cloud for firewall decisions —
-only structured telemetry events (risk level, action taken, session
-metadata) are sent, and only tool output content is never included.
+Structured telemetry events (risk level, action taken, session
+metadata) are sent to the cloud when you're logged in. Tool call
+content is never included.

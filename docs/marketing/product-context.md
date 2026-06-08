@@ -20,7 +20,7 @@ Keep AI coding agents cleaner and safer.
 Confire reviews risky tool calls before they run and sanitizes noisy tool output before it enters context.
 
 **Footnote (required on pricing + features):**  
-Claude Code supports full hook-based firewall mode. Cursor and VS Code support MCP gateway mode for tools routed through Confire. Remote optimizations receive sanitized/redacted content only.
+Claude Code supports full hook-based firewall mode. Cursor and VS Code support MCP gateway mode for tools routed through Confire.
 
 ---
 
@@ -38,10 +38,10 @@ Confire reviews risky agent tool calls before they run and sanitizes noisy tool 
 |---|------|-----|
 | **Best for** | Trying Confire | Daily AI coding |
 | **Price** | $0 | $10/mo or $90/yr |
-| **Core promise** | Basic context + tool firewall across supported clients | Higher limits, custom guardrails, updated optimizers, history |
+| **Core promise** | Full context + tool firewall across supported clients | Higher limits, custom guardrails, policy sync, full history |
 
-**Do not frame as:** “Security free, optimizers paid.”  
-**Do frame as:** “Free lets you try Confire end-to-end on supported clients. Dev is for always-on daily use with custom rules and a continuously updated library.”
+**Do not frame as:** "Security free, optimizers paid."  
+**Do frame as:** "Free lets you try Confire end-to-end on supported clients. Dev is for always-on daily use with custom rules and a continuously updated library."
 
 ---
 
@@ -49,9 +49,9 @@ Confire reviews risky agent tool calls before they run and sanitizes noisy tool 
 
 | Client | Mode | What Confire does |
 |--------|------|-------------------|
-| **Claude Code** | Full hooks | PreToolUse risky-action review + PostToolUse sanitization/optimization |
-| **Cursor** | MCP gateway | Protects/optimizes tools routed through Confire |
-| **VS Code** | MCP gateway | Protects/optimizes tools routed through Confire |
+| **Claude Code** | Full hooks | PreToolUse risky-action review + PostToolUse sanitization + noise trimming |
+| **Cursor** | MCP gateway | Protects/sanitizes tools routed through Confire |
+| **VS Code** | MCP gateway | Protects/sanitizes tools routed through Confire |
 
 Always include the footnote when listing clients. Never imply Cursor/VS Code get the same hook depth as Claude Code.
 
@@ -64,7 +64,7 @@ Always include the footnote when listing clients. Never imply Cursor/VS Code get
 **For:** Trying Confire with your AI coding agent.
 
 **Card copy:**  
-Try Confire’s local firewall for Claude Code, Cursor, and VS Code. Clean noisy tool output and review risky agent actions with built-in rules.
+Try Confire's local firewall for Claude Code, Cursor, and VS Code. Clean noisy tool output and review risky agent actions with built-in rules.
 
 **CTA:** Start free
 
@@ -73,28 +73,25 @@ Try Confire’s local firewall for Claude Code, Cursor, and VS Code. Clean noisy
 **Claude Code**
 - Full hook-based firewall
 - PreToolUse risky action review
-- PostToolUse output sanitization + optimization
+- PostToolUse output sanitization + noise trimming
 
 **Cursor**
 - MCP gateway mode
-- Protects/optimizes Confire-routed MCP/tool calls
+- Protects/sanitizes Confire-routed MCP/tool calls
 
 **VS Code**
 - MCP gateway mode
-- Protects/optimizes Confire-routed MCP/tool calls
+- Protects/sanitizes Confire-routed MCP/tool calls
 
 **Platform**
 - Local CLI
 - Built-in firewall rules (risky Git/GitHub, destructive shell/DB, publish/deploy warnings, mutating MCP review)
-- Basic secret redaction
-- Basic prompt-injection pattern sanitization
-- Universal fallback optimizer
-- Basic local optimizers
-- 500 remote optimizations/month
+- Secret redaction
+- Prompt-injection pattern sanitization
+- Built-in noise trimming (Bash, WebFetch, MCP, Generic)
 - Basic token/context savings stats
 - Local policy evaluation
 - Local-only mode
-- Community/basic optimizer updates
 
 ---
 
@@ -103,23 +100,19 @@ Try Confire’s local firewall for Claude Code, Cursor, and VS Code. Clean noisy
 **For:** Daily AI coding with Confire always on.
 
 **Card copy:**  
-Use Confire daily with higher limits, custom firewall rules, updated source-specific optimizers, and local policy sync across supported clients.
+Use Confire daily with higher limits, custom firewall rules, and local policy sync across supported clients.
 
 **CTA:** Start Dev
 
 ### Includes everything in Free, plus
 
-- 5,000 remote optimizations/month
 - Custom guardrail rules from dashboard
 - Remote policy sync to local CLI
 - Rule cache for offline/local evaluation
-- Growing source-specific optimizer library
-- Continuous optimizer + firewall rule updates
-- Larger input payload limits
-- Optimization history
 - Firewall history (reviewed, blocked, sanitized, secrets redacted)
-- Tool-use guidance (“do not refetch”, safer/narrower tool, MCP mutates external state)
+- Larger input payload limits
 - More detailed savings stats (bytes, estimated tokens, estimated cost, top noisy tools)
+- Tool-use guidance ("do not refetch", safer/narrower tool, MCP mutates external state)
 - Cursor/VS Code MCP gateway advanced rules
 - Early access to new clients/adapters
 - Priority fixes for client/tool compatibility
@@ -144,20 +137,16 @@ Future: shared policies, audit logs, team dashboard, self-hosting, admin-enforce
 - ✓ Local CLI
 - ✓ Built-in risky action review
 - ✓ Secret + prompt-injection sanitization
-- ✓ Universal fallback optimizer
-- ✓ Basic local optimizers
-- ✓ 500 remote optimizations/mo
+- ✓ Built-in noise trimming
 - ✓ Basic savings stats
 
 ### Dev card
 - ✓ Everything in Free
-- ✓ 5,000 remote optimizations/mo
 - ✓ Custom dashboard guardrails
 - ✓ Remote policy sync
-- ✓ Growing optimizer library
-- ✓ Continuous firewall updates
+- ✓ Firewall history
 - ✓ Larger payloads
-- ✓ Optimization + firewall history
+- ✓ Detailed savings stats
 - ✓ Tool-use guidance
 - ✓ Early access to new adapters
 
@@ -171,23 +160,23 @@ Future: shared policies, audit logs, team dashboard, self-hosting, admin-enforce
 
 ## Jobs to be done
 
-1. “I want to try a firewall without committing” → Free, all supported clients
-2. “Confire is part of every session now” → Dev (limits, custom rules, updates)
-3. “My agent runs dangerous commands” → built-in rules (Free); custom rules (Dev)
-4. “Tool output bloats my context” → optimizers + stats (Free basic; Dev advanced)
+1. "I want to try a firewall without committing" → Free, all supported clients
+2. "Confire is part of every session now" → Dev (limits, custom rules, history)
+3. "My agent runs dangerous commands" → built-in rules (Free); custom rules (Dev)
+4. "Tool output bloats my context" → built-in noise trimming + stats (Free); detailed stats + larger payloads (Dev)
 
 ## Brand voice
 
 - Direct, technical, honest about client modes
 - Numbers when provable; no overpromise on Cursor/VS Code vs Claude Code
 - Free is real try-out, not a crippled trial
-- Silent SessionStart on healthy sessions — don’t spam context
+- Silent SessionStart on healthy sessions — don't spam context
 
 ## Primary CTAs
 
 - Free: `Start free` — no card
 - Dev: `Start Dev`
-- At limit: point to pricing; frame as daily-workflow upgrade, not “unlock security”
+- At limit: point to pricing; frame as daily-workflow upgrade, not "unlock security"
 
 ## Open decisions
 

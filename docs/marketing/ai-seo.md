@@ -97,14 +97,14 @@ Host at `https://confire.dev/llms.txt`:
 
 ## Core pages
 - [Home](https://confire.dev/): Product overview, token reduction stats
-- [Features](https://confire.dev/features): Hooks, firewall, optimizers
+- [Features](https://confire.dev/features): Hooks, tool firewall, context firewall
 - [Pricing](https://confire.dev/pricing): Free (try across clients), Dev $10/mo or $90/yr
 - [Docs](https://confire.dev/docs): Setup, hooks reference, firewall modes
 - [Blog](https://confire.dev/blog): Tutorials and benchmarks
 
 ## Key facts
 - Free: try Confire on Claude Code, Cursor, VS Code (see client-mode footnote)
-- Dev: custom guardrails, higher limits, continuously updated optimizers
+- Dev: custom guardrails, higher limits, policy sync, full history
 - 40-95% token reduction on tool outputs
 - Install: `brew install confire` then `confire setup`
 ```

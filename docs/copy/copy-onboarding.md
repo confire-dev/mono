@@ -199,7 +199,7 @@ Hey,
 You're now on the Dev plan. Here's what you have:
 
 - [X] optimized calls/month
-- Priority cloud optimizer (faster processing)
+- Custom guardrail rules from dashboard
 - Usage analytics at `confire stats`
 
 Your next billing date is [date]. Manage your subscription at confire.dev/account.
@@ -281,8 +281,8 @@ That's it. Confire runs automatically from here. You don't need to think about i
 
 **No internet / cloud unreachable:**
 ```
-Cloud optimizer unreachable. Using local optimizer instead.
-Performance is identical — latency may be slightly higher.
+Cloud policy sync unavailable. Running in local-only mode.
+Built-in rules and local firewall continue uninterrupted.
 ```
 
 **Hook not installed / misconfigured:**

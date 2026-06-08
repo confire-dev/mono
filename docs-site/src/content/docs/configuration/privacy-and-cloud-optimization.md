@@ -1,5 +1,5 @@
 ---
-title: Privacy and cloud processing
+title: Privacy
 description: >-
   What data stays on your machine and what is sent to
   Confire's cloud for telemetry and policy sync.

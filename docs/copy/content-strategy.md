@@ -2,11 +2,11 @@
 
 ## Business Context
 
-**Product:** Confire — a CLI tool (Go) that optimizes AI agent tool call outputs before they reach the model context window.  
-**Core value:** Reduces token cost by 40–95% on Bash logs, web fetches, GitHub responses, Figma files, and other verbose tool outputs.  
-**Integration:** Works as a hook for Claude Code, Cursor, Cline, and other AI coding agents.  
-**Infrastructure:** Cloud optimizer (Cloudflare Worker) + local fallback.  
-**Plans:** Free (500 calls/month), Dev, Pro.  
+**Product:** Confire — a CLI tool (Go) that acts as a context and tool firewall for AI coding agents. Reviews risky tool calls before execution and sanitizes noisy tool output before it enters context.  
+**Core value:** Reduces context noise by 40–95% on Bash logs, web fetches, and other verbose tool outputs. Blocks or reviews risky tool calls.  
+**Integration:** Works as a hook for Claude Code, Cursor, and VS Code.  
+**Infrastructure:** All-local daemon. No cloud round-trip for processing.  
+**Plans:** Free, Dev ($10/mo or $90/yr), Team (coming soon).  
 **Tagline direction:** "Less noise in context = cheaper, faster, sharper AI agents."  
 **Website:** confire.dev  
 
@@ -131,7 +131,7 @@ Scored on: Customer Impact (40%), Content-Market Fit (30%), Search Potential (20
 
 | # | Topic | Type | Keyword Target | Buyer Stage | Score |
 |---|-------|------|----------------|-------------|-------|
-| 16 | How we built Confire's Cloudflare Worker optimizer | Shareable | "cloudflare worker AI tool" | Awareness | 6.9 |
+| 16 | How Confire's context firewall works under the hood | Shareable | "ai agent tool firewall" | Awareness | 6.9 |
 | 17 | GitHub API response compression for LLM agents | Searchable | "github api llm compression" | Implementation | 6.8 |
 | 18 | Alternatives to Claude Code for AI-assisted development | Searchable | "claude code alternatives" | Consideration | 6.7 |
 | 19 | How to run Claude Code in CI/CD pipelines | Searchable | "claude code CI pipeline" | Implementation | 6.6 |
@@ -150,7 +150,7 @@ PILLAR 1: AI Agent Token Cost & Context Efficiency
 ├── Reducing token costs (Consideration hub)
 │   ├── How to reduce token usage in Claude Code
 │   ├── Token cost benchmarks across AI coding tools
-│   └── Free vs paid plans for Claude Code
+│   └── Free vs Dev: when to upgrade Confire
 └── Tool call output optimization (Implementation hub)
     ├── Why tool outputs are the biggest context hog
     ├── How Confire compresses tool call outputs
@@ -175,7 +175,7 @@ PILLAR 3: Developer Tooling for AI Agents
 ├── AI agent architecture (Awareness hub)
 │   ├── What is MCP and how does it work?
 │   ├── AI agent tool design patterns
-│   └── Local vs cloud processing for agent hooks
+│   └── Local-first processing for agent hooks
 └── Observability & monitoring (Consideration hub)
     ├── Best AI agent observability tools
     ├── Logging tool call inputs and outputs

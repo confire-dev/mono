@@ -11,7 +11,7 @@
 | Component | Status |
 |-----------|--------|
 | CLI (Homebrew + direct install) | ✅ |
-| Cloud optimizer + local fallback | ✅ |
+| Local-first firewall (no cloud round-trip) | ✅ |
 | Built-in firewall (free) | ✅ |
 | Dev tier ($10/mo or $90/yr) | ✅ |
 | Custom guardrails + policy sync | ✅ Dev only |
@@ -127,7 +127,7 @@
 | Update size | Channels |
 |-------------|----------|
 | **Major** (Team tier, new host) | Blog + email + PH + social |
-| **Medium** (new optimizer, VS Code parity) | Changelog + X + in-app |
+| **Medium** (new firewall rules, VS Code parity) | Changelog + X + in-app |
 | **Minor** (bugfix, rule tweak) | Changelog only |
 
 **Rule:** Ship visible improvements every 2–3 weeks minimum to sustain narrative.

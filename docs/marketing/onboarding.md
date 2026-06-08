@@ -86,7 +86,7 @@ Optional email +1h with same CTA if no stats run yet.
 
 ### Step 5: Dev upgrade (optional)
 
-Trigger at 80% remote quota OR when user needs custom guardrails, history, or continuous optimizer updates.
+Trigger when user needs custom guardrails, full history, or policy sync.
 
 ---
 

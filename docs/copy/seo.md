@@ -6,7 +6,7 @@ Confire's buyers are technical. They search with specificity:
 - They know what Claude Code is, they just want it cheaper/faster
 - They compare tools before committing (Claude Code vs Cursor)
 - They search for implementation help (how to write hooks, set up tools)
-- They don't search for "AI agent optimizer" — they search for their symptom ("claude code expensive", "context window full")
+- They don't search for "AI agent firewall" by name — they search for their symptom ("claude code expensive", "context window full", "agent ran dangerous command")
 
 ---
 
@@ -49,7 +49,7 @@ Confire's buyers are technical. They search with specificity:
 | how to write a claude code hook | Implementation | Tutorial |
 | mcp tool output compression | Implementation | Guide |
 | github api response too large for context | Symptom | Guide |
-| confire ai optimizer | Branded | Homepage / Product page |
+| confire ai firewall | Branded | Homepage / Product page |
 
 ---
 
@@ -107,7 +107,7 @@ confire.dev/
 
 ### /pricing
 
-**Target keywords:** confire pricing, ai agent optimizer pricing, claude code cost reducer  
+**Target keywords:** confire pricing, ai agent firewall pricing, claude code cost reducer  
 **Meta title:** `Confire Pricing — Free, Dev, and Pro Plans`  
 **Meta description:** `Start free with 500 optimizations/month. Upgrade to Dev or Pro as your agent usage grows. No surprise bills.`
 

@@ -33,7 +33,7 @@
 ### Phase 1: Founding members (Weeks 1–4)
 
 1. **Recruit 30–50 manually** — DM beta users, GitHub stargazers, friends using Claude Code daily
-2. **Open GitHub Discussions** with categories: `Show & Tell`, `Help`, `Feature Ideas`, `Optimizer Requests`
+2. **Open GitHub Discussions** with categories: `Show & Tell`, `Help`, `Feature Ideas`, `Rule Requests`
 3. **Seed 10 posts** before announcing publicly (stats screenshots, setup tips, firewall rule explanations)
 4. **Discord:** Single server, channels: `#welcome`, `#setup-help`, `#stats-wins`, `#feature-requests`
 5. **Weekly ritual:** "What did Confire save you this week?" thread (stats screenshots encouraged)
@@ -43,7 +43,7 @@
 1. Pin **New Member Journey** in Discord + Discussions README
 2. Link community from docs footer, post-setup CLI message (one-time welcome only)
 3. **Surface wins:** Retweet/quote user stats posts; add to `/customers` when available
-4. **Monthly AMA** with founder — firewall roadmap, new optimizers, Team tier preview
+4. **Monthly AMA** with founder — firewall roadmap, new rules and sanitization updates, Team tier preview
 
 ### Phase 3: Advocate program (Weeks 9–12)
 
@@ -92,7 +92,7 @@ Dev hits token pain → finds Confire → posts stats win
 
 **Accelerators:**
 - Make stats output shareable (pretty terminal or `confire stats --json` → badge generator — future)
-- Credit community feedback in changelog ("Thanks @user for the Jira optimizer idea")
+- Credit community feedback in changelog ("Thanks @user for the Jira sanitization idea")
 
 ---
 
@@ -118,7 +118,7 @@ Dev hits token pain → finds Confire → posts stats win
 
 **Benefits:**
 - Founding Team pricing when shipped ($15/seat grandfathered)
-- Early access to new optimizers
+- Early access to new client adapters and rule updates
 - `@Advocate` role + referral link with tracking
 
 **Tools provided:**
