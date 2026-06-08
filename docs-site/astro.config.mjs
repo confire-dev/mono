@@ -50,7 +50,7 @@ export default defineConfig({
           label: 'Context Firewall',
           items: [
             { label: 'Overview',                slug: 'context-firewall/overview' },
-            { label: 'Optimizers',              slug: 'context-firewall/optimizers' },
+            { label: 'Noise trimming',           slug: 'context-firewall/noise-trimming' },
             { label: 'Secret redaction',        slug: 'context-firewall/secret-redaction' },
             { label: 'Injection guard',         slug: 'context-firewall/injection-guard' },
             { label: 'MCP output sanitization', slug: 'context-firewall/mcp-output-sanitization' },
@@ -73,7 +73,7 @@ export default defineConfig({
           items: [
             { label: 'Config file',                    slug: 'configuration/config-file' },
             { label: 'Per-agent settings',             slug: 'configuration/per-agent-settings' },
-            { label: 'Privacy and cloud optimization', slug: 'configuration/privacy-and-cloud-optimization' },
+            { label: 'Privacy',                        slug: 'configuration/privacy-and-cloud-optimization' },
           ],
         },
         {
