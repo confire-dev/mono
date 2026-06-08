@@ -50,7 +50,7 @@ confire config set worker_url=
 
 Setting `worker_url` to empty disables cloud telemetry and policy sync.
 The local firewall — secret redaction, injection guard, built-in rules,
-local optimizers — continues running uninterrupted.
+local firewall and context passes — continue running uninterrupted.
 
 Alternatively, don't log in. Without an API key, the daemon uses
 local-only mode automatically.

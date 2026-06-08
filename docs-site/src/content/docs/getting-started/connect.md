@@ -60,21 +60,21 @@ confire start
 ```
 
 The daemon runs in the background and handles all firewall evaluation
-and optimization. Setup starts it automatically, but run this if you
+and context processing. Setup starts it automatically, but run this if you
 stopped it with `confire stop`.
 
-## Log in for remote optimizers
+## Log in for cloud policy sync
 
-Local optimizers (Bash, Read, WebFetch) work without an account.
-Remote optimizers for Figma, GitHub, and all other MCP-connected
-tools require a Confire account:
+The firewall works without an account — all local security passes and
+policy evaluation run offline. Logging in enables cloud policy sync,
+the security event dashboard, and custom firewall rules:
 
 ```bash
 confire login
 ```
 
-This opens a browser to authenticate. Once logged in, remote
-optimizers activate automatically when the relevant tools are called.
+This opens a browser to authenticate. Once logged in, security events
+sync to your dashboard and custom rules pull automatically.
 
 ## Next step
 

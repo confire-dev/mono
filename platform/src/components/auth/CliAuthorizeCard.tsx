@@ -17,7 +17,7 @@ const PERMISSIONS = [
   {
     label: 'Context Firewall',
     count: 3,
-    items: ['Apply security passes (redaction, injection detection)', 'Apply context optimization (noise trimming)', 'Read firewall rules and config'],
+    items: ['Apply security passes (redaction, injection detection)', 'Apply context filtering (noise trimming)', 'Read firewall rules and config'],
   },
   {
     label: 'Billing & Subscription',

@@ -52,7 +52,7 @@ firewall. Use `confire on` / `confire off` as shortcuts.
 
 | Key | Values | Description |
 |---|---|---|
-| `worker_url` | URL | Override the remote optimizer endpoint |
+| `worker_url` | URL | Override the cloud worker endpoint (policy sync, telemetry) |
 
 ## Examples
 

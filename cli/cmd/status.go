@@ -94,15 +94,15 @@ func runStatus() error {
 		}
 	}
 
-	// ── Optimizer ─────────────────────────────────────────────────────────
-	fmt.Printf("\n  %sOptimizer%s\n", dim, reset)
+	// ── Context Firewall ──────────────────────────────────────────────────
+	fmt.Printf("\n  %sContext Firewall%s\n", dim, reset)
 	daemonRunning := isDaemonRunning()
 	switch {
 	case !hasKey:
-		fmt.Printf("  %s  Status             %sdisabled — run `confire login` to enable%s\n",
-			tick(false), dim, reset)
+		fmt.Printf("  %s  Status             %slocal-only (run `confire login` for cloud policy sync)%s\n",
+			tick(true), dim, reset)
 	case daemonRunning:
-		fmt.Printf("  %s  Status             %sactive (cloud + local fallback)%s\n",
+		fmt.Printf("  %s  Status             %sactive (cloud + local)%s\n",
 			tick(true), green, reset)
 	default:
 		fmt.Printf("  %s  Status             %sstopped — run `confire start`%s\n",

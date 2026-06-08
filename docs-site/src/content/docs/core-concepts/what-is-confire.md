@@ -17,7 +17,7 @@ happens.
 
 **Context Firewall (PostToolUse)** — processes tool output before it
 enters the model context. Runs security passes (secret redaction,
-hidden-unicode stripping, injection detection) and optimization passes
+hidden-unicode stripping, injection detection) and context passes
 (noise trimming, MCP normalization) on every response. The model sees
 cleaner, safer output.
 
@@ -39,8 +39,8 @@ tool inputs and outputs.
 
 ## Local vs. remote processing
 
-Core security passes and local optimizers run entirely on your machine —
-no account required, no data leaves. Remote optimizers (Figma, GitHub,
+Core security passes and local context passes run entirely on your machine —
+no account required, no data leaves. Remote context passes (Figma, GitHub,
 all MCP tools) run in Confire's cloud at `api.confire.dev` and require
 a paid plan. When you're offline or the connection drops, local processing
 continues uninterrupted.

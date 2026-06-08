@@ -15,15 +15,15 @@ available in each depend on what the agent's hook API exposes.
 | Tool Firewall (PreToolUse) | ✓ | ✓ | ✓ |
 | Context Firewall (PostToolUse) | ✓ | ✓ | ✓ |
 | Replace native tool output | ✓ | — | — |
-| Optimize native tools (Bash, Read, WebFetch) | ✓ | — | — |
-| Optimize MCP tool output | ✓ | ✓ | ✓ |
+| Trim native tool noise (Bash, Read, WebFetch) | ✓ | — | — |
+| Process MCP tool output | ✓ | ✓ | ✓ |
 | Post-tool steering via `additional_context` | ✓ | ✓ | ✓ |
 
 ## What "replace native tool output" means
 
 Claude Code's hook API lets Confire return a modified `toolOutput`
 that the agent uses in place of the original. This is how native
-tool optimization works: the daemon strips noise from Bash stdout,
+context passes work: the daemon strips noise from Bash stdout,
 caps large file reads, and cleans up WebFetch responses — then
 returns the trimmed version.
 
@@ -32,14 +32,14 @@ hook APIs. Confire can't rewrite what the agent sees from native
 tools like `bash` or `read`. Instead, it uses the
 `additional_context` mechanism: the agent receives the original
 output plus a steering note in context. For this reason, native
-tool optimization (Bash, Read, WebFetch) is only fully effective
+tool context passes (Bash, Read, WebFetch) are only fully effective
 in Claude Code.
 
 ## MCP tools work everywhere
 
 MCP tool output can be replaced in all supported agents. When your
 agent calls a Figma, GitHub, Slack, or any other MCP tool, Confire
-can return optimized and sanitized output regardless of which
+can return sanitized and filtered output regardless of which
 agent you're using.
 
 ## Checking your client mode

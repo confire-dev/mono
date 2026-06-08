@@ -26,7 +26,7 @@ confire status
 `confire status` shows which agents were detected, whether hooks are
 installed, and whether the daemon is running. If everything went
 smoothly, you'll see green checkmarks next to your agent and the
-optimizer status.
+context firewall status.
 
 ## Next step
 

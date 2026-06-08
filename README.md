@@ -6,7 +6,7 @@ Context firewall for AI coding agents. Reviews risky tool calls before they run 
 
 ```
 cli/        Go CLI + daemon — runs on the developer's machine
-worker/     Cloudflare Worker — remote optimizer + account API (TypeScript)
+worker/     Cloudflare Worker — cloud policy sync + telemetry API (TypeScript)
 platform/   Astro web app — dashboard, login, billing, pricing
 docs/       Architecture, decisions, hook contract, internal ops
 ```
