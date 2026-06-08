@@ -51,7 +51,7 @@
 **Insight:** Give first → obligation to try / upgrade later.
 
 **Application:**
-- **Free is a real try-out** — full Claude Code firewall + Cursor/VS Code gateway + built-in rules + basic optimizers
+- **Free is a real try-out** — full Claude Code firewall + Cursor/VS Code gateway + built-in rules + noise trimming
 - 500 remote optimizations/mo is usable, not a 7-day trial
 - `confire stats` shows savings before asking for Dev
 
@@ -156,7 +156,7 @@
 
 ```
 ⚠️ 412/500 optimizations used this month.
-    Source-specific optimizers + custom rules on Dev.
+    Custom guardrail rules on Dev.
     Upgrade: confire.dev/pricing
 ```
 

@@ -46,16 +46,16 @@ confire setup
 **Body:** Every time your agent runs a Bash command, fetches a URL, or calls a tool, Confire processes the response before it reaches the model context.
 
 **Step 3**  
-**Heading:** Your agent gets clean, compressed context  
-**Body:** The model sees exactly what it needs — no verbose stack traces, no 10,000-line GitHub API blobs, no noise. Fewer tokens. Same results.
+**Heading:** Your agent gets clean, filtered context  
+**Body:** The model sees exactly what it needs — no verbose stack traces, no bloated API responses, no noise. Less context pollution. Same results.
 
 ---
 
 ## Results / Proof Section
 
-**Section heading:** Real token reduction. Not rounding.
+**Section heading:** Real noise reduction. Not rounding.
 
-**Subhead:** We compress the verbose parts of agentic workflows that eat context without adding value.
+**Subhead:** Confire trims the verbose parts of agentic workflows that eat context without adding value.
 
 **Stat cards:**
 
@@ -68,7 +68,7 @@ confire setup
 | General tool output | 40–95% |
 
 **Supporting copy:**  
-Confire uses a cloud optimizer (Cloudflare Worker) with a local fallback. Latency is under 50ms on optimized calls. Your agent doesn't wait — it just gets better input.
+All processing runs locally in the Confire daemon. No proxy, no cloud round-trip.
 
 ---
 
@@ -79,22 +79,22 @@ Confire uses a cloud optimizer (Cloudflare Worker) with a local fallback. Latenc
 **Feature 1**  
 **Icon:** hook/connector  
 **Heading:** Drop-in hook for Claude Code & Cursor  
-**Body:** Confire works as a PostToolUse hook. No changes to your workflow. Works with Claude Code, Cursor, and Cline out of the box.
+**Body:** Confire works as a PostToolUse hook. No changes to your workflow. Works with Claude Code, Cursor, and VS Code out of the box.
 
 **Feature 2**  
-**Icon:** cloud + server  
-**Heading:** Cloud optimizer with local fallback  
-**Body:** Processing happens on Cloudflare's edge network. If the cloud is unreachable, the local optimizer kicks in automatically. Always on.
+**Icon:** shield  
+**Heading:** Local-first by default  
+**Body:** All firewall decisions and context passes run in the daemon on your machine. No tool output leaves your machine.
 
 **Feature 3**  
 **Icon:** chart/graph  
 **Heading:** Usage stats and savings tracking  
-**Body:** Run `confire stats` to see how many tokens you've saved, which tools produce the most noise, and your monthly usage across calls.
+**Body:** Run `confire stats` to see how many tool calls were processed, which tools produce the most noise, and your session activity.
 
 **Feature 4**  
 **Icon:** lock/shield  
 **Heading:** Your data stays yours  
-**Body:** Confire processes tool output content to compress it, but does not store, log, or share the content of your tool calls.
+**Body:** Tool output content is processed locally and never forwarded to the cloud. Only structured telemetry events (risk level, action taken) are sent when you're logged in.
 
 **Feature 5**  
 **Icon:** bolt/speed  
@@ -104,7 +104,7 @@ Confire uses a cloud optimizer (Cloudflare Worker) with a local fallback. Latenc
 **Feature 6**  
 **Icon:** CLI  
 **Heading:** Simple CLI, no dashboard required  
-**Body:** `confire setup` · `confire login` · `confire stats` · `confire start` · `confire stop`. That's the whole surface area.
+**Body:** `confire setup` · `confire login` · `confire status` · `confire start` · `confire stop`. That's the whole surface area.
 
 ---
 
@@ -112,13 +112,12 @@ Confire uses a cloud optimizer (Cloudflare Worker) with a local fallback. Latenc
 
 **Section heading:** Plugs into your existing stack
 
-**Subhead:** If you use Claude Code, Cursor, or Cline today, Confire starts working in under a minute.
+**Subhead:** If you use Claude Code, Cursor, or VS Code today, Confire starts working in under a minute.
 
 **Integration badges/logos:**
 - Claude Code (Anthropic)
 - Cursor
 - VS Code
-- Cloudflare (infrastructure)
 
 **Small-print copy:**  
 Claude Code uses full PreToolUse/PostToolUse hooks. Cursor and VS Code use MCP gateway mode for tools routed through Confire.
@@ -134,24 +133,24 @@ Claude Code uses full PreToolUse/PostToolUse hooks. Cursor and VS Code use MCP g
 **Free — $0/mo**  
 For trying Confire with your AI coding agent.
 
-Try Confire’s local firewall for Claude Code, Cursor, and VS Code. Clean noisy tool output and review risky agent actions with built-in rules.
+Try Confire's local firewall for Claude Code, Cursor, and VS Code. Clean noisy tool output and review risky agent actions with built-in rules.
 
 - Claude Code full firewall
 - Cursor + VS Code MCP gateway
-- 500 remote optimizations/month
-- Basic savings stats
+- Built-in noise trimming
+- Basic security event stats
 
 `Start free →`
 
 **Dev — $10/mo · $90/yr**  
 For daily AI coding with Confire always on.
 
-Use Confire daily with higher limits, custom firewall rules, updated source-specific optimizers, and local policy sync.
+Use Confire daily with higher limits, custom firewall rules, and local policy sync.
 
 - Everything in Free
-- 5,000 remote optimizations/month
 - Custom dashboard guardrails
-- Optimization + firewall history
+- Policy sync
+- Full security event history
 
 `Start Dev →`
 
@@ -161,7 +160,7 @@ Shared policies, audit logs, team dashboard.
 `Notify me →`
 
 **Footnote below pricing:**  
-Claude Code supports full hook-based firewall mode. Cursor and VS Code support MCP gateway mode for tools routed through Confire. Remote optimizations receive sanitized/redacted content only.
+Claude Code supports full hook-based firewall mode. Cursor and VS Code support MCP gateway mode for tools routed through Confire.
 
 ---
 
@@ -196,7 +195,7 @@ Takes 30 seconds to install. Works immediately.
 
 ## SEO Notes for Homepage
 
-- **Title tag:** `Confire — Reduce AI Agent Token Costs by Up to 95%`
-- **Meta description:** `Confire is a context optimizer for Claude Code, Cursor, and Cline. Cut token costs on Bash logs, GitHub responses, and web fetches without changing how you work.`
+- **Title tag:** `Confire — Context and Tool Firewall for AI Coding Agents`
+- **Meta description:** `Confire is a context and tool firewall for Claude Code, Cursor, and VS Code. Review risky tool calls and clean noisy outputs before they reach your agent.`
 - **H1:** matches hero headline (or close variant)
 - **Schema:** SoftwareApplication + FAQPage

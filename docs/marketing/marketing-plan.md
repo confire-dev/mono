@@ -11,7 +11,7 @@
 
 **Three big bets (12 months):**
 1. **Own Claude Code + Cursor + VS Code SEO** — become the default answer for "reduce agent context" and "AI coding agent firewall"
-2. **Product-led proof** — every user tries full firewall + optimizers on supported clients via Free; Dev when daily workflow
+2. **Product-led proof** — every user tries full firewall + noise trimming on supported clients via Free; Dev when daily workflow
 3. **Community-led WOM** — GitHub Discussions + stats screenshots as referral engine
 
 **90-day priorities:**
@@ -107,7 +107,7 @@ See [onboarding.md](./onboarding.md) for full flow design.
 | Move | When |
 |------|------|
 | Monthly stats email ("You saved X tokens") | Month 2 |
-| Changelog + new optimizer announcements | Biweekly |
+| Changelog + new rule and sanitization updates | Biweekly |
 | Firewall rule updates (silent) | Ongoing |
 | Re-engage stalled: no stats in 14 days | Month 3 |
 | Team waitlist nurture | Pre-Team launch |

@@ -144,7 +144,7 @@ If you don't want to write and maintain hooks yourself, Confire handles this aut
 confire setup
 ```
 
-Confire adds a PostToolUse hook that sends each tool output through a purpose-built optimizer (cloud or local). It handles Bash, GitHub, web fetches, Figma outputs, and more — averaging 40–95% compression. See your savings with `confire stats`.
+Confire adds PreToolUse and PostToolUse hooks that review risky calls and trim noisy tool output locally before it reaches context. It handles Bash, web fetches, MCP responses, and more — averaging 40–95% reduction. See your savings with `confire stats`.
 
 #### PreToolUse Hook: Blocking Dangerous Commands
 

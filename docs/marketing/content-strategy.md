@@ -12,7 +12,7 @@ See also: existing pillar draft in `docs/copy/content-strategy.md` — this doc 
 
 | Field | Value |
 |-------|-------|
-| Product | CLI + cloud optimizer + local firewall for AI coding agents |
+| Product | CLI + context and tool firewall for AI coding agents |
 | ICP | Daily Claude Code / Cursor / VS Code users feeling cost or safety pain |
 | Plans | Free (try across clients), Dev $10/mo or $90/yr |
 | Tagline | Less noise in context = cheaper, faster, sharper AI agents |
@@ -126,7 +126,7 @@ PILLAR 3: Security
 PILLAR 4: Compression
 ├── Hub: Bash output for LLMs
 │   ├── GitHub API noise
-│   └── MCP optimizer deep dives
+│   └── MCP output sanitization deep dives
 
 PILLAR 5: Business case
 ├── Hub: ROI of context optimization

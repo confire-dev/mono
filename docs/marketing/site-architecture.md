@@ -131,7 +131,7 @@ Use BreadcrumbList schema.
 | Hub | Spokes |
 |-----|--------|
 | `/features/security` | Blog: agent security, firewall modes, docs firewall reference |
-| `/features/optimization` | Blog: token cost, bash compression, MCP optimizers |
+| `/features/optimization` | Blog: token cost, bash compression, MCP output sanitization |
 | `/integrations/claude-code` | Docs quickstart, blog hooks post |
 | `/pricing` | All feature pages, compare page |
 
