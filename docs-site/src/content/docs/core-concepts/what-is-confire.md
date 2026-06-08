@@ -17,7 +17,7 @@ happens.
 
 **Context Firewall (PostToolUse)** — processes tool output before it
 enters the model context. Runs security passes (secret redaction,
-hidden-unicode stripping, injection detection) and optimization passes
+hidden-unicode stripping, injection detection) and context passes
 (noise trimming, MCP normalization) on every response. The model sees
 cleaner, safer output.
 
@@ -39,12 +39,13 @@ tool inputs and outputs.
 
 ## Local vs. remote processing
 
-Core optimizers run entirely on your machine — no account required,
-no data leaves. Remote optimizers (Figma, GitHub, all MCP tools) run
-in Confire's cloud at `api.confire.dev` and require a paid plan. When
-you're offline or the connection drops, local processing continues
-uninterrupted.
+Core security passes and local context passes run entirely on your machine —
+no account required, no data leaves. Remote context passes (Figma, GitHub,
+all MCP tools) run in Confire's cloud at `api.confire.dev` and require
+a paid plan. When you're offline or the connection drops, local processing
+continues uninterrupted.
 
-Policy rules are evaluated locally in all modes. Your tool calls are
-never forwarded to the cloud for firewall decisions — only tool output
-is sent for optimization, and only for remote optimizer types.
+Policy rules are evaluated locally in all modes. Your tool calls and
+tool output are never forwarded to the cloud for firewall decisions —
+only structured telemetry events (risk level, action taken, session
+metadata) are sent, and only tool output content is never included.

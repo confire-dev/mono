@@ -20,9 +20,9 @@ const (
 
 var topupCmd = &cobra.Command{
 	Use:   "topup [packs]",
-	Short: "Buy extra optimization credits ($5 per 5,000-call pack)",
+	Short: "Buy extra credits ($5 per 5,000-call pack)",
 	Long: `Opens Stripe Checkout for one-time credit top-up packs.
-Each pack adds 5,000 cloud optimization calls for $5.
+Each pack adds 5,000 cloud firewall credits for $5.
 
 Examples:
   confire topup       buy 1 pack

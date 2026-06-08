@@ -19,12 +19,6 @@ export interface CreditBalance {
   total_credits: number
 }
 
-export interface UsageSummary {
-  request_count: number
-  saved_bytes: number
-  month: string
-}
-
 export type RiskLevel = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 export type ActionTaken = 'ALLOWED' | 'WARNED' | 'REVIEW_REQUIRED' | 'BLOCKED' | 'SANITIZED'
 
@@ -60,21 +54,3 @@ export interface ApiKey {
   created_at: string
 }
 
-// Token savings display (229k → 4.7k)
-export interface SavingsDisplay {
-  rawTokens: number
-  optimizedTokens: number
-  reductionPct: number
-  label: string
-}
-
-// Roughly 4 bytes per token for display purposes
-export function bytesToTokens(bytes: number): number {
-  return Math.round(bytes / 4)
-}
-
-export function formatTokenCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}k`
-  return String(n)
-}

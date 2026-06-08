@@ -281,7 +281,7 @@ const STATS = [
   { value: 'Built-in',    label: 'risky action guardrails'    },
   { value: '5 layers',    label: 'of output protection'           },
   { value: 'Local-first', label: 'policy evaluation'          },
-  { value: 'Sanitized',   label: 'before cloud optimization'  },
+  { value: 'Sanitized',   label: 'before context reaches the model'  },
 ]
 
 function StatsBar() {
@@ -343,7 +343,7 @@ const CODE_ITEMS: Array<{ label: string; items: string[] }> = [
 
 const PROBLEM_DESCRIPTIONS = [
   'Confire reviews or blocks risky actions before they run.',
-  'Confire sanitizes and optimizes output before it reaches context.',
+  'Confire sanitizes and filters output before it reaches context.',
   'Confire treats tool output as data, not instructions.',
 ]
 
@@ -403,7 +403,7 @@ const HOW_STEPS = [
     step: '3',
     title: 'The agent gets clean context',
     icon: <LightningIcon className="size-8" weight="duotone" />,
-    body: 'The model receives only the sanitized, optimized, task-ready result. Less noise. Fewer wasted tokens. Safer tool use.',
+    body: 'The model receives only the sanitized, filtered, task-ready result. Less noise. Fewer wasted tokens. Safer tool use.',
     examples: [],
   },
 ]
@@ -479,7 +479,7 @@ function Capabilities() {
                 <div>
                   <CpuIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
                   <H3 className="mb-2">MCP Firewall</H3>
-                  <BodySm>Apply generic risk scoring, sanitization, and context budgeting to unknown MCP servers. Works even when there is no source-specific optimizer yet.</BodySm>
+                  <BodySm>Apply generic risk scoring, sanitization, and context budgeting to unknown MCP servers. Works even when there is no source-specific handler yet.</BodySm>
                 </div>
               ),
             },
@@ -497,7 +497,7 @@ function Capabilities() {
                 <div>
                   <LockIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
                   <H3 className="mb-2">Secret Redaction</H3>
-                  <BodySm>Redact common secret-looking values before optimization. Cloud optimization receives only sanitized, redacted content when enabled.</BodySm>
+                  <BodySm>Redact common secret-looking values before any downstream processing. All subsequent context passes receive only sanitized, redacted content.</BodySm>
                 </div>
               ),
             },
@@ -548,7 +548,7 @@ const CLIENTS = [
     Icon: HexagonIcon,
     features: [
       'Protects tools routed through Confire',
-      'Sanitizes and optimizes MCP output',
+      'Sanitizes and filters MCP output',
       'Supports Confire policy rules on routed tools',
       'Advisory context where supported',
     ],
@@ -559,7 +559,7 @@ const CLIENTS = [
     Icon: PackageIcon,
     features: [
       'Protects tools routed through Confire',
-      'Sanitizes and optimizes MCP output',
+      'Sanitizes and filters MCP output',
       'Supports Confire policy rules on routed tools',
       'Advisory context where supported',
     ],
@@ -653,9 +653,9 @@ function Results() {
 const TRUST_BULLETS = [
   'Tool inputs are evaluated locally.',
   'Built-in rules work offline.',
-  'Secret redaction runs before cloud optimization.',
-  'Prompt-injection sanitization runs before cloud optimization.',
-  'Cloud optimization receives sanitized/redacted content only.',
+  'Secret redaction runs locally before any data leaves your machine.',
+  'Prompt-injection sanitization runs locally on every MCP response.',
+  'All context passes receive only sanitized, redacted content.',
   'Raw tool inputs and outputs are not sent as telemetry.',
   'Aggregate usage metadata powers your dashboard.',
 ]
@@ -761,8 +761,8 @@ const PLANS = [
       'Tool Firewall + Context Firewall',
       'Secret redaction',
       'Injection guard',
-      'Local optimizers',
-      'Basic savings stats',
+      'Local context passes',
+      'Basic security event stats',
     ],
     cta: 'Start free',
   },
@@ -773,10 +773,10 @@ const PLANS = [
     period: '/mo soon',
     features: [
       'Everything in Free',
-      'Higher remote optimization limits',
+      'Custom firewall rules',
       'Custom dashboard guardrails',
       'Policy sync',
-      'Firewall + optimization history',
+      'Full security event history',
     ],
     cta: 'Request early access',
     featured: true,
@@ -857,7 +857,7 @@ function Pricing() {
 const FAQ_ITEMS = [
   {
     q: 'Is Confire only a token optimizer?',
-    a: 'No. Confire is a context and tool firewall. It optimizes noisy output, but it also reviews risky tool calls, redacts common secrets, and sanitizes suspicious tool output.',
+    a: 'No. Confire is a context and tool firewall. It reviews risky tool calls, redacts common secrets, sanitizes suspicious tool output, and trims context noise — in that order.',
   },
   {
     q: 'Does Confire replace Claude Code?',
@@ -869,11 +869,11 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What is MCP gateway mode?',
-    a: 'MCP gateway mode protects tools routed through Confire. It can apply policies, sanitize outputs, and optimize MCP responses for Cursor and VS Code workflows.',
+    a: 'MCP gateway mode protects tools routed through Confire. It applies policies, sanitizes outputs, and filters MCP responses for Cursor and VS Code workflows.',
   },
   {
     q: 'Does Confire send my code to the cloud?',
-    a: 'Tool inputs are evaluated locally. Secret redaction and prompt-injection sanitization run locally first. If cloud optimization is enabled, Confire sends sanitized/redacted content for optimization, not the raw original.',
+    a: 'Tool inputs are evaluated locally. Secret redaction and prompt-injection sanitization run locally on your machine. Only structured telemetry events (risk level, action taken, session counts) are sent to the cloud — never raw tool output.',
   },
   {
     q: 'Can Confire prevent every unsafe agent action?',
@@ -881,7 +881,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What happens if Confire fails?',
-    a: 'Confire is designed to fail safely. If the optimizer times out or the daemon is unavailable, your agent continues normally.',
+    a: 'Confire is designed to fail safely. If the daemon is unavailable, your agent continues normally — tool calls pass through unmodified.',
   },
 ]
 
@@ -939,7 +939,7 @@ function BottomCTA() {
       <Container>
         <CTASection
           title="Give your AI coding agent a firewall."
-          subtitle="Review risky tool calls before they run. Sanitize and optimize noisy tool output before it enters context. Start free with Claude Code, Cursor, or VS Code."
+          subtitle="Review risky tool calls before they run. Sanitize and filter tool output before it enters context. Start free with Claude Code, Cursor, or VS Code."
           primaryAction={
             <Button variant="white" asChild>
               <a href="/login">Start free, no card required</a>
@@ -954,7 +954,7 @@ function BottomCTA() {
             { icon: <ShieldCheckIcon className={iconSm} weight="fill" />,  text: 'Claude Code full firewall' },
             { icon: <CpuIcon className={iconSm} weight="bold" />,          text: 'Cursor + VS Code MCP gateway' },
             { icon: <LockIcon className={iconSm} weight="bold" />,         text: 'Local policy evaluation' },
-            { icon: <FingerprintIcon className={iconSm} weight="bold" />,  text: 'Sanitized before cloud optimization' },
+            { icon: <FingerprintIcon className={iconSm} weight="bold" />,  text: 'Sanitized before context reaches the model' },
             { icon: <TimerIcon className={iconSm} weight="bold" />,        text: 'Takes about 30 seconds to install' },
             { icon: <LightningIcon className={iconSm} weight="fill" />,    text: 'Works locally by default' },
           ]}

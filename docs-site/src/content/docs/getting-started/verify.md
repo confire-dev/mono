@@ -10,7 +10,7 @@ confire status
 ```
 
 This shows four sections: detected agents and hook state, account
-and plan, optimizer status, and telemetry. A healthy setup looks like:
+and plan, context firewall status, and telemetry. A healthy setup looks like:
 
 ```
 [confire status]
@@ -19,10 +19,10 @@ and plan, optimizer status, and telemetry. A healthy setup looks like:
   ✓  Claude Code         found ✓  hook installed ✓
 
   Account
-  ✓  API key            you@example.com · Pro plan · 4120/10000 credits
+  ✓  API key            you@example.com · Pro plan
 
-  Optimizer
-  ✓  Status             active (cloud + local fallback)
+  Context Firewall
+  ✓  Status             active (cloud + local)
 
   Telemetry
   ✓  Analytics          on
@@ -58,15 +58,15 @@ confire policy test 'git status'
 
 ## See the Context Firewall in action
 
-Start a session in your agent and run a tool that produces large
-output — a shell command, a file read, or a web fetch. After the
-tool finishes, you'll see a Confire notification in the agent output:
+Start a session in your agent and run an MCP tool or a shell command
+that produces noisy output. After the tool finishes, Confire processes
+the output through the context pipeline and records any findings.
 
-```
-🔥 Confire saved ~3k tokens on this Bash response.
+To see what Confire detected, check the dashboard or run:
+
+```bash
+confire status
 ```
 
-Savings appear when output was trimmed by at least the configured
-minimum (default: 5,000 tokens). You can adjust this threshold with
-`confire config set notifications.min_saved_tokens=1000` to see all
-saves.
+The "Context Firewall" section shows active status. Security events
+appear in the dashboard under **Overview → Recent activity**.

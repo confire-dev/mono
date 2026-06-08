@@ -60,12 +60,12 @@
 
 ## ADR-007: Free tier never blocks
 
-**Decision:** At 100% of free tier, fall back to bundled local optimizer (reduced coverage) + show upgrade nudge. Never block.
+**Decision:** Local firewall and context passes always run, regardless of account state. Never degrade the developer's flow.
 
 **Rationale:**
 - A tool that breaks the developer's flow will be uninstalled immediately.
-- Reduced optimization is acceptable; zero optimization is not; broken flow is unacceptable.
-- Upgrade warning at 80% (one line), at 100% (one line + local fallback). Always shown regardless of notification settings.
+- All security passes (secret redaction, injection detection, unicode stripping) and local context passes run free and offline.
+- Cloud policy sync, custom rules, and the security event dashboard require a paid plan — but these are additive, never blockers.
 
 ## ADR-008: SessionStart does three things in one call
 
@@ -73,56 +73,44 @@
 
 **Rationale:**
 - Warms the HTTP/2 connection (first call of the session; stays warm for all subsequent calls).
-- Delivers notification to Claude as `additionalContext` (one line max — confire is an optimizer, must not add noise).
-- Checks for optimizer rule updates (`pullRules → fetch latest from Worker`).
+- Delivers notification to Claude as `additionalContext` (one line max — must not add noise).
+- Checks for firewall rule updates (`pullRules → fetch latest from Worker`).
 - Three birds, one stone, one network round-trip at session start.
 
-## ADR-009: Optimizer boundary — Local (CLI) vs Remote (Worker)
+## ADR-009: Context processing boundary — Local (CLI) vs Remote (Worker)
 
-**Decision:** Two explicit optimizer layers; the split is WHERE, not WHO PAYS.
+**Decision:** Two explicit processing layers; the split is WHERE, not WHO PAYS.
 
 ```
-cli/optimizer/      Local optimizer — infrastructure tools, free tier
+cli/optimizer/      Local context passes — infrastructure tools, always free
   bash.go           Shell command output: trim logs, keep failures
-  read.go           File reads: cap at 500 lines before read, dedupe
+  read.go           File reads: emergency cap only
   webfetch.go       Web pages: strip HTML/CSS/JS boilerplate
   generic.go        Universal JSON noise stripping (fallback)
 
-worker/src/optimizers/   Remote optimizer — paid cloud tier
-  figma.ts          JSX → section map (98% reduction)
-  github.ts         PR objects, diffs, bot comment stripping (87%)
-  atlassian.ts      Jira ADF → markdown, Confluence (70%/96%)
-  slack.ts, notion.ts, clickup.ts, amplitude.ts, …
+worker/             Cloud backend — policy sync, telemetry, custom rules
+  handlers/         No optimizer logic post-pivot; firewall telemetry only
 ```
 
-**Rationale:** Platform-specific optimizers (Figma, GitHub, Jira, Slack, etc.) are the
-primary paid value proposition. Keeping them in the Worker means:
-  1. They update server-side without a CLI release.
-  2. The binary doesn't contain paid logic that could be extracted.
-  3. The free tier has real utility (log trimming, file capping) without
-     giving away the paid optimizers.
+**Rationale:** After the security pivot, the Worker is the policy sync and
+telemetry backend, not an optimization engine. Local context passes remain
+in the CLI daemon as a secondary benefit of the Context Firewall — security
+passes always run first, context cleanup runs after.
 
-**Naming rule:** Always use `LocalOptimizer`/`RemoteOptimizer` in code —
-never `FreeOptimizer`/`PaidOptimizer`. Entitlement (who can use Remote) is
-decided by the daemon checking the keychain for a valid API key. The engine
-is completely mode-agnostic. An enterprise self-hosting the Worker gets
-Remote optimization at any price point.
-
-**Transport decision logic:**
+**Processing decision logic:**
 ```
 Tool response arrives at daemon
   ↓
-Is there a LocalOptimizer for this tool? (Bash/Read/WebFetch/Generic)
-  → yes: optimize locally, return immediately
-  → no (platform-specific MCP tool):
-      Is user logged in (API key in keychain)?
-        → yes: send to WorkerTransport → FallbackTransport
-        → no:  return passthrough (no optimization, no error)
+Security passes (MCP only): redaction → unicode strip → injection detect
+  ↓
+Local context passes (all tools): bash/read/webfetch/generic noise trim
+  ↓
+Return processed output to hook
 ```
 
-**Product boundary message:**
-- Free/local: basic context cleanup for shell, files, web output
-- Paid/remote: high-impact platform-specific context optimization
+**Product boundary:**
+- Free/local: full security pipeline + local context passes
+- Paid/cloud: custom firewall rules, security event history, provenance tracking, policy sync
 
 ## ADR-010: Repo layout — cli/, worker/, apps/, docs/
 
@@ -130,7 +118,7 @@ Is there a LocalOptimizer for this tool? (Bash/Read/WebFetch/Generic)
 
 ```
 cli/        Local CLI + daemon (Go). Runs on the developer's machine.
-worker/     Paid cloud optimizer + account API (TypeScript on Cloudflare).
+worker/     Cloud policy sync + telemetry API (TypeScript on Cloudflare).
 apps/web/   Dashboard/login/billing (future).
 docs/       Architecture and decisions.
 ```

@@ -6,7 +6,7 @@ description: >-
 ---
 
 Every MCP tool response passes through the sanitization pipeline
-before optimization runs. The pipeline combines three passes in
+before any context processing runs. The pipeline combines three passes in
 a single handler: unicode stripping, secret redaction, and
 injection detection.
 
@@ -48,9 +48,8 @@ findings:
 The model sees the clean output. It doesn't see the original
 values that were redacted.
 
-## Relationship to optimization
+## What happens after
 
-Sanitization always runs before optimization. The remote optimizer
-(Figma, GitHub, etc.) receives already-sanitized content — secrets
-are redacted before any data leaves your machine for cloud
-optimization.
+Sanitization is the first thing that runs. Any subsequent context
+passes (noise trimming, MCP normalization) receive already-sanitized
+content — secrets are never present in downstream processing.

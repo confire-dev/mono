@@ -6,20 +6,21 @@ import type { CliSession, SecurityEvent, ApiKey } from '@/lib/types'
 export type Plan = 'free' | 'dev' | 'dev_annual' | 'pro' | 'pro_annual' | 'enterprise'
 
 export interface PlanLimits {
-  cloudOptimizationsMonthly: number
-  cloudTokensMonthly: number
+  maxPayloadBytes: number
   retainedHistoryDays: number
   cliSessions: number
 }
 
 export interface PlanFeatures {
-  localOptimization: boolean
-  remoteOptimization: boolean
+  firewallEnabled: boolean
   usageDashboard: boolean
   advancedUsageDashboard: boolean
-  optimizationHistory: boolean
-  sessionMemoryGuard: boolean
+  cliSessionManagement: boolean
+  exportData: boolean
+  ssoSaml: boolean
   firewallGroupToggles: boolean
+  securityEventHistory: boolean
+  provenanceTracking: boolean
   [key: string]: boolean
 }
 
@@ -32,10 +33,6 @@ export interface MeData {
   billingInterval: 'monthly' | 'annual' | null
   periodEnd: string | null
   cancelAtPeriodEnd: boolean
-  used: number
-  limit: number
-  purchasedCredits: number
-  effectiveLimit: number
   limits: PlanLimits
   features: PlanFeatures
 }
@@ -77,7 +74,6 @@ async function fetchMe(workerBase: string, token: string): Promise<MeData> {
     billing_interval: 'monthly' | 'annual' | null;
     subscription_current_period_end: string | null;
     cancel_at_period_end: boolean;
-    used: number; limit: number; purchasedCredits: number; effectiveLimit: number;
     limits: PlanLimits; features: PlanFeatures
   }
   return {
@@ -89,10 +85,6 @@ async function fetchMe(workerBase: string, token: string): Promise<MeData> {
     billingInterval:    d.billing_interval ?? null,
     periodEnd:          d.subscription_current_period_end ?? null,
     cancelAtPeriodEnd:  d.cancel_at_period_end ?? false,
-    used:               d.used,
-    limit:              d.limit,
-    purchasedCredits:   d.purchasedCredits,
-    effectiveLimit:     d.effectiveLimit,
     limits:             d.limits,
     features:           d.features,
   }

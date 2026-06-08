@@ -17,32 +17,33 @@ your config file using the `hosts.<agent-id>.*` keys.
 | `optimize_mcp` | `true` | `true` | `true` |
 | `post_tool_steer` | `true` | `true` | `true` |
 
-`optimize_native` controls whether Confire optimizes native tool
-output (Bash, Read, WebFetch) for that agent. It's off by default
-for Cursor and VS Code because those agents don't support output
-replacement — only Claude Code can receive a rewritten response.
+`optimize_native` controls whether Confire runs the local context
+pass on native tool output (Bash, Read, WebFetch) for that agent.
+It's off by default for Cursor and VS Code because those agents don't
+support output replacement — only Claude Code can receive a rewritten
+response.
 
 ## Overriding defaults
 
 ```bash
-# Disable MCP optimization for Cursor only
+# Disable MCP context passes for Cursor only
 confire config set hosts.cursor.optimize_mcp=false
 
 # Disable steering context injection for VS Code
 confire config set hosts.vscode.post_tool_steer=false
 
-# Enable native optimization for Cursor (steer-mode only)
+# Enable native context passes for Cursor (steer-mode only)
 confire config set hosts.cursor.optimize_native=true
 ```
 
 Agent IDs: `claude-code`, `cursor`, `vscode`.
 
 :::note
-Enabling `optimize_native` for Cursor or VS Code turns on
-optimization for those tools, but the agent will receive
-savings via `additional_context` steering rather than output
-replacement — the original output is still visible. This can
-still reduce context noise through the steering envelope.
+Enabling `optimize_native` for Cursor or VS Code turns on the local
+context pass for those tools, but the agent will receive findings
+via `additional_context` steering rather than output replacement —
+the original output is still visible. This can still reduce context
+noise through the steering envelope.
 :::
 
 ## Checking effective capabilities

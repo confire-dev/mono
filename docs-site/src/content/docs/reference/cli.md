@@ -19,14 +19,14 @@ Restart your agent after running setup.
 
 ## `confire start`
 
-Starts the optimizer daemon in the background.
+Starts the firewall daemon in the background.
 
 ```bash
 confire start
 ```
 
 The daemon listens on a Unix socket at `~/.confire/daemon.sock`
-and handles all firewall evaluation and optimization. Setup starts
+and handles all firewall evaluation and context processing. Setup starts
 it automatically.
 
 ---
@@ -44,7 +44,7 @@ confire stop
 ## `confire status`
 
 Shows daemon state, hook installation, account info, and
-optimizer status.
+context firewall status.
 
 ```bash
 confire status
@@ -92,7 +92,7 @@ Stores the API key in the system keychain.
 confire login
 ```
 
-Required for remote optimizers (Figma, GitHub, all MCP tools)
+Required for cloud policy sync, the security event dashboard,
 and paid plan features.
 
 ---

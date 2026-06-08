@@ -26,7 +26,7 @@ default in balanced mode become active.
 
 **`bypass`** — the firewall is fully passive. No rules fire, no
 blocks, no reviews, no warnings. The daemon continues to run for
-context optimization; only the firewall is disabled.
+context processing; only the firewall is disabled.
 
 ## Switching modes
 
