@@ -9,14 +9,15 @@ export default defineConfig({
     starlight({
       title: 'Confire',
       tagline: 'Local tool and context firewall for AI coding agents.',
-      defaultTheme: 'dark',
       logo: {
         src: './src/assets/logo-light.svg',
         replacesTitle: false,
         alt: 'Confire flame',
       },
       favicon: '/favicon.svg',
-      head: [],
+      head: [
+        { tag: 'script', content: "document.documentElement.dataset.theme = 'dark'" },
+      ],
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/confire-dev' },
       ],

@@ -11,8 +11,8 @@ const docsDist = path.join(docsDir, 'dist')
 const dest     = path.join(__dirname, '../public/docs')
 
 console.log('Building docs-site...')
-execSync('npm install', { cwd: docsDir, stdio: 'inherit' })
-execSync('npm run build', {
+execSync('pnpm install', { cwd: docsDir, stdio: 'inherit' })
+execSync('pnpm run build', {
   cwd: docsDir,
   stdio: 'inherit',
   env: {

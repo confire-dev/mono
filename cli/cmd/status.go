@@ -69,18 +69,21 @@ func runStatus() error {
 	fmt.Printf("\n  %sAccount%s\n", dim, reset)
 	apiKey, _ := auth.LoadKey()
 	hasKey := apiKey != ""
-	fmt.Printf("  %s  API key            ", tick(hasKey))
 	if !hasKey {
-		fmt.Printf("%snot set%s  — run `confire login`\n", gray, reset)
+		fmt.Printf("  %s○%s  %-18s %slocal-only mode%s\n",
+			gray, reset, "Not signed in", dim, reset)
+		fmt.Printf("\n  %sDashboard%s\n", dim, reset)
+		fmt.Printf("  %s○%s  %-18s %soff · run `confire login` to enable%s\n",
+			gray, reset, "Sync", dim, reset)
 	} else {
 		email, _ := auth.LoadEmail()
-		// Try to fetch live account info from Worker
 		if info, err := fetchAccountInfo(apiKey); err == nil {
 			limit := info.EffectiveLimit
 			if limit == 0 {
 				limit = info.Limit
 			}
-			fmt.Printf("%s%s%s · %s%s plan%s · %s%d/%d%s credits\n",
+			fmt.Printf("  %s  %-18s %s%s%s · %s%s plan%s · %s%d/%d%s credits\n",
+				tick(true), "Signed in",
 				green, info.Email, reset,
 				bold, info.Plan, reset,
 				cyan, info.Used, limit, reset)
@@ -88,34 +91,36 @@ func runStatus() error {
 				fmt.Printf("       %s+%d top-up credits available%s\n", dim, info.PurchasedCredits, reset)
 			}
 		} else if email != "" {
-			fmt.Printf("%s%s%s %s(offline)%s\n", green, email, reset, dim, reset)
+			fmt.Printf("  %s  %-18s %s%s%s %s(offline)%s\n",
+				tick(true), "Signed in", green, email, reset, dim, reset)
 		} else {
-			fmt.Printf("%slogged in%s %s(key present, offline)%s\n", green, reset, dim, reset)
+			fmt.Printf("  %s  %-18s %slogged in%s %s(key present, offline)%s\n",
+				tick(true), "Signed in", green, reset, dim, reset)
 		}
 	}
 
-	// ── Context Firewall ──────────────────────────────────────────────────
-	fmt.Printf("\n  %sContext Firewall%s\n", dim, reset)
+	// ── Firewall ──────────────────────────────────────────────────────────
+	fmt.Printf("\n  %sFirewall%s\n", dim, reset)
 	daemonRunning := isDaemonRunning()
-	switch {
-	case !hasKey:
-		fmt.Printf("  %s  Status             %slocal-only (run `confire login` for cloud policy sync)%s\n",
-			tick(true), dim, reset)
-	case daemonRunning:
-		fmt.Printf("  %s  Status             %sactive (cloud + local)%s\n",
-			tick(true), green, reset)
-	default:
-		fmt.Printf("  %s  Status             %sstopped — run `confire start`%s\n",
-			tick(false), dim, reset)
-	}
-
-	// ── Telemetry ─────────────────────────────────────────────────────────
-	fmt.Printf("\n  %sTelemetry%s\n", dim, reset)
-	if cfg.Telemetry {
-		fmt.Printf("  %s  Analytics          %son%s\n", tick(true), green, reset)
+	firewallEnabled := cfg.IsFirewallEnabled()
+	mode := cfg.EffectiveMode()
+	firewallActive := daemonRunning && firewallEnabled
+	if daemonRunning {
+		fmt.Printf("  %s  %-18s %s%s%s\n", tick(true), "Mode", green, mode, reset)
+		fmt.Printf("  %s  %-18s %srunning%s\n", tick(true), "Daemon", green, reset)
+		fwColor := green
+		fwLabel := "active"
+		if !firewallActive {
+			fwColor = dim
+			fwLabel = "disabled — run `confire on`"
+		}
+		fmt.Printf("  %s  %-18s %s%s%s\n", tick(firewallActive), "Tool Firewall", fwColor, fwLabel, reset)
+		fmt.Printf("  %s  %-18s %s%s%s\n", tick(firewallActive), "Result Firewall", fwColor, fwLabel, reset)
 	} else {
-		fmt.Printf("  %s○%s  Analytics          %soff%s  (usage accounting still active)\n",
-			gray, reset, gray, reset)
+		fmt.Printf("  %s  %-18s %sstopped — run `confire start`%s\n", tick(false), "Daemon", dim, reset)
+		fmt.Printf("  %s○%s  %-18s %s%s (inactive)%s\n", gray, reset, "Mode", dim, mode, reset)
+		fmt.Printf("  %s○%s  %-18s %sinactive%s\n", gray, reset, "Tool Firewall", dim, reset)
+		fmt.Printf("  %s○%s  %-18s %sinactive%s\n", gray, reset, "Result Firewall", dim, reset)
 	}
 
 	fmt.Println()

@@ -66,14 +66,7 @@ func (h *Handler) Run(e intercept.InterceptEvent) (intercept.InterceptResult, er
 // ── message formatting ────────────────────────────────────────────────────
 
 func formatBlockMessage(m *policy.MatchResult, e intercept.InterceptEvent) string {
-	return fmt.Sprintf(`CONFIRE BLOCKED TOOL CALL
-
-Rule:    %s
-Blocked: %s — %s
-Reason:  %s
-
-This action has been blocked. If you believe this is a mistake,
-ask the user to run ` + "`confire bypass-next`" + ` to allow it.`,
+	return fmt.Sprintf("CONFIRE BLOCKED TOOL CALL\nRule:    %s\nTool:    %s\nCommand: %s\nReason:  %s\n\nThis action has been blocked.\nIf this is intentional, update your Confire policy or switch modes outside the agent session.",
 		m.Rule.Name,
 		e.Tool.Name,
 		inputExcerpt(e.Tool, 120),
@@ -82,20 +75,10 @@ ask the user to run ` + "`confire bypass-next`" + ` to allow it.`,
 }
 
 func formatReviewMessage(m *policy.MatchResult, e intercept.InterceptEvent) string {
-	return fmt.Sprintf(`CONFIRE REVIEW REQUIRED
-
-Rule:              %s
-Claude is about to run: %s — %s
-Risk:              %s severity
-Why this matters:  %s
-
-ACTION REQUIRED:
-Explain why this action is needed, then ask the user for approval.
-If the user approves, they can run ` + "`confire bypass-next`" + ` and ask you to retry.`,
+	return fmt.Sprintf("CONFIRE REVIEW REQUIRED\nRule:    %s\nTool:    %s\nCommand: %s\nRisk:    %s\nTo allow once, run:\n  confire bypass-next\nThen ask the agent to retry.",
 		m.Rule.Name,
 		e.Tool.Name,
 		inputExcerpt(e.Tool, 120),
-		string(m.Rule.Severity),
 		m.Message,
 	)
 }

@@ -40,6 +40,7 @@ simple = { limit = 200, period = 60 }
 
 [dev]
 port = 8787
+inspector_port = 9231
 local_protocol = "http"
 
 # ── dev environment (auto-deploys from main via CI) ───────────────────────────

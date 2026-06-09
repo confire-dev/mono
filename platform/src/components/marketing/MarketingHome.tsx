@@ -38,7 +38,7 @@ import {
   ProhibitIcon,
   ShieldCheckIcon,
   TerminalWindowIcon,
-  TimerIcon,
+
   UsersIcon,
   WarningIcon,
 } from '@phosphor-icons/react'
@@ -122,6 +122,25 @@ found:   API_KEY pattern (sk-••••••••••••)
          Token pattern (ghp_•••••••••••)
 risk:    secret-looking values present in result
 action:  review before sharing or logging`,
+}
+
+function colorizeOutput(text: string): React.ReactNode {
+  const lines = text.split('\n')
+  return lines.map((line, i) => {
+    const isHeader = /^CONFIRE (REVIEW REQUIRED|BLOCKED TOOL CALL|SECURITY CONTEXT)/.test(line)
+    const isFieldKey = /^(pretool|posttool|command|server|action|source|output|rule|risk|flags|found):/.test(line)
+    const cls = isHeader
+      ? 'text-confire-accent font-semibold'
+      : isFieldKey
+        ? 'text-confire-text'
+        : 'text-confire-text-dim'
+    return (
+      <span key={i} className={cls}>
+        {line}
+        {i < lines.length - 1 ? '\n' : ''}
+      </span>
+    )
+  })
 }
 
 function Hero() {
@@ -212,8 +231,8 @@ function Hero() {
           </div>
 
           <div className="relative z-10 min-h-[180px] p-7 pb-3">
-            <pre className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed text-confire-text-dim">
-              {displayed}
+            <pre className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed">
+              {colorizeOutput(displayed)}
               <span
                 className="ml-px inline-block w-[6px] translate-y-[1px] bg-confire-accent align-text-top"
                 style={{ height: '1em', opacity: cursorOn ? 1 : 0, transition: 'opacity 0.08s' }}
@@ -922,14 +941,6 @@ function BottomCTA() {
               <a href="/docs">Read the docs</a>
             </Button>
           }
-          marqueeItems={[
-            { icon: <ShieldCheckIcon className={iconSm} weight="fill" />,  text: 'Claude Code full firewall' },
-            { icon: <CpuIcon className={iconSm} weight="bold" />,          text: 'Cursor + VS Code MCP gateway' },
-            { icon: <LockIcon className={iconSm} weight="bold" />,         text: 'Local policy evaluation' },
-            { icon: <FingerprintIcon className={iconSm} weight="bold" />,  text: 'Sanitized before context reaches the model' },
-            { icon: <TimerIcon className={iconSm} weight="bold" />,        text: 'Takes about 30 seconds to install' },
-            { icon: <LightningIcon className={iconSm} weight="fill" />,    text: 'Works locally by default' },
-          ]}
         />
         <p className="mt-4 text-center text-xs text-confire-muted">
           Takes about 30 seconds to install. Works locally by default.

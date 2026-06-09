@@ -23,3 +23,4 @@ zone_name = "confire.dev"
 
 [dev]
 port = 8789
+inspector_port = 9232
