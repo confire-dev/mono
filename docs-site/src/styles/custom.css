@@ -98,6 +98,10 @@ a[aria-current='page'] {
 }
 
 /* Pagination buttons */
+.pagination-links {
+  padding-top: 2rem;
+  padding-bottom: 3rem;
+}
 .pagination-links a {
   border-color: #252525;
   background: #181818;
@@ -127,13 +131,22 @@ starlight-theme-select {
   display: none !important;
 }
 
-/* Site title text — always white */
+/* Site title — match homepage ConfireLogo (gap-2, 24px mark) */
 .site-title {
-  color: #ffffff !important;
+  gap: 8px !important;
 }
 
-/* Logo image sizing */
+/* Logo image — 24px to match homepage md mark size */
 .site-title img {
-  height: 1.5rem;
-  width: auto;
+  height: 24px !important;
+  width: 24px !important;
+}
+
+/* Site title text — match ConfireLogo: 13px / extrabold / 0.13em tracking */
+.site-title span:not(.sr-only) {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.13em !important;
+  color: #ffffff !important;
+  text-transform: uppercase !important;
 }
