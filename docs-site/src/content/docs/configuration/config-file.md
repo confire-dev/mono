@@ -1,79 +1,150 @@
 ---
 title: Config file
 description: >-
-  All Confire configuration lives in ~/.confire/config.json.
-  Read and write it with `confire config`.
+  Confire local configuration — firewall mode, dashboard sync, policy
+  sync, and notification settings.
 ---
 
-Confire's local configuration is stored at
-`~/.confire/config.json`. You don't need to edit this file
-directly — use the `confire config` command instead.
-
-## Read and write config
+Confire stores local configuration on your machine. You usually do not
+need to edit the config file directly — use `confire config` instead.
 
 ```bash
-confire config                        # show all settings
-confire config get notifications.style
+confire config
+confire config get mode
+confire config set mode=strict
+```
+
+## Config location
+
+By default, Confire stores local config at:
+
+```
+~/.confire/config.json
+```
+
+## Common commands
+
+Show all config:
+
+```bash
+confire config
+```
+
+Read a setting:
+
+```bash
+confire config get mode
+```
+
+Update a setting:
+
+```bash
+confire config set mode=strict
+```
+
+## Firewall mode
+
+| Key | Values | Default | Description |
+|---|---|---|---|
+| `mode` | `observe`, `balanced`, `strict`, `bypass` | `balanced` | Policy enforcement mode |
+
+| Mode | Behavior |
+|---|---|
+| `observe` | Records matches without interrupting the agent |
+| `balanced` | Default mode for daily work |
+| `strict` | Reviews or blocks more aggressively |
+| `bypass` | Temporarily disables enforcement |
+
+```bash
+confire config set mode=observe
+confire config set mode=balanced
+confire config set mode=strict
+confire config set mode=bypass
+```
+
+You can also use:
+
+```bash
+confire mode observe
+confire mode balanced
+confire mode strict
+confire mode bypass
+```
+
+## Firewall settings
+
+| Key | Values | Default | Description |
+|---|---|---|---|
+| `firewall.enabled` | `true`, `false` | `true` | Master firewall toggle |
+| `tool_firewall.enabled` | `true`, `false` | `true` | Enables PreToolUse evaluation |
+| `tool_result_firewall.enabled` | `true`, `false` | `true` | Enables PostToolUse inspection |
+
+Prefer changing mode instead of disabling the firewall entirely. Use
+`observe` if you want Confire to record findings without interrupting
+work.
+
+## Dashboard sync
+
+| Key | Values | Default | Description |
+|---|---|---|---|
+| `dashboard_sync.enabled` | `true`, `false` | `true` when logged in | Sync metadata-only security events to the dashboard |
+| `dashboard_sync.include_raw_content` | `true`, `false` | `false` | Whether raw tool content may be synced |
+
+Confire is local-first. Raw tool content should stay disabled by
+default. Dashboard sync can include metadata such as rule ID, action
+taken, risk level, tool category, client, timestamp, and session ID.
+
+## Notifications
+
+| Key | Values | Default | Description |
+|---|---|---|---|
+| `notifications.enabled` | `true`, `false` | `true` | Show Confire warnings and review messages |
+| `notifications.style` | `brand`, `minimal` | `brand` | Notification format |
+
+```bash
+confire config set notifications.style=minimal
 confire config set notifications.enabled=false
 ```
 
-## Available keys
+Do not disable notifications unless you know what you are doing.
+Notifications are how Confire tells the agent and user about reviews,
+warnings, and security findings.
 
-### Notifications
-
-| Key | Values | Default | Description |
-|---|---|---|---|
-| `notifications.enabled` | `true` / `false` | `true` | Show 🔥 save notifications |
-| `notifications.style` | `brand` / `minimal` / `off` | `brand` | Notification format |
-| `notifications.min_saved_tokens` | integer | `5000` | Minimum token save to show a notification |
-| `notifications.big_save_tokens` | integer | `50000` | Saves above this threshold also add a note in agent context |
-
-`brand` style shows `🔥 Confire saved ~Xk tokens on this response`.
-`minimal` shows `[confire] X → Y bytes (Z%)`. `off` silences all
-output, including the context note.
-
-### Firewall
+## Policy sync
 
 | Key | Values | Default | Description |
 |---|---|---|---|
-| `mode` | `observe` / `balanced` / `strict` / `bypass` | `balanced` | Policy enforcement mode |
-| `firewall_enabled` | `true` / `false` | `true` | Master firewall toggle |
+| `policy_sync.enabled` | `true`, `false` | `true` when logged in | Pull custom rules from Confire Cloud |
+| `policy_sync.auto_pull` | `true`, `false` | `true` | Automatically refresh cached policy rules |
 
-Setting `mode=bypass` or `firewall_enabled=false` both disable the
-firewall. Use `confire on` / `confire off` as shortcuts.
+```bash
+confire policy pull    # pull manually
+confire policy status  # check policy state
+```
 
-### Analytics
+## Security Registry
 
 | Key | Values | Default | Description |
 |---|---|---|---|
-| `analytics` | `true` / `false` | `true` | Send anonymous usage analytics |
+| `registry.enabled` | `true`, `false` | `true` | Pull signed security registry updates |
+| `registry.auto_update` | `true`, `false` | `true` | Keep registry metadata updated automatically |
 
-### Advanced
+Registry updates are signed and evaluated locally.
+
+## Advanced
 
 | Key | Values | Description |
 |---|---|---|
-| `worker_url` | URL | Override the cloud worker endpoint (policy sync, telemetry) |
-
-## Examples
+| `api_url` | URL | Override the Confire API endpoint |
+| `log_level` | `debug`, `info`, `warn`, `error` | Controls local daemon logging |
 
 ```bash
-# Reduce notification noise — only show large saves
-confire config set notifications.min_saved_tokens=10000
-
-# Use minimal notification style
-confire config set notifications.style=minimal
-
-# Turn off all notifications
-confire config set notifications.enabled=false
-
-# Set strict mode
-confire config set mode=strict
-
-# Opt out of analytics
-confire config set analytics=false
+confire config set log_level=debug
+confire config set dashboard_sync.enabled=false
+confire config set registry.auto_update=false
 ```
 
-## Per-agent overrides
+## Per-agent settings
 
-To override capabilities for a specific agent, see
+Some settings can vary by client or project. See
 [Per-agent settings](../per-agent-settings).

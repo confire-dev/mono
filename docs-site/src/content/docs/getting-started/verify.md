@@ -9,32 +9,46 @@ description: Confirm Confire is installed, active, and doing its job.
 confire status
 ```
 
-This shows four sections: detected agents and hook state, account
-and plan, context firewall status, and telemetry. A healthy setup looks like:
+This shows your local Confire setup, including connected agents, account
+status, firewall mode, daemon status, and optional dashboard sync.
+
+A healthy setup looks like:
 
 ```
 [confire status]
 
   Agents
-  ✓  Claude Code         found ✓  hook installed ✓
+  ✓  Claude Code         found · hooks installed
 
   Account
-  ✓  API key            you@example.com · Pro plan
+  ✓  Signed in           you@example.com · Free plan
 
-  Context Firewall
-  ✓  Status             active (cloud + local)
+  Firewall
+  ✓  Mode                balanced
+  ✓  Daemon              running
+  ✓  Tool Firewall       active
+  ✓  Tool Result Firewall active
 
-  Telemetry
-  ✓  Analytics          on
+  Dashboard Sync
+  ✓  Security events     metadata-only sync enabled
 ```
 
-If the hook shows as not installed, run `confire setup`. If the
-daemon is stopped, run `confire start`.
+If hooks are not installed, run:
+
+```bash
+confire setup
+```
+
+If the daemon is stopped, run:
+
+```bash
+confire start
+```
 
 ## Test the Tool Firewall
 
-Use `confire policy test` to simulate a PreToolUse evaluation without
-running anything:
+Use `confire policy test` to simulate a tool-input evaluation without
+running the command:
 
 ```bash
 confire policy test 'git push --force'
@@ -44,7 +58,7 @@ Expected output:
 
 ```
 Action:   review
-Rule:     Review destructive git operation
+Rule:     Review destructive Git operation
 Severity: high
 Reason:   Force push can rewrite remote branch history and affect open PRs.
 ```
@@ -53,20 +67,42 @@ Try a safe command to confirm it passes through:
 
 ```bash
 confire policy test 'git status'
-# Action: allow
 ```
 
-## See the Context Firewall in action
+Expected output:
 
-Start a session in your agent and run an MCP tool or a shell command
-that produces noisy output. After the tool finishes, Confire processes
-the output through the context pipeline and records any findings.
+```
+Action:   allow
+```
 
-To see what Confire detected, check the dashboard or run:
+## Test the Tool Result Firewall
+
+Start a session in your agent and run a supported tool command that
+produces a result, such as a shell command, MCP call, or fetched
+external content.
+
+After the tool returns, Confire inspects the result and may add firewall
+context back to the agent, including:
+
+- secret-looking value warnings
+- prompt-injection warnings
+- hidden Unicode warnings
+- MCP risk notes
+- provenance metadata
+- policy decisions
+
+To check recent findings, run:
 
 ```bash
-confire status
+confire events
 ```
 
-The "Context Firewall" section shows active status. Security events
-appear in the dashboard under **Overview → Recent activity**.
+Or open the dashboard and go to **Overview → Recent activity**.
+
+If your client does not support replacing native tool output, Confire
+still records metadata and returns advisory firewall context where
+supported.
+
+## Next step
+
+[Try a review flow →](../connect)

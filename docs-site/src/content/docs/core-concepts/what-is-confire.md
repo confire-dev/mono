@@ -1,48 +1,97 @@
 ---
 title: What is Confire?
-description: The two-pillar model — Context Firewall and Tool Firewall.
+description: A local firewall daemon that inspects tool activity before tools run and after they return.
 ---
 
-Confire controls what AI agents can **do** and what tool output they
-can **see**. It runs as a background daemon and intercepts every tool
-call your agent makes — before the tool runs and after it finishes.
+Confire is a local firewall for AI coding agents. It runs as a
+background daemon and inspects supported tool activity in both
+directions — before a tool runs and after it returns.
+
+Confire helps answer two questions:
+
+1. Should this tool call be allowed to run?
+2. Did this tool result contain anything the agent or user should know about?
 
 ## Two firewalls, one daemon
 
-**Tool Firewall (PreToolUse)** — evaluates each tool call before it
-executes. Matches the call against a set of policy rules and returns
-`allow`, `warn`, `review`, or `block`. Risky commands — force pushes,
-secret file reads, mutating MCP actions — get flagged before anything
-happens.
+### Tool Firewall
 
-**Context Firewall (PostToolUse)** — processes tool output before it
-enters the model context. Runs security passes (secret redaction,
-hidden-unicode stripping, injection detection) and context passes
-(noise trimming, MCP normalization) on every response. The model sees
-cleaner, safer output.
+Runs before supported tool calls. The Tool Firewall evaluates each call
+against policy rules and returns one of four decisions:
 
-## The event lifecycle
+- `allow`
+- `warn`
+- `review`
+- `block`
 
-Every agent session follows this sequence:
+Risky actions can be flagged before execution, including:
+
+- force pushes
+- destructive Git operations
+- secret-file reads
+- database resets
+- deploys
+- package publishing
+- mutating MCP actions
+
+### Tool Result Firewall
+
+Runs after supported tool calls. The Tool Result Firewall inspects tool
+results and returns additional firewall context to the agent where
+supported. This context can include:
+
+- secret-looking value warnings
+- hidden Unicode warnings
+- prompt-injection-like content warnings
+- MCP risk notes
+- provenance metadata
+- policy decisions
+- suggested next steps
+
+Confire does not need to replace the original tool output to be useful.
+It gives the agent and user security context around what just happened.
+
+## Event lifecycle
+
+Every supported agent session follows this lifecycle:
 
 ```
-SessionStart  → daemon loads config and latest policies
-PreToolUse    → Tool Firewall evaluates the call
+SessionStart  → daemon loads config and latest local policies
+PreToolUse    → Tool Firewall evaluates the tool call
                (tool runs if allowed)
-PostToolUse   → Context Firewall processes the output
-SessionEnd    → stats sync
+PostToolUse   → Tool Result Firewall inspects the result
+SessionEnd    → local stats and metadata sync
 ```
 
-Confire intercepts at `PreToolUse` and `PostToolUse`. It never
-modifies source files, project state, or agent configuration — only
-tool inputs and outputs.
+Confire hooks into `PreToolUse` and `PostToolUse` where the client
+supports those events. It does not modify source files, project state,
+or your agent's task — it only evaluates tool activity and returns
+policy decisions or firewall context.
 
 ## Local-first
 
-All firewall decisions and context passes — security, noise trimming,
-MCP normalization — run in the daemon on your machine. No tool output
-leaves your machine.
+Firewall decisions run locally in the Confire daemon. Built-in rules
+work without an account. When you are logged in, Confire can sync
+metadata-only security events to the dashboard.
 
-Structured telemetry events (risk level, action taken, session
-metadata) are sent to the cloud when you're logged in. Tool call
-content is never included.
+**Synced metadata can include:**
+
+- rule ID
+- action taken
+- risk level
+- tool category
+- client
+- session ID
+- timestamp
+
+**Synced metadata does not include:**
+
+- raw tool output
+- source code
+- secret values
+- full command output
+- `.env` contents
+
+Confire is a guardrail layer, not a perfect security boundary. It helps
+agents and users notice risky actions and suspicious tool results before
+they become bigger mistakes.

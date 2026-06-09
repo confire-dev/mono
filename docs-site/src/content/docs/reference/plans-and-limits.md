@@ -1,43 +1,88 @@
 ---
 title: Plans and limits
-description: What's included in Free, and what's coming in Dev early access.
+description: >-
+  Free local firewall for individual developers. Dev early access for
+  custom guardrails and policy sync. Team planned for organizations.
 ---
 
 ## Free
 
-No account required. All firewall features run locally with no data leaving your machine.
+No account required. Free includes Confire's local firewall for
+individual developers. Built-in rules and local policy evaluation run
+on your machine.
 
-- **Tool Firewall** — all built-in rules, all policy modes
-- **Context Firewall** — secret redaction, injection guard,
-  hidden-unicode stripping
-- **Local optimizers** — Bash, Read, WebFetch, Generic fallback
-- **All supported agents** — Claude Code, Cursor, VS Code
-- **Basic stats** — security events and session activity per session
+Includes:
 
-The firewall runs entirely on your machine. No account, no telemetry required.
+- Tool Firewall with built-in rules
+- Tool Result Firewall for supported tool events
+- review, warn, allow, and block outcomes
+- policy modes: observe, balanced, strict, and bypass
+- secret-file access review
+- destructive Git operation review
+- mutating MCP action review
+- MCP risk classifier
+- secret-looking value warnings
+- prompt-injection-like result warnings
+- hidden Unicode warnings
+- local security events
+- basic session summaries
+- Claude Code, Cursor, and VS Code support
+
+Free does not require dashboard sync. The local firewall continues to
+work without an account.
 
 ## Dev — early access
 
-Dev is opening soon for power users who want custom guardrails, full history, and
-advanced controls. Planned at $10/month.
+Dev is opening soon for power users who want custom guardrails, policy
+sync, firewall history, and advanced MCP security. Planned price:
+$10/month.
 
-- Everything in Free
-- **Custom firewall rules** — organization-specific rules managed in the
-  dashboard and synced via `confire policy pull`
-- **Full security event history** — complete activity log per session,
-  queryable from the dashboard
-- **Provenance tracking** — per-call trust labels, cross-tool flow detection,
-  and audit trail
-- **Advanced dashboard** — firewall group toggles, session management,
-  data export
-- **Tool-use guidance** — steering context surfaced to your agent
-- **Early access to new clients** and rule-library updates
+Includes everything in Free, plus:
+
+- custom firewall rules
+- dashboard rule management
+- policy sync with `confire policy pull`
+- full security event history
+- provenance metadata
+- per-session activity timelines
+- configurable rule groups
+- registry recommendations
+- advanced MCP policy controls
+- data export
+
+Dev is for developers who use AI agents every day and want more
+control over how Confire behaves.
 
 [Request early access →](https://confire.dev/#pricing)
 
 ## Team — planned
 
-Shared policy management, team usage dashboard, custom rules,
-audit controls, and SSO. Contact us to join the waitlist.
+Team is planned for organizations using AI agents across multiple
+developers, devices, projects, and agent workflows.
+
+Planned features:
+
+- shared policy management
+- organization-wide custom guardrails
+- team dashboard
+- connected device and agent inventory
+- shared Security Registry visibility
+- audit logs
+- per-project policies
+- per-agent policies
+- centralized rule management
+- SSO / SAML
+- admin controls
+
+Team is for engineering organizations that want consistent agent
+security policies across the company.
 
 [Join waitlist →](https://confire.dev/#pricing)
+
+---
+
+| Plan | Best for | Main value |
+|---|---|---|
+| Free | Individual developers | Local firewall with built-in rules |
+| Dev | Power users | Custom guardrails, history, and policy sync |
+| Team | Organizations | Shared policies, audit, and centralized control |

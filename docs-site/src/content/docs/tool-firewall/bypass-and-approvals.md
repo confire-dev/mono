@@ -1,26 +1,30 @@
 ---
 title: Bypass and approvals
 description: >-
-  How to approve a single reviewed tool call without
-  disabling the firewall.
+  How to approve a single reviewed tool call with bypass-next, and
+  when to change policy mode instead.
 ---
 
-The firewall just fired a review. Your agent is paused:
+When Confire returns a review, the tool is paused and the agent waits
+for user approval.
 
 ```
 CONFIRE REVIEW REQUIRED
 
-Rule:              Review destructive git operation
-Claude is about to run: Bash — git push origin main --force
+Rule:              Review destructive Git operation
+Tool:              Bash
+Command:           git push origin main --force
 Risk:              high severity
 Why this matters:  Force push can rewrite remote branch history and affect open PRs.
 
-ACTION REQUIRED — ask the user:
-"Confire flagged this command. Do you want me to run it anyway?
-If yes: run 'confire bypass-next' in your terminal, then tell me to retry."
+ACTION REQUIRED
+Confire flagged this command. Do you want the agent to run it anyway?
+If yes, run:
+  confire bypass-next
+Then ask the agent to retry.
 ```
 
-You've checked it. It's intentional. Run:
+If you checked the command and it is intentional, run:
 
 ```bash
 confire bypass-next
@@ -30,33 +34,76 @@ Then tell the agent to retry. That's it.
 
 ## What bypass-next does
 
-`confire bypass-next` sets a one-shot approval flag. The very next
-PreToolUse event skips all firewall evaluation and the tool runs.
-After that single use the flag is automatically cleared — the
-firewall returns to normal enforcement immediately. This is a
-one-shot approval, not disabling the firewall.
+`confire bypass-next` creates a one-shot approval. The next reviewed
+tool call is allowed once, then the approval is consumed automatically.
+After that, Confire returns to normal enforcement.
 
-## Disabling the firewall for a longer sequence
+This is not the same as disabling the firewall.
 
-If you need to run several operations in a row without review
-interruptions, switch to bypass mode:
+## When to use it
+
+Use `bypass-next` when:
+
+- you understand why Confire reviewed the action,
+- the command is intentional,
+- you want to allow this specific retry,
+- you want the firewall to stay active afterward.
+
+Common examples:
+
+- intentional force push,
+- intentional destructive cleanup,
+- approved production deploy,
+- approved secret-file inspection,
+- approved mutating MCP action.
+
+## Review vs. block
+
+`bypass-next` is for review outcomes.
+
+A blocked tool call does not run through normal retry approval. If a
+block fires on something your team wants to allow, change the policy
+intentionally instead of bypassing it ad hoc:
+
+- edit a custom rule,
+- change a rule group,
+- switch policy mode,
+- update project policy.
+
+## Temporarily changing mode
+
+For short periods where you want Confire to observe without
+interrupting, use observe mode:
 
 ```bash
-confire off          # sets mode to bypass
-# ... do your work ...
-confire on           # re-enables balanced mode
+confire mode observe
 ```
 
-Restart the daemon after switching:
+Return to balanced mode:
 
 ```bash
-confire stop && confire start
+confire mode balanced
 ```
 
-## Block vs. review
+Use bypass mode only when you intentionally want enforcement off:
 
-`bypass-next` works only for review outcomes. A **block** has no
-retry path from the agent — the tool won't run regardless. If a
-block fires on something you intend to do, the right fix is a
-custom rule override or a group disable. See
-[Custom rules](../custom-rules).
+```bash
+confire mode bypass
+```
+
+Return to normal enforcement:
+
+```bash
+confire mode balanced
+```
+
+Balanced mode is recommended for daily work.
+
+## Check current mode
+
+```bash
+confire status
+```
+
+The status output shows the active policy mode and whether the local
+firewall is running.

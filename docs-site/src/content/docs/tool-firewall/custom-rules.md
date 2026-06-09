@@ -1,55 +1,120 @@
 ---
-title: Custom rules
+title: Custom guardrails
 description: >-
-  Add organization-specific firewall rules managed through
-  the Confire dashboard.
+  Extend Confire with project, team, or organization-specific rules —
+  managed in the dashboard, synced and evaluated locally.
 ---
 
-Custom rules extend the built-in rule set with your own
-organization-specific policies. They're managed in the Confire
-dashboard and synced to local devices on demand.
+Custom rules let you extend Confire with project, team, or
+organization-specific guardrails. They are managed in the Confire
+dashboard, synced to your local machine, and evaluated by the Confire
+daemon.
 
-:::note
-Custom rules require a paid plan. The `confire policy pull` command
-and dashboard rule management are available on paid plans only.
-:::
+Custom rules are useful when your team has policies that Confire cannot
+know by default, such as:
+
+- review production deploy commands,
+- block access to specific credential files,
+- review commands touching customer data,
+- require review for internal MCP tools,
+- warn when agents use unapproved external services,
+- block risky actions in specific repositories.
+
+## Availability
+
+Custom rules are part of Dev early access. The local firewall and
+built-in rules continue to work on the Free plan without an account.
 
 ## How it works
 
-Custom rules are stored in the Confire cloud and cached locally at
-`~/.confire/policies/cache.json`. The daemon merges them with the
-built-in rules at startup and uses the combined set for all
-evaluations.
+Custom rules are stored in Confire Cloud and pulled to your local
+machine. After syncing, the daemon merges:
 
-The same rule schema applies to custom rules as to built-in rules:
-phase, action, severity, match conditions, and message. Custom rules
-can cover any tool type and any phase.
+1. built-in rules,
+2. synced custom rules,
+3. local configuration.
 
-## Pulling the latest rules
+Evaluation still runs locally. Raw tool inputs and outputs do not need
+to be sent to Confire Cloud for custom rules to work.
+
+## Pull the latest rules
+
+After changing rules in the dashboard, run:
 
 ```bash
 confire policy pull
 ```
 
-This fetches the latest custom rules from your account and writes
-them to the local cache. Run this after making changes in the
-dashboard, or set it up in your team's onboarding flow so everyone
-starts with the current rule set.
+This fetches the latest custom rules for your account and updates the
+local policy cache. You can use this in onboarding scripts so new
+devices start with the current rule set.
 
-## Group overrides
-
-The dashboard lets you toggle rule groups on or off. These overrides
-sync alongside the rules when you run `confire policy pull`. For
-example, if your team has reviewed and approved all MCP tools you
-use, you can disable the `mcp.risk_classifier` group in the dashboard
-and pull — all devices that pull will suppress that group without
-changing the rule definitions.
-
-## Checking rule state
+## Check rule state
 
 ```bash
 confire policy status
 ```
 
-Shows a count of built-in rules, custom rules, and the last time
-the cache was fetched.
+This shows:
+
+- active policy mode,
+- built-in rule count,
+- custom rule count,
+- last policy sync,
+- enabled rule groups.
+
+## Rule groups
+
+The dashboard can group related rules together. Examples:
+
+- Git safety
+- Secret-file access
+- MCP mutations
+- Deploy protection
+- Database protection
+- External sends
+- Organization rules
+
+Rule groups make it easier to tune policy for a project or team. For
+example, a team may choose to:
+
+- review all production deploys,
+- warn on unknown MCP tools,
+- block repository deletion,
+- require review before sending content to Slack or email.
+
+## Example custom rule
+
+```yaml
+id: review-production-deploy
+name: Review production deploys
+phase: PreToolUse
+action: review
+severity: high
+match:
+  tool: Bash
+  command_contains:
+    - "vercel --prod"
+    - "wrangler deploy"
+    - "terraform apply"
+message: Production deploys should be reviewed before execution.
+```
+
+If a matching command appears, Confire pauses the tool call and asks
+for approval.
+
+## Local-first behavior
+
+Custom rules are evaluated locally by the Confire daemon. When
+dashboard sync is enabled, Confire can sync metadata-only events such
+as:
+
+- rule ID,
+- action taken,
+- severity,
+- client,
+- timestamp,
+- session ID.
+
+Raw command output, source code, secrets, and full tool results are
+not synced.

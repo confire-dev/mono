@@ -1,31 +1,54 @@
 ---
 title: Confire
 description: >-
-  Context and tool firewall for AI coding agents. Controls what your
-  agent can do and what tool output it can see.
+  Local tool and context firewall for AI coding agents. Reviews risky
+  tool calls before they run and inspects tool results after they return.
 ---
 
 import { LinkButton } from '@astrojs/starlight/components'
 
-Confire is a context and tool firewall for AI coding agents. It
-sits between your agent and the tools it runs, intercepting every
-tool call in both directions — before it executes and after it
-returns.
+Confire is a local tool and context firewall for AI coding agents. It
+sits beside your agent workflow and inspects tool activity in both
+directions — before tools run and after tools return.
 
 ---
 
-**Tool Firewall** — runs before each tool call. Reviews, warns, or
-blocks risky commands: destructive git operations, mutating MCP
-actions, secret file reads — before anything executes.
+## Tool Firewall
 
-**Context Firewall** — runs after each tool call. Sanitizes MCP
-output, redacts common secret patterns, strips hidden-unicode
-injection attempts, and removes noise before output enters the
-model context.
+Runs before supported tool calls. Confire can allow, warn, review, or
+block risky actions before they execute, including:
 
----
+- destructive Git operations
+- force pushes
+- secret-file reads
+- database resets
+- deploys and package publishing
+- mutating MCP actions
 
-One install command. No proxy, no new MCP server.
+## Tool Result Firewall
+
+Runs after supported tool calls. Confire inspects tool results and
+returns firewall context back to the agent. This context can include:
+
+- secret-looking value warnings
+- prompt-injection warnings
+- hidden Unicode warnings
+- MCP risk notes
+- provenance metadata
+- policy decisions
+- suggested next steps
+
+Confire does not need to replace the original tool output to be useful.
+It gives the agent and user additional security context around what
+just happened.
+
+## Works across supported clients
+
+One install command.
+
+- **Claude Code** — hook-based firewall mode
+- **Cursor** — supported tool-event integration
+- **VS Code** — supported tool-event integration
 
 <br />
 

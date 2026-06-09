@@ -8,7 +8,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Confire',
-      tagline: 'Context and tool firewall for AI coding agents.',
+      tagline: 'Local tool and context firewall for AI coding agents.',
       logo: {
         src: './src/assets/logo-light.svg',
         replacesTitle: false,
@@ -43,18 +43,18 @@ export default defineConfig({
           items: [
             { label: 'What is Confire?',     slug: 'core-concepts/what-is-confire' },
             { label: 'Hook phases',          slug: 'core-concepts/hook-phases' },
-            { label: 'Client support modes', slug: 'core-concepts/client-support-modes' },
+            { label: 'Client support',       slug: 'core-concepts/client-support-modes' },
           ],
         },
         {
-          label: 'Context Firewall',
+          label: 'Tool Result Firewall',
           items: [
-            { label: 'Overview',                slug: 'context-firewall/overview' },
-            { label: 'Noise trimming',           slug: 'context-firewall/noise-trimming' },
-            { label: 'Secret redaction',        slug: 'context-firewall/secret-redaction' },
-            { label: 'Injection guard',         slug: 'context-firewall/injection-guard' },
-            { label: 'MCP output sanitization', slug: 'context-firewall/mcp-output-sanitization' },
-            { label: 'Trust Labels & Provenance', slug: 'context-firewall/provenance' },
+            { label: 'Overview',           slug: 'context-firewall/overview' },
+            { label: 'Tool result checks', slug: 'context-firewall/tool-result-checks' },
+            { label: 'Secret warnings',    slug: 'context-firewall/secret-warnings' },
+            { label: 'Injection guard',    slug: 'context-firewall/injection-guard' },
+            { label: 'MCP security',       slug: 'context-firewall/mcp-security' },
+            { label: 'Provenance',         slug: 'context-firewall/provenance' },
           ],
         },
         {
@@ -64,7 +64,7 @@ export default defineConfig({
             { label: 'Built-in rules',       slug: 'tool-firewall/built-in-rules' },
             { label: 'Policy modes',         slug: 'tool-firewall/policy-modes' },
             { label: 'MCP risk classifier',  slug: 'tool-firewall/mcp-risk-classifier' },
-            { label: 'Custom rules',         slug: 'tool-firewall/custom-rules' },
+            { label: 'Custom guardrails',    slug: 'tool-firewall/custom-rules' },
             { label: 'Bypass and approvals', slug: 'tool-firewall/bypass-and-approvals' },
           ],
         },
@@ -72,7 +72,7 @@ export default defineConfig({
           label: 'Configuration',
           items: [
             { label: 'Config file',                    slug: 'configuration/config-file' },
-            { label: 'Per-agent settings',             slug: 'configuration/per-agent-settings' },
+            { label: 'Client settings',                slug: 'configuration/per-agent-settings' },
             { label: 'Privacy',                        slug: 'configuration/privacy-and-cloud-optimization' },
           ],
         },

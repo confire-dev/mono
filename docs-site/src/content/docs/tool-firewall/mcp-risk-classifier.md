@@ -1,54 +1,112 @@
 ---
 title: MCP risk classifier
 description: >-
-  How Confire scores MCP tool calls based on name and
-  input parameters before they execute.
+  How Confire classifies MCP tool calls before they run — using tool
+  names and input signals to identify likely risky behavior.
 ---
 
-The MCP risk classifier runs at PreToolUse for every MCP tool call.
-It assigns a risk score based on the tool name and input parameter
-names, then decides whether to review, warn, or allow.
+The MCP risk classifier runs before supported MCP tool calls. It helps
+Confire identify MCP tools that may execute commands, write data,
+delete resources, send information externally, or handle credentials.
 
-## How scoring works
+The classifier is a heuristic. It looks at tool names and input
+parameter names. It does not prove what a tool actually does.
 
-The classifier awards points across three tiers. Scores accumulate —
-a tool that matches multiple tiers gets points from each.
+## What it looks for
 
-| Tier | Pattern | Points | Example names |
-|---|---|---|---|
-| 1 — shell/exec | Tool name contains shell execution terms | 40 | `bash`, `shell`, `exec`, `run_command`, `eval`, `terminal` |
-| 2 — write/destroy | Tool name contains destructive operation terms | 30 | `__write_`, `__delete_`, `__drop_`, `__wipe_`, `__truncate_` |
-| 3 — exfiltration | Tool name contains data-sending terms | 20 | `__send_`, `__email_`, `__upload_`, `__export_`, `__webhook_` |
+Confire scores MCP tools using signals such as:
 
-In addition, if the tool's input parameters include names that
-suggest credentials (for example, `password`, `token`, `secret`,
-`api_key`), the classifier adds a warn-level flag regardless of
-the score.
+| Signal | Examples | Typical action |
+|---|---|---|
+| Shell or execution terms | `shell`, `exec`, `bash`, `terminal`, `run_command`, `eval` | review |
+| Destructive or write terms | `write`, `delete`, `drop`, `wipe`, `truncate`, `remove` | review |
+| External send terms | `send`, `email`, `upload`, `export`, `webhook`, `post` | warn or review |
+| Deployment terms | `deploy`, `publish`, `release`, `promote` | review |
+| Payment or account terms | `refund`, `charge`, `transfer`, `invite`, `approve` | review |
+| Credential parameters | `password`, `token`, `secret`, `api_key`, `credential` | warn or review |
 
-## Score thresholds
+A tool can match multiple signals. Higher-risk combinations may be
+escalated.
 
-- **Score ≥ 50** → review: the tool call is paused; the agent
-  sees the score and reason
-- **Score 20–49** → warn: the tool runs but the agent receives
-  an advisory note
-- **Score < 20** → allow: the classifier passes the call through
+## Example: shell-like MCP tool
 
-## What the scoring catches
+```
+tool: mcp__unknown_server__execute_bash
 
-The classifier is name-based — it scores tool names, not what the
-tools actually do. An MCP tool named `execute_bash` scores 40 points
-and gets reviewed. An MCP tool named `get_user` scores 0 and passes
-through.
+CONFIRE REVIEW REQUIRED
+rule:    MCP risk classifier
+risk:    tool name suggests shell execution
+action:  run `confire bypass-next` to allow once, then retry
+```
 
-This means the classifier is a heuristic, not a guaranteed catch.
-A poorly named dangerous tool won't be scored. It also means that
-well-named safe tools with terms like `update` or `create` may get
-scored — the `mcp-mutation` built-in rule (not the classifier)
-handles that category.
+## Example: external send tool
 
-## Relationship to built-in rules
+```
+tool: mcp__slack__post_message
 
-The MCP risk classifier and the `mcp-mutation` built-in rule are
-separate mechanisms that can both fire on the same tool call. The
-classifier scores by name pattern; the built-in rule checks for
-specific mutation verbs. The higher-severity result wins.
+CONFIRE REVIEW REQUIRED
+rule:    Review mutating MCP action
+risk:    this MCP tool can send content to an external service
+action:  run `confire bypass-next` to allow once, then retry
+```
+
+## What the classifier catches
+
+The classifier is useful for broad MCP coverage, especially with
+unknown or custom MCP servers. It can catch tools like:
+
+- `mcp__server__execute_shell`
+- `mcp__server__delete_record`
+- `mcp__server__send_email`
+- `mcp__server__upload_file`
+- `mcp__server__trigger_deploy`
+- `mcp__server__create_refund`
+
+## What it cannot guarantee
+
+The classifier is name-based. A dangerous tool with a harmless name
+may not be scored correctly. For example:
+
+```
+mcp__server__get_user
+```
+
+could be safe, or it could hide risky behavior behind a vague name.
+
+A safe tool with a risky name may also be reviewed. For example:
+
+```
+mcp__server__update_local_cache
+```
+
+may be harmless, but Confire may still treat it cautiously because it
+contains a mutation verb.
+
+## Relationship to built-in MCP rules
+
+The MCP risk classifier works alongside built-in MCP rules:
+
+- The classifier scores broad risk signals.
+- Built-in rules catch known mutation verbs and sensitive action
+  categories.
+- Custom guardrails can override or extend behavior.
+- Future Security Registry metadata can improve MCP-specific decisions.
+
+When multiple rules match, Confire uses the highest-severity result.
+
+## Testing MCP tools
+
+Test how Confire would classify an MCP tool name without running it:
+
+```bash
+confire policy test 'mcp__github__merge_pull_request'
+```
+
+Example output:
+
+```
+Action:   review
+Rule:     Review mutating MCP action
+Severity: medium
+Reason:   MCP tool name suggests it can mutate external state.
+```

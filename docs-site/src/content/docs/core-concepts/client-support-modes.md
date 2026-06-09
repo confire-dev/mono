@@ -1,52 +1,59 @@
 ---
-title: Client support modes
-description: >-
-  What Confire can do varies by AI coding agent. Understand
-  the difference before installing.
+title: Client support
+description: Confire supports Claude Code, Cursor, and VS Code.
 ---
 
-Confire supports Claude Code, Cursor, and VS Code. The features
-available in each depend on what the agent's hook API exposes.
+Confire supports Claude Code, Cursor, and VS Code. Across supported
+clients, Confire focuses on the same core behavior:
 
-## Capability table
+- review risky tool calls before they run,
+- inspect tool results after they return,
+- add firewall context back to the agent,
+- record local security events.
 
-| Feature | Claude Code | Cursor | VS Code |
-|---|---|---|---|
-| Tool Firewall (PreToolUse) | ✓ | ✓ | ✓ |
-| Context Firewall (PostToolUse) | ✓ | ✓ | ✓ |
-| Replace native tool output | ✓ | — | — |
-| Trim native tool noise (Bash, Read, WebFetch) | ✓ | — | — |
-| Process MCP tool output | ✓ | ✓ | ✓ |
-| Post-tool steering via `additional_context` | ✓ | ✓ | ✓ |
+## Supported clients
 
-## What "replace native tool output" means
+| Client | Support |
+|---|---|
+| Claude Code | Supported |
+| Cursor | Supported |
+| VS Code | Supported |
 
-Claude Code's hook API lets Confire return a modified `toolOutput`
-that the agent uses in place of the original. This is how native
-context passes work: the daemon strips noise from Bash stdout,
-caps large file reads, and cleans up WebFetch responses — then
-returns the trimmed version.
+## What Confire does
 
-Cursor and VS Code don't expose output replacement through their
-hook APIs. Confire can't rewrite what the agent sees from native
-tools like `bash` or `read`. Instead, it uses the
-`additional_context` mechanism: the agent receives the original
-output plus a steering note in context. For this reason, native
-tool context passes (Bash, Read, WebFetch) are only fully effective
-in Claude Code.
+Confire hooks into supported agent/tool events.
 
-## MCP tools work everywhere
+Before tools run, Confire can evaluate the tool call and return a
+policy decision: `allow`, `warn`, `review`, or `block`.
 
-MCP tool output can be replaced in all supported agents. When your
-agent calls a Figma, GitHub, Slack, or any other MCP tool, Confire
-can return sanitized and filtered output regardless of which
-agent you're using.
+After tools return, Confire can inspect the result and add firewall
+context where supported, such as:
 
-## Checking your client mode
+- secret-looking value warnings,
+- prompt-injection warnings,
+- hidden Unicode warnings,
+- MCP risk notes,
+- provenance metadata,
+- suggested next steps.
+
+## Client differences
+
+Each agent exposes different hook capabilities, so exact behavior can
+vary by client and tool type. In general:
+
+- Claude Code supports the deepest hook integration.
+- Cursor and VS Code support Confire integrations for supported tool
+  events.
+- Confire uses the best available mechanism in each client.
+
+You do not need to choose a mode manually. `confire setup` detects
+supported clients and installs the right integration.
+
+## Check your setup
 
 ```bash
 confire status
 ```
 
-The "Agents" section shows which clients were detected and whether
-hooks are installed.
+The **Agents** section shows which clients were detected and whether
+Confire is connected.

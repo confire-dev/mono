@@ -1,68 +1,179 @@
 ---
 title: Privacy
 description: >-
-  What data stays on your machine and what is sent to
-  Confire's cloud for telemetry and policy sync.
+  What stays local by default and what can sync to Confire Cloud
+  when cloud features are enabled.
 ---
 
-Confire is local-first. All firewall decisions and security passes run
-in the daemon on your machine. Understanding what does and doesn't leave
-your machine is important if you work with sensitive codebases.
+Confire is local-first. Firewall decisions run in the Confire daemon
+on your machine. Built-in rules work without an account, and raw tool
+content is not required for Confire Cloud features.
 
-## What stays local
+This page explains what stays local and what can sync when cloud
+features are enabled.
 
-The following never leave your machine, regardless of plan:
+## What stays local by default
 
-- Source files and project contents
-- Conversation history and agent transcripts
-- Tool inputs — the commands and parameters your agent sends
-  to tools (file paths, shell commands, search queries)
-- Tool output content — raw tool responses are never forwarded
-  to the cloud
-- Policy rule evaluation — all firewall decisions happen
-  locally in the daemon
-- Secret redaction and injection scanning — these run
-  locally before any content is transmitted
+The following stay on your machine by default:
 
-## What is sent to the cloud
+- source files and project contents,
+- conversation history and agent transcripts,
+- raw tool output,
+- secret values,
+- full command output,
+- full file contents,
+- policy evaluation inputs,
+- firewall rule evaluation.
 
-When the daemon is connected to `api.confire.dev`, it sends
-**structured telemetry events** — not tool output content.
+Confire evaluates built-in rules locally. Custom rules are pulled to
+your machine and evaluated locally.
 
-Events sent per session:
+## What can sync to Confire Cloud
 
-- **Security events** — tool name, event type, risk level, action taken,
-  pattern category (e.g. `SECRET_REDACTED`). No matched values or raw content.
-- **Provenance events** — trust label, MCP server origin, redaction count.
-  No tool output content.
-- **Session metadata** — integration type, CLI version, total tool call counts.
+When you are logged in and dashboard sync is enabled, Confire can sync
+metadata-only security events.
 
-All telemetry is sent after local security passes run. Matched secret values
-are never included — only the fact that a pattern was detected.
+Examples of synced metadata:
 
-## Disabling cloud telemetry
+- rule ID,
+- action taken,
+- risk level,
+- tool category,
+- client,
+- session ID,
+- timestamp,
+- policy mode,
+- MCP server name,
+- MCP tool name,
+- trust label,
+- finding type.
 
-To run in fully local mode with no data leaving your machine:
+Examples of finding types:
+
+- `secret_like_value_detected`,
+- `prompt_injection_detected`,
+- `hidden_unicode_detected`,
+- `unknown_mcp`,
+- `mutating_mcp_action`,
+- `destructive_git_operation`.
+
+Synced metadata does not include matched secret values or raw tool
+output.
+
+## Dashboard sync
+
+Dashboard sync powers features such as:
+
+- security event history,
+- session summaries,
+- connected clients,
+- policy sync status,
+- custom rule visibility,
+- provenance timelines.
+
+Disable dashboard sync:
 
 ```bash
-confire config set worker_url=
+confire config set dashboard_sync.enabled=false
 ```
 
-Setting `worker_url` to empty disables cloud telemetry and policy sync.
-The local firewall — secret redaction, injection guard, built-in rules,
-local firewall and context passes — continue running uninterrupted.
+The local firewall continues to work with built-in rules.
 
-Alternatively, don't log in. Without an API key, the daemon uses
-local-only mode automatically.
+## Policy sync
 
-## Analytics
+If you use custom rules, Confire pulls policy metadata from Confire
+Cloud and caches it locally. Policy sync can include:
 
-Confire sends anonymous product analytics (security event counts, session
-counts, firewall action counts) to help improve the product. No tool
-content, file paths, secret values, or user-identifiable data is included.
+- rule IDs,
+- rule names,
+- match conditions,
+- actions,
+- severity,
+- rule groups.
 
-To opt out:
+Policy sync does not require sending raw tool output or source code to
+Confire Cloud.
+
+Disable automatic policy sync:
 
 ```bash
-confire config set analytics=false
+confire config set policy_sync.auto_pull=false
 ```
+
+Pull policies manually:
+
+```bash
+confire policy pull
+```
+
+## Local-only mode
+
+You can use Confire without logging in. Without an account, Confire
+runs in local-only mode:
+
+- built-in rules work,
+- Tool Firewall works,
+- Tool Result Firewall works,
+- local events can be recorded,
+- cloud dashboard sync is disabled,
+- custom cloud rules are unavailable.
+
+You can also turn off dashboard sync while staying logged in:
+
+```bash
+confire config set dashboard_sync.enabled=false
+```
+
+## Product analytics
+
+Confire may collect product analytics when enabled, such as:
+
+- install success or failure,
+- CLI version,
+- client type,
+- feature usage counts,
+- error codes,
+- aggregate firewall action counts.
+
+Product analytics does not include source code, raw tool output,
+secret values, full shell commands, full file paths, or conversation
+transcripts.
+
+Opt out:
+
+```bash
+confire config set analytics.enabled=false
+```
+
+## Security Registry
+
+When enabled, Confire may fetch signed Security Registry updates.
+Registry updates can include:
+
+- known risky MCP server metadata,
+- public advisories,
+- recommended rule metadata,
+- suspicious tool patterns.
+
+Registry updates are downloaded to your machine and evaluated locally.
+They do not require sending your tool output to Confire Cloud.
+
+## Support reports
+
+If you report a bug or suspicious MCP server, only include information
+you are comfortable sharing. Avoid including raw secrets, private
+source code, or full tool output in support reports.
+
+---
+
+Confire's default model:
+
+- rules and registry metadata can come down,
+- metadata-only security events can go up,
+- raw tool content stays local by default.
+
+:::caution
+Confire is a guardrail layer, not a guarantee. Use it together with
+normal security practices: least-privilege credentials, secret
+scanning, environment isolation, and careful MCP server review.
+:::

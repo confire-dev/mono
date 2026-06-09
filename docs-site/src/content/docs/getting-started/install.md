@@ -11,10 +11,16 @@ Run the installer:
 curl -fsSL https://get.confire.dev/install.sh | sh
 ```
 
-The installer downloads the binary for your platform (macOS or Linux,
-x64 or arm64), verifies the SHA-256 checksum, places it in
-`~/.local/bin`, runs `confire setup` to install agent hooks, and
-starts the daemon automatically.
+The installer:
+
+- downloads the Confire binary for your platform,
+- verifies the SHA-256 checksum,
+- installs the binary to `~/.local/bin`,
+- runs `confire setup`,
+- installs supported agent hooks or gateway configuration,
+- starts the local Confire daemon.
+
+Confire supports macOS and Linux on x64 and arm64.
 
 ## Verify
 
@@ -23,10 +29,15 @@ confire version
 confire status
 ```
 
-`confire status` shows which agents were detected, whether hooks are
-installed, and whether the daemon is running. If everything went
-smoothly, you'll see green checkmarks next to your agent and the
-context firewall status.
+`confire status` shows:
+
+- which supported agents were detected,
+- whether hooks or gateway configuration are installed,
+- whether the daemon is running,
+- which policy mode is active,
+- whether the local firewall is ready.
+
+A healthy install should show your agent connected and the daemon running.
 
 ## Next step
 

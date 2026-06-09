@@ -1,48 +1,86 @@
 ---
-title: Per-agent settings
+title: Client settings
 description: >-
-  Override Confire's default behavior for a specific
-  AI coding agent.
+  Confire supports Claude Code, Cursor, and VS Code. Setup is
+  automatic — most users do not need to configure clients manually.
 ---
 
-Confire's default behavior differs per agent based on what each
-agent's hook API supports. You can override these defaults in
-your config file using the `hosts.<agent-id>.*` keys.
+Confire supports Claude Code, Cursor, and VS Code. You usually do not
+need to configure each client manually. `confire setup` detects
+supported clients and installs the right integration.
 
-## Default capabilities
+## Supported clients
 
-| Capability | Claude Code | Cursor | VS Code |
-|---|---|---|---|
-| `native_output_replaceable` | `true` | `false` | `false` |
-| `post_tool_steer` | `true` | `true` | `true` |
+| Client | Status |
+|---|---|
+| Claude Code | Supported |
+| Cursor | Supported |
+| VS Code | Supported |
 
-**`native_output_replaceable`** — whether Confire can replace the
-tool output that the agent receives. Only Claude Code's hook API
-supports output replacement. For Cursor and VS Code, processed
-results are delivered via the `additional_context` steering envelope
-instead.
+## What Confire does across clients
 
-**`post_tool_steer`** — whether Confire injects a standardized
-`[Confire post_tool steer]` block into `additional_context` after
-each tool call. Enabled by default on all supported agents.
+Across supported clients, Confire can:
 
-## Overriding defaults
+- review risky tool calls before they run,
+- inspect tool results after they return,
+- add firewall context where supported,
+- record local security events,
+- sync metadata-only events when dashboard sync is enabled.
+
+Exact behavior can vary by client and tool surface, but the product
+behavior is the same: Confire gives your agent a local firewall around
+tool activity.
+
+## Enable or disable a client
+
+Run setup again to change which clients are connected:
 
 ```bash
-# Disable steering context injection for VS Code
-confire config set hosts.vscode.post_tool_steer=false
-
-# Disable steering for Cursor
-confire config set hosts.cursor.post_tool_steer=false
+confire setup
 ```
 
-Agent IDs: `claude-code`, `cursor`, `vscode`.
-
-## Checking effective capabilities
+Inspect detected clients:
 
 ```bash
 confire status
 ```
 
-The "Agents" section shows which agents are detected and what
-hooks are active.
+## Client IDs
+
+Confire uses these client IDs internally:
+
+| Client | ID |
+|---|---|
+| Claude Code | `claude-code` |
+| Cursor | `cursor` |
+| VS Code | `vscode` |
+
+## Advanced overrides
+
+Most users should not need client-specific overrides. If needed,
+you can disable a client integration from config:
+
+```bash
+confire config set clients.vscode.enabled=false
+```
+
+Re-enable it:
+
+```bash
+confire config set clients.vscode.enabled=true
+```
+
+Then run setup again:
+
+```bash
+confire setup
+```
+
+## Check effective setup
+
+```bash
+confire status
+```
+
+The **Agents** section shows which clients were detected and whether
+Confire is connected.
