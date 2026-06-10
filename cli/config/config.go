@@ -61,11 +61,27 @@ type Config struct {
 	// Hosts overrides per-agent capabilities (merged onto hosts.DefaultCapabilities).
 	// Example: {"cursor": {"post_tool_steer": false}}
 	Hosts map[string]HostSettings `json:"hosts,omitempty"`
+
+	// DashboardSync controls metadata event sync for logged-in users.
+	DashboardSync DashboardSyncConfig `json:"dashboard_sync,omitempty"`
 }
 
 // HostSettings overrides capability defaults for one host ID (cursor, claude-code, …).
 type HostSettings struct {
 	PostToolSteer *bool `json:"post_tool_steer,omitempty"`
+}
+
+// DashboardSyncConfig controls whether metadata events are synced to the dashboard.
+type DashboardSyncConfig struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// IsDashboardSyncEnabled returns true (default) unless explicitly disabled.
+func (d *DashboardSyncConfig) IsDashboardSyncEnabled() bool {
+	if d.Enabled != nil {
+		return *d.Enabled
+	}
+	return true
 }
 
 // CapabilitiesFor returns effective capabilities for a host, merging config overrides.

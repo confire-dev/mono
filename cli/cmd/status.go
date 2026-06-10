@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/confire-dev/confire/auth"
@@ -77,25 +78,25 @@ func runStatus() error {
 			gray, reset, "Sync", dim, reset)
 	} else {
 		email, _ := auth.LoadEmail()
+		plan := "Free"
 		if info, err := fetchAccountInfo(apiKey); err == nil {
-			limit := info.EffectiveLimit
-			if limit == 0 {
-				limit = info.Limit
-			}
-			fmt.Printf("  %s  %-18s %s%s%s · %s%s plan%s · %s%d/%d%s credits\n",
-				tick(true), "Signed in",
-				green, info.Email, reset,
-				bold, info.Plan, reset,
-				cyan, info.Used, limit, reset)
-			if info.PurchasedCredits > 0 {
-				fmt.Printf("       %s+%d top-up credits available%s\n", dim, info.PurchasedCredits, reset)
-			}
+			email = info.Email
+			plan = capFirst(info.Plan)
+			fmt.Printf("  %s  %-18s %s%s%s · %s plan\n",
+				tick(true), "Signed in", green, email, reset, plan)
 		} else if email != "" {
 			fmt.Printf("  %s  %-18s %s%s%s %s(offline)%s\n",
 				tick(true), "Signed in", green, email, reset, dim, reset)
 		} else {
 			fmt.Printf("  %s  %-18s %slogged in%s %s(key present, offline)%s\n",
 				tick(true), "Signed in", green, reset, dim, reset)
+		}
+		fmt.Printf("\n  %sDashboard%s\n", dim, reset)
+		if cfg.DashboardSync.IsDashboardSyncEnabled() {
+			fmt.Printf("  %s  %-18s %smetadata-only events enabled%s\n",
+				tick(true), "Sync", green, reset)
+		} else {
+			fmt.Printf("  %s○%s  %-18s %soff%s\n", gray, reset, "Sync", dim, reset)
 		}
 	}
 
@@ -177,6 +178,13 @@ func workerOnline() bool {
 	}
 	resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
+}
+
+func capFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // confireDir re-used from paths.go for the socket path.

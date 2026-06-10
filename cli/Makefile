@@ -9,8 +9,11 @@
 ##   make dist             cross-compile all release targets into dist/
 ##   make snapshot         run goreleaser snapshot (local release preview)
 ##   make test             run unit tests
+##   make qa               run Free product QA (required gate before every deployment)
 ##   make e2e              run end-to-end tests (requires built binary)
 ##   make all              dev + test
+##
+## Deployment gate: dist / release / snapshot all require `make qa` to pass first.
 
 BINARY     := confire
 BINARY_DEV := confire-dev
@@ -51,7 +54,7 @@ TARGETS := \
 	linux/amd64  \
 	linux/arm64
 
-.PHONY: all dev build-dev-env install-dev-env release dist snapshot test e2e clean install checksums
+.PHONY: all dev build-dev-env install-dev-env release dist snapshot test qa e2e clean install checksums
 
 all: dev test
 
@@ -74,8 +77,16 @@ install-dev-env:
 		-o "$(shell go env GOPATH)/bin/$(BINARY_DEV)" .
 	@echo "Installed $(BINARY_DEV) to $$(go env GOPATH)/bin/$(BINARY_DEV)"
 
+## qa: Free product QA — anonymous + logged-in states, telemetry privacy, guardrail wording.
+##     Must pass before every deployment. Runs automatically as a prerequisite of
+##     dist / release / snapshot.
+qa:
+	@echo "==> Confire Free QA"
+	go test ./guardrail/... ./e2e/... -count=1 -timeout 60s
+	@echo "==> QA passed"
+
 ## release: hardened binary for the current platform (garble + stripped)
-release:
+release: qa
 	CGO_ENABLED=1 $(GARBLE) $(GARBLE_FLAGS) build \
 		-trimpath \
 		-ldflags "$(REL_FLAGS)" \
@@ -85,7 +96,7 @@ release:
 
 ## dist: cross-compile all targets into dist/ with plain go build + stripped flags
 ##       (garble does not support cross-compilation; use release: for the local platform)
-dist: clean-dist
+dist: qa clean-dist
 	@mkdir -p $(DIST_DIR)
 	@$(foreach TARGET,$(TARGETS), \
 		$(eval OS   := $(word 1,$(subst /, ,$(TARGET)))) \
@@ -98,7 +109,7 @@ dist: clean-dist
 	@$(MAKE) --no-print-directory checksums
 
 ## snapshot: local goreleaser preview (no publish, no git tag required)
-snapshot:
+snapshot: qa
 	@if command -v goreleaser >/dev/null 2>&1; then \
 		goreleaser release --snapshot --clean; \
 	else \

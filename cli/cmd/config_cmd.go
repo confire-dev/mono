@@ -24,6 +24,7 @@ Keys:
   notifications.min_saved_tokens <N>       (tokens, default 5000)
   notifications.big_save_tokens  <N>       (tokens, default 50000)
   analytics.enabled              true | false
+  dashboard_sync.enabled         true | false   (logged-in users only)
   worker_url                     <URL>
   hosts.<id>.post_tool_steer     true | false   (per host, e.g. cursor)
 
@@ -125,6 +126,8 @@ func getField(cfg config.Config, key string) (string, error) {
 			return "(default)", nil
 		}
 		return cfg.WorkerURL, nil
+	case "dashboard_sync.enabled":
+		return boolStr(cfg.DashboardSync.IsDashboardSyncEnabled()), nil
 	default:
 		if val, ok := getHostField(cfg, key); ok {
 			return val, nil
@@ -174,6 +177,13 @@ func setField(cfg *config.Config, key, val string) error {
 
 	case "worker_url":
 		cfg.WorkerURL = val
+
+	case "dashboard_sync.enabled":
+		b, err := parseBool(val)
+		if err != nil {
+			return err
+		}
+		cfg.DashboardSync.Enabled = &b
 
 	default:
 		if err := setHostField(cfg, key, val); err == nil {

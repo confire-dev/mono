@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -151,10 +150,7 @@ func runPolicyStatus() error {
 // ── policy pull ───────────────────────────────────────────────────────────
 
 func runPolicyPull() error {
-	// Placeholder: full remote sync is implemented when the backend endpoint is ready.
-	// For now, show a clear message.
-	fmt.Fprintln(os.Stderr, "[confire] policy pull: remote custom rules require a paid plan.")
-	fmt.Fprintln(os.Stderr, "          Visit https://confire.dev to manage custom rules.")
+	fmt.Println("Custom rule sync is available in Dev early access. Built-in local rules are still active.")
 	return nil
 }
 
