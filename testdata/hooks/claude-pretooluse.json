@@ -1,0 +1,10 @@
+{
+  "session_id": "claude-sess-abc",
+  "transcript_path": "/tmp/claude-transcript.jsonl",
+  "cwd": "/project",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": { "command": "git push --force-with-lease origin main" },
+  "tool_use_id": "tu-claude-1"
+}

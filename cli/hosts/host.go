@@ -17,13 +17,12 @@ type Strategy string
 
 const (
 	// StrategyHooks uses the host's native lifecycle hook system.
-	// Richest integration: all phases, rewrites both output and input.
-	// Currently: Claude Code only.
+	// Supported by: Claude Code, Cursor, VS Code, Windsurf, Codex, Cline, OpenCode, OpenClaw.
+	// Capabilities vary per host — see capabilities.go.
 	StrategyHooks Strategy = "hooks"
 
 	// StrategyMCPProxy intercepts at the MCP transport layer.
-	// Universal: works with any MCP-speaking host (Cursor, Cline, …).
-	// Limited to tool pre/post phases.
+	// Fallback for MCP-speaking hosts without a native hook API.
 	StrategyMCPProxy Strategy = "mcp-proxy"
 )
 
@@ -77,6 +76,8 @@ func Registry() []Host {
 		&ClineHost{},
 		&WindsurfHost{},
 		&CodexHost{},
+		&OpenCodeHost{},
+		&OpenClawHost{},
 	}
 }
 

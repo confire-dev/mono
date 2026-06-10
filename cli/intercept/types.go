@@ -18,6 +18,12 @@ const (
 	// PhasePreCompact is reserved but DISABLED in v1.
 	// Highest blast radius: replaces transcript state. Enable in week 2 after stability.
 	PhasePreCompact Phase = "context.pre-compact"
+
+	// PhaseSchemaDrift is a synthetic internal phase used to report unknown fields
+	// detected in a client's hook payload. Never sent from client adapters directly —
+	// only emitted by the hook dispatcher when unknown JSON keys are found.
+	// The daemon routes this to telemetry for Slack alerting.
+	PhaseSchemaDrift Phase = "internal.schema-drift"
 )
 
 type Host     = string

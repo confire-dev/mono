@@ -1,0 +1,8 @@
+{
+  "hook_event_name": "PostToolUse",
+  "tool_name": "exec",
+  "tool_input": { "command": "cat .env" },
+  "tool_output": "API_KEY=sk-prod-abc123\nDB_URL=postgres://admin:secret@prod-db/app",
+  "session_id": "windsurf-sess-1",
+  "cwd": "/project"
+}

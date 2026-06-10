@@ -40,6 +40,9 @@ interface TelemetryEvent {
   warned_calls?:       number
   sanitized_calls?:    number
   secrets_total?:      number
+  // Schema drift fields
+  unknown_fields?:     string[]
+  client_version?:     string
 }
 
 type EventType =
@@ -49,6 +52,7 @@ type EventType =
   | 'provenance_event'
   | 'hook_installed'
   | 'daemon_started'
+  | 'hook_schema_drift'
 
 export async function handleTelemetry(request: Request, env: Env): Promise<Response> {
   // ── 1. Auth ──────────────────────────────────────────────────────────────
@@ -147,11 +151,49 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
       maybeTrack(env, event, user.email, user.plan, 'daemon_started')
       break
 
+    case 'hook_schema_drift':
+      // Rate-limit: at most 1 Slack alert per (host, unknown_fields) pair per hour.
+      if (env.SLACK_WEBHOOK_URL && event.integration && event.unknown_fields?.length) {
+        const driftKey = `drift:${event.integration}:${event.unknown_fields.sort().join(',')}`
+        const already  = env.CACHE ? await env.CACHE.get(driftKey) : null
+        if (!already) {
+          if (env.CACHE) env.CACHE.put(driftKey, '1', { expirationTtl: 3600 }).catch(() => {})
+          notifySlackSchemaDrift(env.SLACK_WEBHOOK_URL, event).catch(() => {})
+        }
+      }
+      break
+
     default:
       // Unknown event type — accept and discard (forward compat)
   }
 
   return Response.json({ ok: true })
+}
+
+// ── Slack notifications ───────────────────────────────────────────────────
+
+async function notifySlackSchemaDrift(webhookUrl: string, event: TelemetryEvent): Promise<void> {
+  const host    = event.integration ?? 'unknown'
+  const fields  = event.unknown_fields?.join('`, `') ?? ''
+  const version = event.client_version ? ` (v${event.client_version})` : ''
+  await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: `🚨 Hook schema drift: \`${host}\`${version}`,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*Hook schema drift detected* on \`${host}\`${version}\n` +
+                  `Unknown fields: \`${fields}\`\n` +
+                  `This means ${host} updated their hook API — check their changelog and update \`cli/hosts/${host}.go\`.`,
+          },
+        },
+      ],
+    }),
+  })
 }
 
 // ── Amplitude forwarding ──────────────────────────────────────────────────

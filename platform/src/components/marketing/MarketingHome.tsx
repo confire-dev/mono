@@ -563,6 +563,36 @@ const CLIENTS = [
       'Local policy evaluation',
     ],
   },
+  {
+    name: 'Windsurf',
+    Icon: LightningIcon,
+    features: [
+      'Risky tool call review before execution',
+      'Block destructive and mutating actions',
+      'Local policy evaluation',
+      'Built-in rules work without an account',
+    ],
+  },
+  {
+    name: 'Codex CLI',
+    Icon: BracketsCurlyIcon,
+    features: [
+      'Risky tool call review before execution',
+      'Tool result inspection after tools return',
+      'Secret warnings, injection flags, MCP risk notes',
+      'Local policy evaluation',
+    ],
+  },
+  {
+    name: 'Cline',
+    Icon: DatabaseIcon,
+    features: [
+      'Risky tool call review before execution',
+      'Tool result inspection after tools return',
+      'Secret warnings, injection flags, MCP risk notes',
+      'JS bridge plugin, installed by confire setup',
+    ],
+  },
 ]
 
 function Clients() {
@@ -682,7 +712,7 @@ function Privacy() {
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
-const installCode = `curl -fsSL https://confire.dev/install.sh | sh`
+const installCode = `curl -fsSL https://get.confire.dev/install.sh | sh`
 
 const connectCode = `confire login
 confire install claude
@@ -759,7 +789,7 @@ const PLANS = [
     name: 'Dev',
     tagline: 'Early access — for daily AI coding with custom guardrails, policy sync, provenance history, and advanced MCP security.',
     price: '$10',
-    period: '/mo soon',
+    period: '/month',
     features: [
       'Everything in Free',
       'Custom firewall rules',

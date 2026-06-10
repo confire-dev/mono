@@ -1,0 +1,17 @@
+{
+  "conversation_id": "conv-abc123",
+  "session_id": "sess-fallback",
+  "generation_id": "gen-xyz",
+  "hook_event_name": "postToolUse",
+  "model": "claude-3.5-sonnet",
+  "cursor_version": "1.7.0",
+  "workspace_roots": ["/project"],
+  "transcript_path": "/tmp/cursor-transcript.jsonl",
+  "user_email": "dev@example.com",
+  "tool_name": "MCP: figma/get_file",
+  "tool_input": { "fileKey": "abc123" },
+  "tool_output": "{\"document\":{\"id\":\"0:1\",\"name\":\"Design\",\"type\":\"DOCUMENT\"}}",
+  "tool_use_id": "tu-cursor-2",
+  "cwd": "/project",
+  "duration": 142
+}

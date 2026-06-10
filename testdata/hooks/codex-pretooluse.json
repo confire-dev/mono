@@ -1,0 +1,9 @@
+{
+  "session_id": "codex-sess-abc",
+  "cwd": "/project",
+  "hook_event_name": "PreToolUse",
+  "model": "codex-mini-latest",
+  "tool_name": "bash",
+  "tool_input": { "command": "git push --force-with-lease origin main" },
+  "tool_use_id": "tu-codex-1"
+}

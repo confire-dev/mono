@@ -236,6 +236,17 @@ func mapCursorPhase(event string) intercept.Phase {
 
 func cursorMCPServer(toolName string) string {
 	lower := strings.ToLower(toolName)
+	// Cursor colon format: "MCP: server/tool" or "mcp:server/tool"
+	if idx := strings.Index(lower, ":"); idx >= 0 {
+		rest := strings.TrimSpace(lower[idx+1:])
+		if slash := strings.Index(rest, "/"); slash >= 0 {
+			return rest[:slash]
+		}
+		if rest != "" {
+			return rest
+		}
+	}
+	// Fallback: canonical mcp__server__tool format
 	for _, k := range []string{"figma", "github", "slack", "linear", "jira", "confluence", "notion", "clickup", "amplitude"} {
 		if strings.HasPrefix(lower, k) || strings.Contains(lower, k+"_") {
 			return k
@@ -245,6 +256,8 @@ func cursorMCPServer(toolName string) string {
 }
 
 // ── Install ───────────────────────────────────────────────────────────────────
+
+var cursorHookEvents = []string{"preToolUse", "postToolUse", "sessionStart", "sessionEnd"}
 
 func cursorHooksPath(local bool) string {
 	if local {
@@ -270,13 +283,10 @@ func isCursorHookInstalled(local bool) bool {
 	return strings.Contains(string(data), "confire")
 }
 
-type cursorHookEntry struct {
-	Command string `json:"command"`
-}
-
-type cursorHooksFile struct {
-	Version int                          `json:"version"`
-	Hooks   map[string][]cursorHookEntry `json:"hooks"`
+// cursorEntryJSON builds a minimal Cursor hook entry with a fixed key order.
+func cursorEntryJSON(cmd string) json.RawMessage {
+	c, _ := json.Marshal(cmd)
+	return json.RawMessage(`{"command":` + string(c) + `}`)
 }
 
 func installCursorHooksAt(settingsPath, binaryPath string) error {
@@ -288,52 +298,34 @@ func installCursorHooksAt(settingsPath, binaryPath string) error {
 	}
 	hookCmd := `"` + binaryPath + `" hook`
 
-	current := cursorHooksFile{Version: 1, Hooks: map[string][]cursorHookEntry{}}
-	if data, err := os.ReadFile(settingsPath); err == nil {
-		json.Unmarshal(data, &current)
-	}
-	if current.Hooks == nil {
-		current.Hooks = map[string][]cursorHookEntry{}
-	}
-
-	for _, event := range []string{"preToolUse", "postToolUse", "sessionStart", "sessionEnd"} {
-		kept := current.Hooks[event][:0]
-		for _, e := range current.Hooks[event] {
-			if !strings.Contains(e.Command, "confire") {
-				kept = append(kept, e)
-			}
-		}
-		current.Hooks[event] = append(kept, cursorHookEntry{Command: hookCmd})
-	}
-
-	data, err := json.MarshalIndent(current, "", "  ")
+	top, err := loadOrderedMap(settingsPath)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(settingsPath, append(data, '\n'), 0644)
+	// Ensure version:1 is present when creating a new file.
+	if _, ok := top.get("version"); !ok {
+		vb, _ := json.Marshal(1)
+		top.set("version", vb)
+	}
+
+	entry := cursorEntryJSON(hookCmd)
+	if err := patchHooksField(top, cursorHookEvents, func(_ string, arr []json.RawMessage) []json.RawMessage {
+		return dedupAppend(arr, entry)
+	}); err != nil {
+		return err
+	}
+	return saveOrderedMap(settingsPath, top)
 }
 
 func uninstallCursorHooksAt(settingsPath string) error {
-	data, err := os.ReadFile(settingsPath)
-	if err != nil {
-		return nil // nothing to remove
-	}
-	var current cursorHooksFile
-	if err := json.Unmarshal(data, &current); err != nil {
+	top, err := loadOrderedMap(settingsPath)
+	if err != nil || len(top.keys) == 0 {
 		return nil
 	}
-	for event, entries := range current.Hooks {
-		kept := entries[:0]
-		for _, e := range entries {
-			if !strings.Contains(e.Command, "confire") {
-				kept = append(kept, e)
-			}
-		}
-		current.Hooks[event] = kept
-	}
-	out, err := json.MarshalIndent(current, "", "  ")
-	if err != nil {
+	if err := patchHooksField(top, cursorHookEvents, func(_ string, arr []json.RawMessage) []json.RawMessage {
+		return removeConfire(arr)
+	}); err != nil {
 		return err
 	}
-	return os.WriteFile(settingsPath, append(out, '\n'), 0644)
+	return saveOrderedMap(settingsPath, top)
 }

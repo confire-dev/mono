@@ -90,6 +90,8 @@ export interface Env {
   SUPABASE_WEBHOOK_SECRET?: string
   // Environment tag
   ENVIRONMENT: string
+  // Slack webhook URL for internal alerts (schema drift, anomalies)
+  SLACK_WEBHOOK_URL?: string
 }
 
 // ── Worker wire formats ────────────────────────────────────────────────────

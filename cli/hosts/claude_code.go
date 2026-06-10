@@ -2,7 +2,6 @@
 package hosts
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -87,7 +86,7 @@ func claudeCodeHookInstalled() bool {
 }
 
 func claudeCodeHookInstalledAt(settingsPath string) bool {
-	top, err := loadSettings(settingsPath)
+	top, err := loadOrderedMap(settingsPath)
 	if err != nil {
 		return false
 	}
@@ -115,102 +114,10 @@ func claudeCodeHookInstalledAt(settingsPath string) bool {
 	return false
 }
 
-// ── Ordered JSON object ───────────────────────────────────────────────────
-// orderedMap preserves JSON object key order on read and write.
-// Only the fields we modify are re-serialized; everything else stays raw.
+// ── Settings helpers ──────────────────────────────────────────────────────
 
-type orderedMap struct {
-	keys []string
-	vals map[string]json.RawMessage
-}
-
-func newOrderedMap() *orderedMap {
-	return &orderedMap{vals: make(map[string]json.RawMessage)}
-}
-
-func (m *orderedMap) get(key string) (json.RawMessage, bool) {
-	v, ok := m.vals[key]
-	return v, ok
-}
-
-func (m *orderedMap) set(key string, val json.RawMessage) {
-	if _, exists := m.vals[key]; !exists {
-		m.keys = append(m.keys, key)
-	}
-	m.vals[key] = val
-}
-
-func (m *orderedMap) UnmarshalJSON(data []byte) error {
-	if m.vals == nil {
-		m.vals = make(map[string]json.RawMessage)
-	}
-	dec := json.NewDecoder(bytes.NewReader(data))
-	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
-		return fmt.Errorf("expected JSON object")
-	}
-	for dec.More() {
-		t, err := dec.Token()
-		if err != nil {
-			return err
-		}
-		key, _ := t.(string)
-		var val json.RawMessage
-		if err := dec.Decode(&val); err != nil {
-			return err
-		}
-		m.set(key, val)
-	}
-	_, err := dec.Token() // consume '}'
-	return err
-}
-
-func (m *orderedMap) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	buf.WriteByte('{')
-	for i, k := range m.keys {
-		if i > 0 {
-			buf.WriteByte(',')
-		}
-		kb, err := json.Marshal(k)
-		if err != nil {
-			return nil, err
-		}
-		buf.Write(kb)
-		buf.WriteByte(':')
-		buf.Write(m.vals[k])
-	}
-	buf.WriteByte('}')
-	return buf.Bytes(), nil
-}
-
-// ── Settings I/O ──────────────────────────────────────────────────────────
-
-func loadSettings(settingsPath string) (*orderedMap, error) {
-	raw, err := os.ReadFile(settingsPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return newOrderedMap(), nil
-		}
-		return nil, err
-	}
-	m := newOrderedMap()
-	if err := json.Unmarshal(raw, m); err != nil {
-		return nil, fmt.Errorf("parse settings: %w", err)
-	}
-	return m, nil
-}
-
-func saveSettings(settingsPath string, top *orderedMap) error {
-	// MarshalJSON produces compact output; json.MarshalIndent re-indents it.
-	out, err := json.MarshalIndent(top, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(settingsPath, out, 0644)
-}
-
-// hookEntryJSON returns a pre-serialized hook entry with a fixed key order:
-// matcher → hooks → type → command. No map involved so no key reordering.
+// hookEntryJSON returns a pre-serialized Claude Code hook entry with fixed key order.
+// matcher → hooks → type → command. No map so key order never changes.
 func hookEntryJSON(matcher, cmd string) json.RawMessage {
 	m, _ := json.Marshal(matcher)
 	c, _ := json.Marshal(cmd)
@@ -224,53 +131,7 @@ func sessionHookEntryJSON(cmd string) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(`{"hooks":[{"type":"command","command":%s}]}`, c))
 }
 
-// isConfireEntry reports whether a raw hook entry belongs to confire.
-func isConfireEntry(raw json.RawMessage) bool {
-	s := string(raw)
-	return strings.Contains(s, "confire") && strings.Contains(s, "hook")
-}
-
-// dedupAppend removes existing confire entries from arr then appends newEntry.
-func dedupAppend(arr []json.RawMessage, newEntry json.RawMessage) []json.RawMessage {
-	kept := make([]json.RawMessage, 0, len(arr))
-	for _, e := range arr {
-		if !isConfireEntry(e) {
-			kept = append(kept, e)
-		}
-	}
-	return append(kept, newEntry)
-}
-
-// patchHooks reads the hooks orderedMap, applies fn to each named phase array,
-// and writes the result back into top — leaving all other fields untouched.
-func patchHooks(top *orderedMap, fn func(phase string, arr []json.RawMessage) []json.RawMessage) error {
-	hooksMap := newOrderedMap()
-	if rawHooks, ok := top.get("hooks"); ok {
-		if err := json.Unmarshal(rawHooks, hooksMap); err != nil {
-			return err
-		}
-	}
-
-	for _, phase := range []string{"PostToolUse", "PreToolUse", "SessionStart", "SessionEnd"} {
-		var arr []json.RawMessage
-		if raw, ok := hooksMap.get(phase); ok {
-			_ = json.Unmarshal(raw, &arr)
-		}
-		arr = fn(phase, arr)
-		arrBytes, err := json.Marshal(arr)
-		if err != nil {
-			return err
-		}
-		hooksMap.set(phase, arrBytes)
-	}
-
-	hooksBytes, err := json.Marshal(hooksMap)
-	if err != nil {
-		return err
-	}
-	top.set("hooks", hooksBytes)
-	return nil
-}
+var claudeCodeHookEvents = []string{"PostToolUse", "PreToolUse", "SessionStart", "SessionEnd"}
 
 // ── Install / Uninstall ───────────────────────────────────────────────────
 
@@ -283,11 +144,7 @@ func installClaudeCodeHooksAt(settingsPath, binaryPath string) error {
 		return err
 	}
 
-	if orig, err := os.ReadFile(settingsPath); err == nil && len(orig) > 0 {
-		_ = os.WriteFile(settingsPath+".confire-backup", orig, 0644)
-	}
-
-	top, err := loadSettings(settingsPath)
+	top, err := loadOrderedMap(settingsPath)
 	if err != nil {
 		return err
 	}
@@ -297,7 +154,7 @@ func installClaudeCodeHooksAt(settingsPath, binaryPath string) error {
 	}
 	hookCmd := fmt.Sprintf(`"%s" hook`, binaryPath)
 
-	if err := patchHooks(top, func(phase string, arr []json.RawMessage) []json.RawMessage {
+	if err := patchHooksField(top, claudeCodeHookEvents, func(phase string, arr []json.RawMessage) []json.RawMessage {
 		switch phase {
 		case "PostToolUse", "PreToolUse":
 			return dedupAppend(arr, hookEntryJSON(".*", hookCmd))
@@ -308,7 +165,7 @@ func installClaudeCodeHooksAt(settingsPath, binaryPath string) error {
 		return err
 	}
 
-	return saveSettings(settingsPath, top)
+	return saveOrderedMap(settingsPath, top)
 }
 
 func uninstallClaudeCodeHooks() error {
@@ -317,24 +174,18 @@ func uninstallClaudeCodeHooks() error {
 
 func uninstallClaudeCodeHooksAt(settingsPath string) error {
 
-	top, err := loadSettings(settingsPath)
+	top, err := loadOrderedMap(settingsPath)
 	if err != nil || len(top.keys) == 0 {
 		return nil
 	}
 
-	if err := patchHooks(top, func(_ string, arr []json.RawMessage) []json.RawMessage {
-		kept := make([]json.RawMessage, 0, len(arr))
-		for _, e := range arr {
-			if !isConfireEntry(e) {
-				kept = append(kept, e)
-			}
-		}
-		return kept
+	if err := patchHooksField(top, claudeCodeHookEvents, func(_ string, arr []json.RawMessage) []json.RawMessage {
+		return removeConfire(arr)
 	}); err != nil {
 		return err
 	}
 
-	return saveSettings(settingsPath, top)
+	return saveOrderedMap(settingsPath, top)
 }
 
 

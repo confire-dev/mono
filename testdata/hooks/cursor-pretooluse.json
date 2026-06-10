@@ -1,0 +1,16 @@
+{
+  "conversation_id": "conv-abc123",
+  "session_id": "sess-fallback",
+  "generation_id": "gen-xyz",
+  "hook_event_name": "preToolUse",
+  "model": "claude-3.5-sonnet",
+  "cursor_version": "1.7.0",
+  "workspace_roots": ["/project"],
+  "transcript_path": "/tmp/cursor-transcript.jsonl",
+  "user_email": "dev@example.com",
+  "tool_name": "Shell",
+  "tool_input": { "command": "git push --force-with-lease origin main" },
+  "tool_use_id": "tu-cursor-1",
+  "cwd": "/project",
+  "duration": 0
+}

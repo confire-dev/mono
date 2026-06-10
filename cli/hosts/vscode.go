@@ -247,6 +247,8 @@ func mapVSCodePhase(event string) intercept.Phase {
 
 // ── Install ───────────────────────────────────────────────────────────────────
 
+var vsCodeHookEvents = []string{"PreToolUse", "PostToolUse", "SessionStart", "Stop"}
+
 func vsCodeHooksPath(local bool) string {
 	if local {
 		return filepath.Join(".github", "hooks", "confire.json")
@@ -255,19 +257,15 @@ func vsCodeHooksPath(local bool) string {
 	return filepath.Join(home, ".copilot", "hooks", "confire.json")
 }
 
-type vsCodeHookEntry struct {
-	Type    string `json:"type"`
-	Command string `json:"command"`
-	Timeout int    `json:"timeout,omitempty"`
-}
-
-type vsCodeHooksFile struct {
-	Hooks map[string][]vsCodeHookEntry `json:"hooks"`
+// vsCodeEntryJSON builds a VS Code hook entry with fixed key order.
+func vsCodeEntryJSON(cmd string) json.RawMessage {
+	c, _ := json.Marshal(cmd)
+	return json.RawMessage(`{"type":"command","command":` + string(c) + `,"timeout":10}`)
 }
 
 func installVSCodeHooks(binaryPath string, local bool) error {
-	path := vsCodeHooksPath(local)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	p := vsCodeHooksPath(local)
+	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
 		return err
 	}
 	if binaryPath == "" {
@@ -275,59 +273,31 @@ func installVSCodeHooks(binaryPath string, local bool) error {
 	}
 	hookCmd := `"` + binaryPath + `" hook`
 
-	current := vsCodeHooksFile{Hooks: map[string][]vsCodeHookEntry{}}
-	if data, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(data, &current)
-	}
-	if current.Hooks == nil {
-		current.Hooks = map[string][]vsCodeHookEntry{}
-	}
-
-	for _, event := range []string{"PreToolUse", "PostToolUse", "SessionStart", "Stop"} {
-		kept := current.Hooks[event][:0]
-		for _, e := range current.Hooks[event] {
-			if !strings.Contains(e.Command, "confire") {
-				kept = append(kept, e)
-			}
-		}
-		current.Hooks[event] = append(kept, vsCodeHookEntry{
-			Type:    "command",
-			Command: hookCmd,
-			Timeout: 10,
-		})
-	}
-
-	data, err := json.MarshalIndent(current, "", "  ")
+	top, err := loadOrderedMap(p)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0644)
+	entry := vsCodeEntryJSON(hookCmd)
+	if err := patchHooksField(top, vsCodeHookEvents, func(_ string, arr []json.RawMessage) []json.RawMessage {
+		return dedupAppend(arr, entry)
+	}); err != nil {
+		return err
+	}
+	return saveOrderedMap(p, top)
 }
 
 func uninstallVSCodeHooks(local bool) error {
-	path := vsCodeHooksPath(local)
-	data, err := os.ReadFile(path)
-	if err != nil {
+	p := vsCodeHooksPath(local)
+	top, err := loadOrderedMap(p)
+	if err != nil || len(top.keys) == 0 {
 		return nil
 	}
-	var current vsCodeHooksFile
-	if err := json.Unmarshal(data, &current); err != nil {
-		return nil
-	}
-	for event, entries := range current.Hooks {
-		kept := entries[:0]
-		for _, e := range entries {
-			if !strings.Contains(e.Command, "confire") {
-				kept = append(kept, e)
-			}
-		}
-		current.Hooks[event] = kept
-	}
-	out, err := json.MarshalIndent(current, "", "  ")
-	if err != nil {
+	if err := patchHooksField(top, vsCodeHookEvents, func(_ string, arr []json.RawMessage) []json.RawMessage {
+		return removeConfire(arr)
+	}); err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(out, '\n'), 0644)
+	return saveOrderedMap(p, top)
 }
 
 func isVSCodeHookInstalled(local bool) bool {

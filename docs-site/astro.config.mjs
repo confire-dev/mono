@@ -36,6 +36,7 @@ export default defineConfig({
             { label: 'Install',              slug: 'getting-started/install' },
             { label: 'Connect your agent',   slug: 'getting-started/connect' },
             { label: 'Verify your setup',    slug: 'getting-started/verify' },
+            { label: 'Uninstall',            slug: 'getting-started/uninstall' },
           ],
         },
         {

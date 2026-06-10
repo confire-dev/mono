@@ -1,0 +1,7 @@
+{
+  "hook_event_name": "PreToolUse",
+  "tool_name": "exec",
+  "tool_input": { "command": "git push --force-with-lease origin main" },
+  "session_id": "windsurf-sess-1",
+  "cwd": "/project"
+}

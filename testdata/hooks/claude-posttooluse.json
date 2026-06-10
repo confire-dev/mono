@@ -1,0 +1,11 @@
+{
+  "session_id": "claude-sess-abc",
+  "transcript_path": "/tmp/claude-transcript.jsonl",
+  "cwd": "/project",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": { "command": "cat .env" },
+  "tool_response": "API_KEY=sk-prod-abc123\nDB_URL=postgres://admin:secret@prod-db/app",
+  "tool_use_id": "tu-claude-2",
+  "duration_ms": 88
+}

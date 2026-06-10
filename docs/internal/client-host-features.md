@@ -10,54 +10,85 @@ Ground truth for what Confire actually does per supported client. Update when ca
 
 | Strategy | Mechanism | Clients |
 |----------|-----------|---------|
-| `hooks` | Claude Code native lifecycle hooks (PreToolUse, PostToolUse, SessionStart, SessionEnd) | Claude Code |
-| `mcp-proxy` | Intercepts at MCP transport layer; only tools routed through Confire's MCP server | Cursor, VS Code, Cline*, Windsurf*, Codex CLI* |
+| `hooks` | Native lifecycle hooks (PreToolUse, PostToolUse, SessionStart, SessionEnd) | All supported clients |
+| `mcp-proxy` | Intercepts at MCP transport layer; only tools routed through Confire's MCP server | Reserved — no active clients |
 
-\* Coming soon
+All clients now use `StrategyHooks`. The `mcp-proxy` strategy is reserved for
+future MCP-only clients that do not expose a native hook API.
 
 ---
 
 ## Per-client capability table
 
-| Capability | Claude Code | Cursor | VS Code | Cline | Windsurf | Codex CLI |
-|------------|:-----------:|:------:|:-------:|:-----:|:--------:|:---------:|
-| **Status** | Live | Live | Live | Coming soon | Coming soon | Coming soon |
-| **Strategy** | hooks | mcp-proxy | mcp-proxy | mcp-proxy | mcp-proxy | mcp-proxy |
-| **PreToolUse firewall** (block/review before tool runs) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **PostToolUse native output replacement** (shrink/sanitize actual tool output) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **OptimizeNative** (local tools: Bash, Read, WebFetch) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **OptimizeMCP** (MCP-routed tool output) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **PostToolSteer** (security/guidance hints via `additional_context`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **SessionStart context injection** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **SessionEnd cleanup** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-
-### Notes on Cursor / VS Code native tool coverage
-
-MCP proxy only intercepts tools explicitly routed through Confire's MCP server. Native/local tools (Bash, file reads, shell commands) run directly inside the client — Confire cannot see their input or output. PostToolSteer fires on MCP tool calls only and injects `additional_context` security hints (e.g. "do not refetch", "safer narrower tool available", "MCP mutates external state"). This is the primary security surface for these clients.
+| Capability | Claude Code | Cursor | VS Code | Windsurf | Codex CLI | Cline | OpenCode | OpenClaw |
+|------------|:-----------:|:------:|:-------:|:--------:|:---------:|:-----:|:--------:|:--------:|
+| **Status** | Live | Live | Live | Live | Live | Live | Live | Live |
+| **Strategy** | hooks | hooks | hooks | hooks | hooks | hooks (JS bridge) | hooks (JS bridge) | hooks (JS bridge) |
+| **PreToolUse firewall** (block/review before tool runs) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **PostToolUse native output replacement** | ✅ | MCP only | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **PostToolSteer** (security context via additionalContext) | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **SessionStart context injection** | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **SessionEnd cleanup** | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
-## Hook event coverage (Claude Code only)
+## Hook config file locations
 
-Claude Code exposes 29 hook event types. Confire registers 4:
+| Client | Global | Local |
+|--------|--------|-------|
+| Claude Code | `~/.claude/settings.json` | `.claude/settings.json` |
+| Cursor | `~/.cursor/hooks.json` | `.cursor/hooks.json` |
+| VS Code | `~/.copilot/hooks/confire.json` | `.github/hooks/confire.json` |
+| Windsurf | `~/.windsurf/hooks.json` | `.windsurf/hooks.json` |
+| Codex CLI | `~/.codex/hooks.json` | `.codex/hooks.json` |
+| Cline | `~/.../globalStorage/saoudrizwan.claude-dev/plugins/confire.js` | — |
+| OpenCode | `~/.config/opencode/plugins/confire.js` | `.opencode/plugins/confire.js` |
+| OpenClaw | `~/.openclaw/plugins/confire.js` | `.openclaw/plugins/confire.js` |
 
-| Hook | Registered | What Confire does |
-|------|-----------|-------------------|
-| `PreToolUse` | ✅ | Firewall: review/block risky tool calls before they run |
-| `PostToolUse` | ✅ | Optimize + sanitize tool output; inject PostToolSteer hints |
-| `SessionStart` | ✅ | Silent health check; inject system context if needed |
-| `SessionEnd` | ✅ | Cleanup hook (no-op on healthy sessions) |
-| `Stop` / `StopFailure` | ❌ not registered | Mapped in `MapPhase` if received; not actively installed |
-| All others (27) | ❌ | Not handled |
+---
+
+## Hook detection in `confire hook`
+
+The `confire hook` command dispatches to the correct host handler using the
+`--host` flag (registered in each client's config). Existing Claude Code,
+Cursor, and VS Code installs use backward-compatible payload auto-detection.
+
+| Method | Clients |
+|--------|---------|
+| `--host windsurf` flag | Windsurf |
+| `--host codex` flag | Codex CLI |
+| `--host cline` flag | Cline (via JS bridge) |
+| `--host opencode` flag | OpenCode (via JS bridge) |
+| `--host openclaw` flag | OpenClaw (via JS bridge) |
+| `cursor_version` field in payload | Cursor (backward compat) |
+| `sessionId` camelCase + no `session_id` + no `conversation_id` | VS Code (backward compat) |
+| Default | Claude Code |
+
+---
+
+## JS bridge clients (Cline, OpenCode, OpenClaw)
+
+These clients use a TypeScript/JS plugin SDK rather than a CLI hook binary.
+Confire installs a small bridge plugin (`confire.js`) that:
+
+1. Registers the client's native hook events.
+2. Calls `confire hook --host <client>` as a subprocess with the event JSON on stdin.
+3. Returns the result in the client's expected format.
+
+The bridge plugin is embedded in the Confire binary as a string constant and
+written to the client's plugin directory by `confire setup` / `confire install`.
+
+**Limitation:** JS bridge clients do not support SessionStart/SessionEnd because
+those events are not mapped in the bridge plugin. The tool firewall and post-tool
+steer (additionalContext) work normally.
 
 ---
 
 ## Observations / future work
 
-- **PreToolUse for Cursor/VS Code:** Not possible with mcp-proxy — clients don't expose a pre-call hook at the MCP transport layer. Would require client-side SDK support or a dedicated sidecar.
-- **Native tool coverage for Cursor/VS Code:** No path to intercept Bash/shell/read output in these clients today. PostToolSteer is the only security lever. Flag this gap clearly in user-facing docs.
-- **Stop/StopFailure hooks (Claude Code):** `MapPhase` handles them but they are not registered in `settings.json`. Consider registering for turn-level analytics or guardrail summaries.
-- **SubagentStop / PostToolBatch (Claude Code):** Not handled. Could be valuable for subagent-level firewall summaries.
-- **Cline / Windsurf / Codex CLI:** All in registry as `ComingSoon`. MCP proxy strategy already defined; needs install/detect implementation and E2E tests.
-- **UserPromptSubmit hook (Claude Code):** Could enable prompt-level injection detection before any tool runs — not implemented.
-- **PreCompact hook (Claude Code):** Reserved in `intercept/types.go` as `PhasePreCompact` but explicitly marked DISABLED in v1. Re-evaluate for context budget guardrails.
+- **Windsurf PostToolSteer:** Current PostToolUse response only supports `decision/reason`. If Windsurf adds `additionalContext` support, update `EncodeWindsurfResult` and set `PostToolSteer: true` in `capabilities.go`.
+- **Codex `updatedToolOutput`:** Codex may support output replacement — verify against live binary. If confirmed, set `NativeOutputReplaceable: true` for `codex` in `capabilities.go`.
+- **Cline `beforeTool`/`afterTool` context shape:** Verify exact field names against the Cline SDK before 1.0 release — the bridge plugin uses `context.sessionId`, `context.cwd`, `context.tool`, `context.input`, `context.output`, `context.additionalContext`.
+- **OpenClaw plugin registration:** Verify the exact plugin directory path and whether `api.on` is the correct registration method.
+- **UserPromptSubmit hook (all clients):** Could enable prompt-level injection detection. Not implemented.
+- **Windsurf config path:** The `docs.devin.ai` format uses `.devin/hooks.v1.json`. If Windsurf ships its own config path, update `windsurfHooksPath()` in `windsurf.go`.
