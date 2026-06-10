@@ -9,7 +9,7 @@ import type { Env } from '../types.js'
 import { authenticate } from '../lib/auth.js'
 import { recordSecurityEvent, recordProvenanceEvent, upsertCliSession, closeCliSession, writeAudit } from '../lib/supabase.js'
 import { trackEvent } from '../lib/analytics.js'
-import { sanitizeToolType } from '../lib/buckets.js'
+import { sanitizeToolType, categorizeMCPServer, categorizeOrigin } from '../lib/buckets.js'
 import { cacheKey, cacheGet, cachePut } from '../lib/cache.js'
 
 // ── Wire format from the CLI daemon ─────────────────────────────────────────
@@ -53,6 +53,12 @@ type EventType =
   | 'hook_installed'
   | 'daemon_started'
   | 'hook_schema_drift'
+  | 'bypass_next_created'
+  | 'bypass_next_consumed'
+  | 'login_completed'
+  | 'setup_completed'
+  | 'setup_failed'
+  | 'analytics_opted_out'
 
 export async function handleTelemetry(request: Request, env: Env): Promise<Response> {
   // ── 1. Auth ──────────────────────────────────────────────────────────────
@@ -96,7 +102,7 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
           ...(integration ? { integration } : {}),
         })
       }
-      maybeTrack(env, event, user.email, user.plan, 'cli_session_started')
+      maybeTrack(env, event, user.id, user.plan, 'confire_session_started')
       break
 
     case 'session_end':
@@ -105,7 +111,7 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
           totalCalls: event.total_tool_calls ?? 0,
         })
       }
-      maybeTrack(env, event, user.email, user.plan, 'cli_session_ended')
+      maybeTrack(env, event, user.id, user.plan, 'confire_session_ended')
       break
 
     case 'security_event':
@@ -122,7 +128,7 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
         })
       }
       if (event.analytics_consented) {
-        maybeTrack(env, event, user.email, user.plan, 'security_event')
+        maybeTrack(env, event, user.id, user.plan, 'confire_security_event')
       }
       break
 
@@ -144,11 +150,48 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
 
     case 'hook_installed':
       if (cfg) await writeAudit(cfg, user.id, 'hook_installed', { cli_version: event.cli_version })
-      maybeTrack(env, event, user.email, user.plan, 'hook_installed')
+      maybeTrack(env, event, user.id, user.plan, 'confire_client_connected')
       break
 
     case 'daemon_started':
-      maybeTrack(env, event, user.email, user.plan, 'daemon_started')
+      maybeTrack(env, event, user.id, user.plan, 'confire_daemon_started')
+      break
+
+    case 'bypass_next_created':
+      if (cfg) await writeAudit(cfg, user.id, 'bypass_next_created', { cli_version: event.cli_version })
+      maybeTrack(env, event, user.id, user.plan, 'confire_bypass_next_created')
+      break
+
+    case 'bypass_next_consumed':
+      if (cfg) await writeAudit(cfg, user.id, 'bypass_next_consumed', { session_id: event.session_id })
+      maybeTrack(env, event, user.id, user.plan, 'confire_bypass_next_consumed')
+      break
+
+    case 'login_completed':
+      if (cfg) await writeAudit(cfg, user.id, 'login_completed', { cli_version: event.cli_version })
+      maybeTrack(env, event, user.id, user.plan, 'confire_login_completed')
+      break
+
+    case 'setup_completed':
+      if (cfg) await writeAudit(cfg, user.id, 'setup_completed', { cli_version: event.cli_version })
+      maybeTrack(env, event, user.id, user.plan, 'confire_setup_completed')
+      break
+
+    case 'setup_failed':
+      if (cfg) await writeAudit(cfg, user.id, 'setup_failed', { cli_version: event.cli_version })
+      maybeTrack(env, event, user.id, user.plan, 'confire_setup_failed')
+      break
+
+    case 'analytics_opted_out':
+      if (cfg) await writeAudit(cfg, user.id, 'analytics_opted_out', { cli_version: event.cli_version })
+      // Fire to Amplitude exactly once at opt-out time regardless of consent flag —
+      // this is the last analytics event before the user goes silent.
+      trackEvent(env.AE, env.AMPLITUDE_KEY, {
+        userId:    user.id,
+        eventType: 'confire_analytics_opted_out',
+        source:    'cli',
+        ...(event.cli_version ? { confireVersion: event.cli_version } : {}),
+      })
       break
 
     case 'hook_schema_drift':
@@ -201,18 +244,25 @@ async function notifySlackSchemaDrift(webhookUrl: string, event: TelemetryEvent)
 function maybeTrack(
   env: Env,
   event: TelemetryEvent,
-  email: string,
+  userId: string,
   plan: string,
   amplitudeEventType: string,
 ): void {
   if (!event.analytics_consented) return
 
+  // Provenance category fields — never raw MCP server names or domains.
+  const mcpCat    = event.mcp_server    ? categorizeMCPServer(event.mcp_server)    : null
+  const originCat = event.origin_domain ? categorizeOrigin(event.origin_domain)     : null
+
   trackEvent(env.AE, env.AMPLITUDE_KEY, {
-    userId:    email,
-    email,
+    userId:    userId,
     eventType: amplitudeEventType,
-    toolName:  event.tool_type ? sanitizeToolType(event.tool_type) : undefined,
-    sessionId: undefined,
+    ...(event.tool_type ? { toolName: sanitizeToolType(event.tool_type) } : {}),
     host:      event.integration ?? 'claude_code',
+    // Safe categorical decision for security events
+    ...(event.action_taken ? { decision: event.action_taken.toLowerCase() } : {}),
+    // Provenance categories (no raw server names or domains)
+    ...(mcpCat    ? { mcpServerKnown: mcpCat.known, mcpServerCategory: mcpCat.category }             : {}),
+    ...(originCat ? { originCategory: originCat.category, originKnownPublic: originCat.knownPublic } : {}),
   })
 }

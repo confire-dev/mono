@@ -74,7 +74,7 @@ export default defineConfig({
           items: [
             { label: 'Config file',                    slug: 'configuration/config-file' },
             { label: 'Client settings',                slug: 'configuration/per-agent-settings' },
-            { label: 'Privacy',                        slug: 'configuration/privacy-and-cloud-optimization' },
+            { label: 'Privacy',                        slug: 'configuration/privacy' },
           ],
         },
         {

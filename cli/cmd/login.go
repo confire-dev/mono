@@ -188,6 +188,8 @@ func runLogin() error {
 		_ = auth.StoreEmail(res.email)
 	}
 
+	go postCLIEvent("login_completed")
+
 	msg := res.message
 	if msg == "" {
 		msg = fmt.Sprintf("✓ Logged in as %s", res.email)

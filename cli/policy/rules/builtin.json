@@ -205,7 +205,7 @@
           "Read"
         ],
         "command_regex": "(^|[\\s/])\\.env(\\.(local|prod|production|staging|test))?(\\s|$|\\\")|[\\s/](id_rsa|id_ed25519|\\.aws/credentials|\\.kube/config|\\.npmrc|\\.pypirc)(\\s|$|\\\")",
-        "command_not_regex": "(<redacted>|REDACTED|redacted|sed\\s+['\\\"]s/=|awk\\s+-F=|cut\\s+-d=)"
+        "command_not_regex": "(<redacted>|REDACTED|redacted|sed\\s+['\\\"]s/=|awk\\s+-F=|cut\\s+-d=)|git\\s+(commit|add|diff|log|show|status)"
       },
       "message": "This accesses a file that likely contains real secrets or credentials, and the command does not appear to redact or limit the output. Review carefully before allowing."
     },
@@ -247,7 +247,7 @@
         "command_contains": [
           "cut -d="
         ],
-        "command_not_regex": "(<redacted>|REDACTED|redacted|sed\\s+['\\\"]s/=|awk\\s+-F=)"
+        "command_not_regex": "(<redacted>|REDACTED|redacted|sed\\s+['\\\"]s/=|awk\\s+-F=)|git\\s+(commit|add|diff|log|show|status)"
       },
       "message": "This reads a secret file but appears to extract only variable names, not values. Still flagged for review since the command could be changed to print values."
     },

@@ -1,7 +1,6 @@
 import type { Env } from '../types.js'
 import { upsertProfile, getProfileById, generateApiKey, validateApiKey, revokeApiKey, revokeCurrentKey } from '../lib/supabase.js'
 import { getPlan } from '../lib/plans.js'
-import { trackEvent } from '../lib/analytics.js'
 
 async function verifySupabaseJWT(token: string, supabaseUrl: string, anonKey: string): Promise<{sub:string; email:string} | null> {
   const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
@@ -36,9 +35,8 @@ export async function handleGenerateKey(request: Request, env: Env): Promise<Res
   const apiKey     = await generateApiKey(cfg, user.id, deviceId, deviceName)
   const plan = await getPlan(user.plan, env)
 
-  trackEvent(env.AE, env.AMPLITUDE_KEY, {
-    userId: user.id, email: user.email, eventType: 'api_key_generated',
-  })
+  // api_key_generated is an operational/security record only.
+  // writeAudit is called inside generateApiKey — no Amplitude call here.
 
   return Response.json({
     apiKey,

@@ -877,10 +877,6 @@ function Pricing() {
 
 const FAQ_ITEMS = [
   {
-    q: 'Is Confire only a token optimizer?',
-    a: 'No. Confire is a tool and context firewall. It reviews risky tool calls before they run and inspects tool results after they return — flagging secrets, injection-like patterns, and other risk signals as security context for the agent.',
-  },
-  {
     q: 'Does Confire replace Claude Code?',
     a: 'No. Confire runs around your existing agent workflow. Claude Code, Cursor, and VS Code remain your coding tools.',
   },

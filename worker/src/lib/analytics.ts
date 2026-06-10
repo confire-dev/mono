@@ -3,14 +3,24 @@
 //   2. Amplitude HTTP API           — user-level analytics, funnel analysis
 
 export interface AnalyticsEvent {
-  userId: string
-  email: string
-  eventType: string
-  toolName?: string | undefined
-  riskLevel?: string | undefined
-  actionTaken?: string | undefined
-  sessionId?: string | undefined
-  host?: string | undefined
+  userId:         string   // DB UUID — never email
+  eventType:      string
+  // Firewall / security
+  decision?:      string    // block | review | warn | sanitize
+  toolName?:      string
+  riskLevel?:     string
+  actionTaken?:   string
+  // Session context
+  sessionId?:     string
+  host?:          string
+  // Provenance categories (never raw MCP server names or domains)
+  mcpServerKnown?:    boolean
+  mcpServerCategory?: string
+  originCategory?:    string
+  originKnownPublic?: boolean
+  // Meta
+  source?:         string   // cli | dashboard
+  confireVersion?: string
 }
 
 // trackEvent writes to both Analytics Engine and Amplitude.
@@ -27,7 +37,7 @@ export function trackEvent(
 async function writeAnalyticsEngine(ae: AnalyticsEngineDataset, event: AnalyticsEvent): Promise<void> {
   ae.writeDataPoint({
     blobs: [
-      event.userId,
+      event.userId,   // DB UUID
       event.eventType,
       event.toolName ?? '',
       event.riskLevel ?? '',
@@ -46,17 +56,21 @@ async function sendAmplitude(apiKey: string, event: AnalyticsEvent): Promise<voi
     body: JSON.stringify({
       api_key: apiKey,
       events: [{
-        user_id: event.userId,
+        user_id:    event.userId,
         event_type: event.eventType,
-        time: Date.now(),
+        time:       Date.now(),
         event_properties: {
-          tool_name:    event.toolName,
-          risk_level:   event.riskLevel,
-          action_taken: event.actionTaken,
-          session_id:   event.sessionId,
-          host:         event.host ?? 'claude-code',
+          ...(event.decision          ? { decision:            event.decision }          : {}),
+          ...(event.toolName          ? { tool_category:       event.toolName }          : {}),
+          ...(event.riskLevel         ? { risk_level:          event.riskLevel }         : {}),
+          ...(event.host              ? { host:                event.host }              : {}),
+          ...(event.mcpServerKnown    !== undefined ? { mcp_server_known:     event.mcpServerKnown }    : {}),
+          ...(event.mcpServerCategory ? { mcp_server_category: event.mcpServerCategory } : {}),
+          ...(event.originCategory    ? { origin_category:     event.originCategory }    : {}),
+          ...(event.originKnownPublic !== undefined ? { origin_known_public:  event.originKnownPublic } : {}),
+          ...(event.source            ? { source:              event.source }            : {}),
+          ...(event.confireVersion    ? { confire_version:     event.confireVersion }    : {}),
         },
-        user_properties: { email: event.email },
       }],
     }),
   })

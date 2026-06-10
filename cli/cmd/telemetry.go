@@ -53,6 +53,7 @@ func runTelemetry(cmd *cobra.Command, args []string) error {
 		if err := config.Save(cfg); err != nil {
 			return fmt.Errorf("save config: %w", err)
 		}
+		go postCLIEvent("analytics_opted_out")
 		fmt.Printf("%s✓%s Telemetry disabled\n", green, reset)
 		fmt.Printf("  %sUsage accounting for billing and your dashboard remains active.%s\n", dim, reset)
 

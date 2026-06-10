@@ -379,6 +379,11 @@ func runDaemon() error {
 	} else {
 		fmt.Fprintln(os.Stderr, "[confire daemon] no account — run `confire login` to enable cloud sync")
 	}
+	go state.postEvent(telemetryPayload{
+		EventID:    newEventID(),
+		EventType:  "daemon_started",
+		CLIVersion: buildVersion,
+	})
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
@@ -433,6 +438,11 @@ func handleConn(conn net.Conn, state *daemonState) {
 
 	case intercept.PhaseToolPre:
 		if policy.ConsumeBypassNext() {
+			go state.postEvent(telemetryPayload{
+				EventID:   newEventID(),
+				EventType: "bypass_next_consumed",
+				SessionID: event.Session.ID,
+			})
 			json.NewEncoder(conn).Encode(intercept.InterceptResult{Kind: intercept.ResultPassthrough})
 			return
 		}
@@ -507,7 +517,6 @@ func handleConn(conn net.Conn, state *daemonState) {
 			NativeUnreplaceable: !caps.NativeOutputReplaceable && event.Tool != nil && !event.Tool.IsMCP,
 			OutputReplaced:      result.Kind == intercept.ResultSanitize,
 			Report:              sanitizeReport,
-			Stats:               nil,
 			ExtraContext:        "",
 		})
 		if steerCtx != "" {
@@ -610,7 +619,7 @@ func logFirewallResult(event intercept.InterceptEvent, result intercept.Intercep
 	}
 	switch result.Kind {
 	case intercept.ResultBlock:
-		fmt.Fprintf(os.Stderr, "%s[confire] BLOCKED%s %s — run: confire bypass-next\n", colorRed, colorReset, toolName)
+		fmt.Fprintf(os.Stderr, "%s[confire] BLOCKED%s %s\n", colorRed, colorReset, toolName)
 	case intercept.ResultReview:
 		fmt.Fprintf(os.Stderr, "%s[confire] REVIEW REQUIRED%s %s — run: confire bypass-next\n", colorOrange, colorReset, toolName)
 	case intercept.ResultWarn:
@@ -632,8 +641,11 @@ func sessionStartNotification(state *daemonState) (contextMsg, systemMsg string)
 
 	switch {
 	case state.apiKey == "":
-		msg := "⚠️ Confire: not logged in — run `confire login` to enable cloud sync."
-		return msg, msg
+		// Local firewall is active without login — do not inject a warning into the agent context.
+		if line := sessionStatusLine(state, mode); line != "" {
+			fmt.Fprintf(os.Stderr, "%s\n", line)
+		}
+		return "", ""
 	case mode == "strict":
 		msg := "[Confire] Strict mode active. Dangerous tool calls will be blocked. Run `confire help` for commands."
 		return msg, msg

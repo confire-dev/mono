@@ -74,6 +74,7 @@ func runBypassNext() error {
 	if err := policy.SetBypassNext(); err != nil {
 		return fmt.Errorf("set bypass-next: %w", err)
 	}
+	go postCLIEvent("bypass_next_created")
 	fmt.Printf("%s✓ bypass-next set%s — next PreToolUse event will skip firewall review.\n", yellow, reset)
 	fmt.Println("  This flag clears automatically after one use.")
 	return nil

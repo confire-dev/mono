@@ -2,9 +2,9 @@
 //
 // All values forwarded to Amplitude are bucketed so:
 //   1. No raw user content ever reaches Amplitude.
-//   2. Individual sessions can't be fingerpainted from metric values.
-//   3. Amplitude is useful for cohort analysis ("did users with >80% savings convert?")
-//      without storing personally-identifiable usage detail.
+//   2. Individual sessions can't be fingerprinted from metric values.
+//   3. Amplitude is useful for cohort analysis without storing
+//      personally-identifiable usage detail.
 //
 // Supabase receives exact values for the user's dashboard.
 
@@ -28,9 +28,9 @@ export function reductionBucket(ratio: number): string {
 }
 
 export function durationBucket(ms: number): string {
-  if (ms < 10)  return '<10ms'
-  if (ms < 50)  return '10_50ms'
-  if (ms < 200) return '50_200ms'
+  if (ms < 10)   return '<10ms'
+  if (ms < 50)   return '10_50ms'
+  if (ms < 200)  return '50_200ms'
   if (ms < 1000) return '200ms_1s'
   return '>1s'
 }
@@ -46,4 +46,67 @@ export function sanitizeToolType(toolType: string): string {
     if (lower.includes(k)) return k
   }
   return 'other'
+}
+
+// ── MCP / provenance category helpers ────────────────────────────────────────
+//
+// Never send raw MCP server names or origin domains to Amplitude.
+// Use these helpers to categorize them first.
+
+const MCP_KNOWN_PREFIXES: Record<string, string> = {
+  github:     'code_hosting',
+  gitlab:     'code_hosting',
+  bitbucket:  'code_hosting',
+  linear:     'project_management',
+  jira:       'project_management',
+  slack:      'messaging',
+  discord:    'messaging',
+  stripe:     'payments',
+  supabase:   'database',
+  postgres:   'database',
+  mysql:      'database',
+  vercel:     'deployment',
+  fly:        'deployment',
+  netlify:    'deployment',
+  figma:      'design',
+  notion:     'docs',
+  confluence: 'docs',
+  datadog:    'monitoring',
+  sentry:     'monitoring',
+  amplitude:  'analytics',
+}
+
+export function categorizeMCPServer(serverName: string): {
+  known: boolean
+  category: string
+} {
+  if (!serverName) return { known: false, category: 'unknown' }
+  const lower = serverName.toLowerCase()
+  for (const [prefix, category] of Object.entries(MCP_KNOWN_PREFIXES)) {
+    if (lower.includes(prefix)) return { known: true, category }
+  }
+  return { known: false, category: 'custom_internal' }
+}
+
+const KNOWN_PUBLIC_DOMAINS = new Set([
+  'github.com', 'gitlab.com', 'bitbucket.org',
+  'npmjs.com', 'pypi.org', 'crates.io',
+  'stackoverflow.com', 'developer.mozilla.org',
+  'docs.rs', 'pkg.go.dev',
+])
+
+export function categorizeOrigin(originDomain: string): {
+  category: 'local' | 'external_domain' | 'mcp' | 'unknown'
+  knownPublic: boolean
+} {
+  if (!originDomain) return { category: 'unknown', knownPublic: false }
+  const lower = originDomain.toLowerCase()
+  if (lower === 'local' || lower === 'localhost' || lower.startsWith('127.') || lower === 'workspace') {
+    return { category: 'local', knownPublic: false }
+  }
+  if (lower === 'mcp') {
+    return { category: 'mcp', knownPublic: false }
+  }
+  const knownPublic = KNOWN_PUBLIC_DOMAINS.has(lower)
+  return { category: 'external_domain', knownPublic }
 }

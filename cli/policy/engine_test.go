@@ -60,6 +60,10 @@ func TestEvaluatePreTool_BuiltinRules(t *testing.T) {
 		{"mcp list", "mcp__linear__list_issues", nil, ModeBalanced, ""},
 		{"mcp search", "mcp__figma__search_design_system", nil, ModeBalanced, ""},
 
+		// .env in git commit message — must not trigger secret-file-read rule
+		{"env in commit message", "Bash", bash(`git commit -m "ignore .env file"`), ModeBalanced, ""},
+		{"env in commit add", "Bash", bash("git add .env.example"), ModeBalanced, ""},
+
 		// .env file access — real secrets reviewed, safe variants allowed
 		{"env file review", "Bash", bash("cat .env"), ModeBalanced, ActionReview},
 		{"env.local review", "Bash", bash("cat .env.local"), ModeBalanced, ActionReview},

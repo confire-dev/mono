@@ -41,11 +41,7 @@ func TestFormatPostToolSteer_MCPReplaced(t *testing.T) {
 		Host:           "cursor",
 		ToolName:       "MCP: figma/get_file",
 		OutputReplaced: true,
-		Stats: &Stats{
-			BeforeBytes: 10000,
-			AfterBytes:  500,
-			Optimizer:   "worker/figma",
-		},
+		Report: SanitizeReport{SecretsRedacted: 1},
 	})
 
 	if !strings.Contains(got, "mode=mcp_replaced") {
@@ -53,6 +49,9 @@ func TestFormatPostToolSteer_MCPReplaced(t *testing.T) {
 	}
 	if strings.Contains(got, "native_output_not_replaceable") {
 		t.Fatal("MCP steer should not mention native unreplaceable")
+	}
+	if strings.Contains(got, "optimized") {
+		t.Fatal("steer must not use optimizer language")
 	}
 }
 

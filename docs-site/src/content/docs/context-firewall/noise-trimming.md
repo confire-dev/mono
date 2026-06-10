@@ -1,20 +1,22 @@
 ---
-title: Noise Trimming
-description: How the Context Firewall reduces noise from tool output before it enters context.
+title: Output Normalization
+description: How Confire normalizes tool output before security inspection.
 ---
 
-The Context Firewall includes a noise trimming layer that cleans up tool
-output before it enters context. Confire routes each tool call's output to
-the most specific handler available. If no handler matches, the Generic
-fallback runs. Trimming only replaces output when the result is strictly
-smaller than the original — Confire never inflates output.
+The Tool Result Firewall includes an output normalization layer that
+prepares tool output for security inspection. Confire routes each tool
+call's output to the most specific handler available. If no handler
+matches, the Generic fallback runs.
 
-All noise trimming runs locally in the daemon binary with no network
+Normalization only produces a smaller result when structure is removed
+— Confire never inflates output.
+
+All normalization runs locally in the daemon binary with no network
 round-trip and no account required.
 
 ## Bash
 
-Cleans shell output while preserving all actionable content.
+Normalizes shell output while preserving all actionable content.
 The logic adapts to the type of output:
 
 - **Test output** — keeps pass/fail summary lines, drops individual
@@ -28,8 +30,6 @@ The logic adapts to the type of output:
 Output is never blindly truncated by line count. An emergency
 512KB cap applies only to outputs that exceed that threshold after
 all structural cleanup, with an explicit marker at the cut point.
-
-Typical reduction: **60–95%**
 
 ## Read
 
@@ -45,15 +45,11 @@ For files larger than 1MB, Confire preserves the first 800KB and
 appends the marker above. This fires rarely — most source files are
 well under this threshold.
 
-Typical reduction: **0%** on normal files, emergency cap on very large files only
-
 ## WebFetch
 
-Strips HTML structure noise from fetched pages: `<script>`,
+Strips HTML structure from fetched pages: `<script>`,
 `<style>`, `<nav>`, `<header>`, `<footer>`, and repeated layout
 boilerplate. Returns the readable text content of the page.
-
-Typical reduction: **80–90%**
 
 ## MCP (Generic)
 

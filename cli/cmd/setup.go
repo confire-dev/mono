@@ -139,6 +139,7 @@ func runSetup() error {
 	}
 
 	anyInstalled := false
+	anyFailed := false
 	for i, h := range registry {
 		if !selectedSet[i] {
 			continue
@@ -149,12 +150,18 @@ func runSetup() error {
 		}
 		if err := h.Install(hosts.StrategyHooks, opts); err != nil {
 			fmt.Printf("  %s✗%s  %-18s %s%v%s\n", red, reset, h.Label(), dim, err, reset)
+			anyFailed = true
 		} else {
 			short := shortenPath(settingsPath)
 			fmt.Printf("  %s✓%s  %-18s hook installed → %s%s%s\n",
 				green, reset, h.Label(), dim, short, reset)
 			anyInstalled = true
 		}
+	}
+	if anyInstalled {
+		go postCLIEvent("setup_completed")
+	} else if anyFailed {
+		go postCLIEvent("setup_failed")
 	}
 
 	// Auto-start the daemon so the firewall is active immediately.
