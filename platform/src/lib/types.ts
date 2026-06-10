@@ -1,7 +1,7 @@
 // Types shared across the platform.
 // Mirror billing/usage types from Supabase schema and the Worker API.
 
-export type Plan = 'free' | 'dev' | 'dev_annual' | 'pro' | 'pro_annual' | 'enterprise'
+export type Plan = 'free' | 'dev' | 'team' | 'enterprise'
 
 export interface UserProfile {
   id: string
@@ -10,13 +10,6 @@ export interface UserProfile {
   plan: Plan
   subscription_status: 'none' | 'trialing' | 'active' | 'past_due' | 'canceled'
   stripe_customer_id?: string
-}
-
-export interface CreditBalance {
-  included_credits: number
-  bonus_credits: number
-  purchased_credits: number
-  total_credits: number
 }
 
 export type RiskLevel = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'

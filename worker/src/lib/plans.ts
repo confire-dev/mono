@@ -14,7 +14,7 @@
 
 import type { Env } from '../types.js'
 
-export type PlanId = 'free' | 'dev' | 'dev_annual' | 'pro' | 'pro_annual' | 'enterprise'
+export type PlanId = 'free' | 'dev' | 'team' | 'enterprise'
 export type BillingInterval = 'monthly' | 'annual'
 
 export interface Plan {
@@ -46,27 +46,26 @@ export interface Plan {
     maxPayloadBytes: number
     retainedHistoryDays: number
     cliSessions: number
-  }
-
-  credits: {
-    includedMonthly: number
-    annual?: number
-    rollover: boolean
-    allowManualGrants: boolean
-    allowPurchases: boolean
+    maxCustomRules: number  // 0 = disabled, -1 = unlimited
   }
 
   features: {
     firewallEnabled: boolean
+    customRules: boolean
+    policySync: boolean
     usageDashboard: boolean
     advancedUsageDashboard: boolean
     cliSessionManagement: boolean
     exportData: boolean
     ssoSaml: boolean
-    // firewallGroupToggles: paid users can customise which MCP firewall rule groups are active.
     firewallGroupToggles: boolean
     securityEventHistory: boolean
     provenanceTracking: boolean
+    sharedPolicies: boolean
+    teamDashboard: boolean
+    auditLogs: boolean
+    agentInventory: boolean
+    fleetControls: boolean
   }
 
   telemetry: {
@@ -167,8 +166,3 @@ export function getPriceForInterval(plan: Plan, interval: BillingInterval): stri
   return plan.stripe.prices?.[interval] ?? plan.stripe.priceId ?? null
 }
 
-// getCreditsForInterval returns how many credits to grant for a billing period.
-export function getCreditsForInterval(plan: Plan, interval: BillingInterval): number {
-  if (interval === 'annual' && plan.credits.annual != null) return plan.credits.annual
-  return plan.credits.includedMonthly
-}

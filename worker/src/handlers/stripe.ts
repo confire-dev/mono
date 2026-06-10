@@ -11,8 +11,6 @@ import type { Env } from '../types.js'
 import {
   handleSubscriptionUpdated,
   handleSubscriptionCanceled,
-  handleInvoicePaid,
-  grantPurchasedCredits,
   markWebhookEventProcessed,
   writeAudit,
 } from '../lib/supabase.js'
@@ -55,37 +53,7 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const sess           = event.data.object
       const userId         = sess['client_reference_id'] as string | undefined
       const stripeCustomer = sess['customer'] as string | undefined
-      const metadata       = (sess['metadata'] ?? {}) as Record<string, string>
-      const kind           = metadata['kind'] ?? metadata['type'] // 'topup' or 'subscription'
 
-      if (kind === 'topup' && userId) {
-        // Top-up: read final quantity from line items (user may have changed it in Checkout)
-        const lineItemsRes = await fetch(
-          `https://api.stripe.com/v1/checkout/sessions/${sess['id']}/line_items?limit=1`,
-          { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
-        )
-        let quantity = parseInt(metadata['quantity'] ?? '1', 10)
-        if (lineItemsRes.ok) {
-          const li = await lineItemsRes.json() as { data: Array<{ quantity: number }> }
-          quantity = li.data[0]?.quantity ?? quantity
-        }
-
-        const creditsPerUnit = parseInt(metadata['credits_per_unit'] ?? metadata['requests_per_pack'] ?? '5000', 10)
-        const totalCredits = Math.max(1, Math.min(20, quantity)) * creditsPerUnit
-
-        await grantPurchasedCredits(cfg, {
-          userId,
-          credits:       totalCredits,
-          stripeEventId: event.id,
-        })
-        await writeAudit(cfg, userId, 'topup_credits_granted', {
-          event_id:      event.id,
-          total_credits: totalCredits,
-          quantity,
-        })
-      }
-
-      // Link Stripe customer to profile for both topup and subscription checkouts
       if (userId && stripeCustomer) {
         await linkStripeCustomer(env, cfg, userId, stripeCustomer, event.id)
       }
@@ -134,15 +102,6 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       const priceId        = extractInvoicePriceId(inv)
       const { planId, billingInterval } = await resolvePlanFromPrice(priceId, env)
 
-      // Only grant credits for subscription invoices (not one-off top-up payments)
-      if (planId !== 'free' && inv['billing_reason'] !== 'manual') {
-        await handleInvoicePaid(cfg, {
-          stripeCustomerId: inv['customer'] as string,
-          stripeInvoiceId:  inv['id'] as string,
-          planId,
-          billingInterval,
-        })
-      }
       await writeAudit(cfg, null, 'stripe_invoice_paid', {
         event_id:        event.id,
         customer_id:     inv['customer'],

@@ -103,12 +103,10 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     'metadata[kind]':                                'subscription',
     'metadata[plan_id]':                             plan.id,
     'metadata[billing_interval]':                    interval,
-    'metadata[credit_type]':                         'remote_optimization',
     // Subscription metadata (carried to webhook events)
     'subscription_data[metadata][kind]':             'subscription',
     'subscription_data[metadata][plan_id]':          plan.id,
     'subscription_data[metadata][billing_interval]': interval,
-    'subscription_data[metadata][credit_type]':      'remote_optimization',
   })
 
   if (profile.stripe_customer_id) {

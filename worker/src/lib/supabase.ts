@@ -14,7 +14,7 @@ export interface SupabaseConfig {
 
 // ── Domain types ───────────────────────────────────────────────────────────
 
-export type Plan = 'free' | 'dev' | 'dev_annual' | 'pro' | 'pro_annual' | 'enterprise'
+export type Plan = 'free' | 'dev' | 'team' | 'enterprise'
 export type SubscriptionStatus = 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete'
 
 export interface Profile {
@@ -43,22 +43,6 @@ export interface BillingItem {
     creditType: string
     stripe: { productId: string; priceId: string }
   }
-}
-
-export interface CreditBalance {
-  user_id: string
-  included_credits: number
-  bonus_credits: number
-  purchased_credits: number
-  total_credits: number
-}
-
-export interface UsageInfo {
-  ok: boolean          // within limit
-  used: number         // requests this month
-  limit: number        // plan limit
-  plan: Plan
-  total_credits: number
 }
 
 export interface ApiKey {
@@ -102,35 +86,6 @@ export async function validateApiKey(cfg: SupabaseConfig, rawKey: string): Promi
 }
 
 // ── Security event recording ───────────────────────────────────────────────
-
-// getCreditBalance returns the user's credit pool (included + bonus + purchased).
-export async function getCreditBalance(
-  cfg: SupabaseConfig,
-  userId: string,
-): Promise<CreditBalance | null> {
-  const res = await sbFetch(cfg, 'GET',
-    `/rest/v1/credit_balances?user_id=eq.${encodeURIComponent(userId)}&select=user_id,included_credits,bonus_credits,purchased_credits,total_credits&limit=1`)
-  if (!res.ok) return null
-  const rows = await res.json() as CreditBalance[]
-  return rows[0] ?? null
-}
-
-// consumePurchasedCredits deducts from the purchased pool only (top-up overflow usage).
-// Returns false if insufficient purchased credits.
-export async function consumePurchasedCredits(
-  cfg: SupabaseConfig,
-  userId: string,
-  amount: number,
-  sessionId?: string,
-): Promise<boolean> {
-  const res = await sbFetch(cfg, 'POST', '/rest/v1/rpc/consume_purchased_credits', {
-    p_user_id:    userId,
-    p_amount:     amount,
-    p_session_id: sessionId ?? null,
-  })
-  if (!res.ok) return false
-  return (await res.json()) as boolean
-}
 
 // recordSecurityEvent writes a security event to the security_events table.
 export async function recordSecurityEvent(
@@ -184,22 +139,6 @@ export async function recordProvenanceEvent(
     flags:          params.flags,
     mcp_server:     params.mcpServer ?? null,
     origin_domain:  params.originDomain ?? null,
-  })
-}
-
-// ── Top-up credits ────────────────────────────────────────────────────────────
-
-// grantPurchasedCredits adds one-time purchased credits to a user's balance.
-// Idempotent via stripe_event_id — safe to call on webhook retry.
-export async function grantPurchasedCredits(
-  cfg: SupabaseConfig,
-  params: { userId: string; credits: number; stripeEventId: string },
-): Promise<void> {
-  await sbFetch(cfg, 'POST', '/rest/v1/rpc/grant_credits', {
-    p_user_id:         params.userId,
-    p_purchased:       params.credits,
-    p_source:          'stripe_topup',
-    p_stripe_event_id: params.stripeEventId,
   })
 }
 
@@ -359,42 +298,6 @@ export async function handleSubscriptionUpdated(
       cancel_at_period_end:              event.cancelAtPeriodEnd ?? false,
       updated_at:                        new Date().toISOString(),
     })
-}
-
-// Called on invoice.paid — grants included credits for the billing period.
-// Idempotency key = Stripe invoice ID (safe on webhook retry).
-export async function handleInvoicePaid(
-  cfg: SupabaseConfig,
-  event: {
-    stripeCustomerId: string
-    stripeInvoiceId: string
-    planId: string
-    billingInterval: 'monthly' | 'annual'
-  }
-): Promise<void> {
-  const profileRes = await sbFetch(cfg, 'GET',
-    `/rest/v1/profiles?stripe_customer_id=eq.${encodeURIComponent(event.stripeCustomerId)}&select=id&limit=1`)
-  if (!profileRes.ok) return
-  const profiles = await profileRes.json() as Array<{ id: string }>
-  if (!profiles.length) return
-  const userId = profiles[0]!.id
-
-  // Resolve credits from plans table
-  const plansRes = await sbFetch(cfg, 'GET',
-    `/rest/v1/plans?id=eq.${encodeURIComponent(event.planId)}&select=config&limit=1`)
-  const planRows = plansRes.ok
-    ? await plansRes.json() as Array<{ config: { credits: { includedMonthly: number; annual?: number } } }>
-    : []
-  const credits = event.billingInterval === 'annual'
-    ? (planRows[0]?.config?.credits?.annual ?? planRows[0]?.config?.credits?.includedMonthly ?? 500)
-    : (planRows[0]?.config?.credits?.includedMonthly ?? 500)
-
-  await sbFetch(cfg, 'POST', '/rest/v1/rpc/grant_credits', {
-    p_user_id:         userId,
-    p_included:        credits,
-    p_source:          'subscription',
-    p_stripe_event_id: event.stripeInvoiceId,
-  })
 }
 
 export async function handleSubscriptionCanceled(

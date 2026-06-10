@@ -60,7 +60,6 @@ export async function handleCreateTopup(request: Request, env: Env): Promise<Res
     cancel_url:                                         cancelUrl.includes('api-dev')  ? cancelUrlDev  : cancelUrl,
     'metadata[kind]':                                   'topup',
     'metadata[topup_id]':                               TOPUP_ITEM_ID,
-    'metadata[credit_type]':                            'remote_optimization',
     'metadata[credits_per_unit]':                       String(creditsPerUnit),
     'metadata[max_quantity]':                           String(maxQty),
     // quantity snapshotted here; webhook re-reads from line_items for accuracy

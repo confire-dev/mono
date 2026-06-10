@@ -3,16 +3,19 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '@/lib/supabase-client'
 import type { CliSession, SecurityEvent, ApiKey } from '@/lib/types'
 
-export type Plan = 'free' | 'dev' | 'dev_annual' | 'pro' | 'pro_annual' | 'enterprise'
+export type Plan = 'free' | 'dev' | 'team' | 'enterprise'
 
 export interface PlanLimits {
   maxPayloadBytes: number
   retainedHistoryDays: number
   cliSessions: number
+  maxCustomRules: number
 }
 
 export interface PlanFeatures {
   firewallEnabled: boolean
+  customRules: boolean
+  policySync: boolean
   usageDashboard: boolean
   advancedUsageDashboard: boolean
   cliSessionManagement: boolean
@@ -21,6 +24,11 @@ export interface PlanFeatures {
   firewallGroupToggles: boolean
   securityEventHistory: boolean
   provenanceTracking: boolean
+  sharedPolicies: boolean
+  teamDashboard: boolean
+  auditLogs: boolean
+  agentInventory: boolean
+  fleetControls: boolean
   [key: string]: boolean
 }
 
@@ -56,9 +64,7 @@ const GROUP_LABELS: Record<string, string> = {
 const PLAN_NAMES: Record<Plan, string> = {
   free:       'Free',
   dev:        'Dev',
-  dev_annual: 'Dev (Annual)',
-  pro:        'Pro',
-  pro_annual: 'Pro (Annual)',
+  team:       'Team',
   enterprise: 'Enterprise',
 }
 
