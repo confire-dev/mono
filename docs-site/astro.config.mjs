@@ -50,12 +50,13 @@ export default defineConfig({
         {
           label: 'Tool Result Firewall',
           items: [
-            { label: 'Overview',           slug: 'context-firewall/overview' },
-            { label: 'Tool result checks', slug: 'context-firewall/tool-result-checks' },
-            { label: 'Secret warnings',    slug: 'context-firewall/secret-warnings' },
-            { label: 'Injection guard',    slug: 'context-firewall/injection-guard' },
-            { label: 'MCP security',       slug: 'context-firewall/mcp-security' },
-            { label: 'Provenance',         slug: 'context-firewall/provenance' },
+            { label: 'Overview',              slug: 'context-firewall/overview' },
+            { label: 'Tool result checks',    slug: 'context-firewall/tool-result-checks' },
+            { label: 'Secret warnings',       slug: 'context-firewall/secret-warnings' },
+            { label: 'Injection guard',       slug: 'context-firewall/injection-guard' },
+            { label: 'MCP security',          slug: 'context-firewall/mcp-security' },
+            { label: 'Provenance',            slug: 'context-firewall/provenance' },
+            { label: 'Output Normalization',  slug: 'context-firewall/noise-trimming' },
           ],
         },
         {

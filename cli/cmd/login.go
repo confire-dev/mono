@@ -224,32 +224,16 @@ func runWhoami() error {
 	defer resp.Body.Close()
 
 	var result struct {
-		Email            string `json:"email"`
-		Plan             string `json:"plan"`
-		Used             int    `json:"used"`
-		Limit            int    `json:"limit"`
-		PurchasedCredits int    `json:"purchasedCredits"`
-		EffectiveLimit   int    `json:"effectiveLimit"`
-		Error            string `json:"error"`
+		Email string `json:"email"`
+		Plan  string `json:"plan"`
+		Error string `json:"error"`
 	}
 	json.NewDecoder(resp.Body).Decode(&result)
 	if result.Error != "" {
 		fmt.Println("Not logged in. Run: confire login")
 		return nil
 	}
-
-	limit := result.EffectiveLimit
-	if limit == 0 {
-		limit = result.Limit
-	}
-	fmt.Printf("✓ %s  ·  Plan: %s  ·  %d/%d requests used this period\n",
-		result.Email, result.Plan, result.Used, limit)
-	if result.PurchasedCredits > 0 {
-		fmt.Printf("  +%d top-up credits available\n", result.PurchasedCredits)
-	}
-	if result.Limit > 0 && result.Used >= result.Limit*80/100 && result.PurchasedCredits == 0 {
-		fmt.Printf("  ⚠️  Need more? Run `confire topup` or upgrade at confire.dev/upgrade\n")
-	}
+	fmt.Printf("✓ %s  ·  Plan: %s\n", result.Email, result.Plan)
 	return nil
 }
 

@@ -140,12 +140,8 @@ func isDaemonRunning() bool {
 
 // fetchAccountInfo calls Worker /api/me to get live account state.
 type accountInfo struct {
-	Email            string `json:"email"`
-	Plan             string `json:"plan"`
-	Used             int    `json:"used"`
-	Limit            int    `json:"limit"`
-	PurchasedCredits int    `json:"purchasedCredits"`
-	EffectiveLimit   int    `json:"effectiveLimit"`
+	Email string `json:"email"`
+	Plan  string `json:"plan"`
 }
 
 func fetchAccountInfo(apiKey string) (*accountInfo, error) {

@@ -57,13 +57,6 @@ export interface InterceptResult {
   toolOutput?: unknown
   toolInput?: unknown
   context?: string
-  stats?: InterceptStats
-}
-
-export interface InterceptStats {
-  beforeBytes: number
-  afterBytes: number
-  optimizer: string
 }
 
 // ── Cloudflare Worker bindings ─────────────────────────────────────────────

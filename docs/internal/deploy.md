@@ -4,21 +4,30 @@
 
 ## Environments
 
-| Environment | Worker | Platform | Deploy trigger |
+| Environment | Worker | Platform | Docs |
 |---|---|---|---|
-| **dev** | `confire-worker-dev` at `api.dev.confire.dev` | `dev.confire.dev` (Pages: `confire-platform-dev`) | Auto on push to `main` |
-| **production** | `confire-worker` at `api.confire.dev` | `confire.dev` (Pages: `confire-platform`) | Manual workflow dispatch only |
+| **dev** | `confire-worker-dev` · `api.dev.confire.dev` | `dev.confire.dev` | `docs.dev.confire.dev` (if configured) |
+| **production** | `confire-worker` · `api.confire.dev` | `confire.dev` | `docs.confire.dev` |
 
 Dev uses a separate Supabase project and Stripe test-mode keys.
 Production uses the live Supabase project and Stripe live keys.
 
 ---
 
+## Deploy triggers
+
+| What | Dev | Production |
+|---|---|---|
+| CLI binary | Auto — push to `develop` touching `cli/` | Tag `v*` → `release.yml` |
+| Worker | **Manual** — `wrangler deploy --env dev` | **Manual** — `wrangler deploy --env production` |
+| Platform | Auto — Cloudflare Pages git integration (`develop` branch) | Manual — `wrangler pages deploy dist` or workflow dispatch |
+| Docs site | Auto — Cloudflare Pages git integration (`develop` branch) | Auto — same |
+
+---
+
 ## First deploy (new environment)
 
 ### 1. Create Cloudflare KV namespaces
-
-Run from the repo root (or `worker/`):
 
 ```bash
 # dev
@@ -30,87 +39,102 @@ wrangler kv namespace create confire_cache
 wrangler kv namespace create confire_cache --preview
 ```
 
-Copy the returned IDs into `worker/wrangler.toml` — replace `REPLACE_WITH_DEV_KV_ID` etc.
+Copy the returned IDs into `worker/wrangler.toml`.
 
-**Analytics Engine:** no setup needed. The `[[analytics_engine_datasets]]` binding is already declared in `wrangler.toml`. The dataset is created automatically on the first `env.AE.writeDataPoint()` call.
+**Analytics Engine:** no setup needed — the `AE` binding is declared in `wrangler.toml` and the dataset
+is created automatically on the first `writeDataPoint()` call.
 
-**Rate limiting:** no setup needed. `[[ratelimits]]` bindings are declared in `wrangler.toml` with fixed `namespace_id` numbers. They activate on deploy and are used for burst protection only — monthly quota is enforced in Supabase.
+**Rate limiting:** no setup needed — `[[ratelimits]]` bindings activate on deploy.
 
-### 2. Set worker secrets
+### 2. Set Worker secrets
 
 Run from `worker/`:
 
 ```bash
-# dev (Supabase dev project, Stripe test keys)
-wrangler secret put SUPABASE_URL            --env dev
-wrangler secret put SUPABASE_ANON_KEY       --env dev
-wrangler secret put SUPABASE_SERVICE_KEY    --env dev
-wrangler secret put STRIPE_SECRET_KEY       --env dev   # sk_test_...
-wrangler secret put STRIPE_WEBHOOK_SECRET   --env dev
-wrangler secret put STRIPE_TOPUP_PRICE_ID   --env dev
-wrangler secret put SUPABASE_WEBHOOK_SECRET --env dev
-wrangler secret put AMPLITUDE_KEY           --env dev
+# dev
+wrangler secret put SUPABASE_URL             --env dev
+wrangler secret put SUPABASE_ANON_KEY        --env dev
+wrangler secret put SUPABASE_SERVICE_KEY     --env dev
+wrangler secret put STRIPE_SECRET_KEY        --env dev   # sk_test_...
+wrangler secret put STRIPE_WEBHOOK_SECRET    --env dev
+wrangler secret put SUPABASE_WEBHOOK_SECRET  --env dev   # openssl rand -base64 32
+wrangler secret put AMPLITUDE_KEY            --env dev
 
-# production (Supabase prod project, Stripe live keys)
-wrangler secret put SUPABASE_URL            --env production
-wrangler secret put SUPABASE_ANON_KEY       --env production
-wrangler secret put SUPABASE_SERVICE_KEY    --env production
-wrangler secret put STRIPE_SECRET_KEY       --env production   # sk_live_...
-wrangler secret put STRIPE_WEBHOOK_SECRET   --env production
-wrangler secret put STRIPE_TOPUP_PRICE_ID   --env production
-wrangler secret put SUPABASE_WEBHOOK_SECRET --env production
-wrangler secret put AMPLITUDE_KEY           --env production
+# production
+wrangler secret put SUPABASE_URL             --env production
+wrangler secret put SUPABASE_ANON_KEY        --env production
+wrangler secret put SUPABASE_SERVICE_KEY     --env production
+wrangler secret put STRIPE_SECRET_KEY        --env production   # sk_live_...
+wrangler secret put STRIPE_WEBHOOK_SECRET    --env production
+wrangler secret put SUPABASE_WEBHOOK_SECRET  --env production
+wrangler secret put AMPLITUDE_KEY            --env production
 ```
 
-### 3. Apply Supabase schema
+### 3. Apply Supabase migrations
 
-Go to **Supabase Dashboard → SQL Editor** for each project and run `docs/supabase-schema.sql`.
+Run all migration files in order in **Supabase Dashboard → SQL Editor** for each project:
 
-### 4. Configure Supabase Auth providers
+```
+docs/migrations/002_stripe_dev_plan_prices.sql
+docs/migrations/003_billing_v2.sql
+docs/migrations/004_handle_new_user_trigger.sql
+docs/migrations/005_cancel_at_period_end.sql
+docs/migrations/006_early_access_requests.sql
+docs/migrations/007_firewall_pivot.sql
+docs/migrations/008_optimizer_removal.sql
+```
+
+Migration 008 is required before deploying the current Worker — it adds `mcp_server` and `origin_domain`
+columns to `provenance_events` that `recordProvenanceEvent()` writes.
+
+### 4. Seed plan data
+
+After running migrations, the `plans` table needs plan configs. If starting from scratch, insert the
+free and dev plans directly via the Supabase SQL editor or admin API.
+
+For dev plan Stripe prices (test mode), update after creating products in Stripe:
+
+```sql
+UPDATE plans
+SET config = jsonb_set(jsonb_set(jsonb_set(config,
+  '{stripe,productId}', '"prod_YOUR_TEST_PRODUCT"'),
+  '{stripe,prices,monthly}', '"price_YOUR_MONTHLY"'),
+  '{stripe,prices,annual}',  '"price_YOUR_ANNUAL"')
+WHERE id = 'dev';
+```
+
+See `docs/internal/stripe-metadata.md` for the full Stripe setup including webhook events and test-mode IDs.
+
+### 5. Configure Supabase Auth providers
 
 **Supabase Dashboard → Authentication → Providers** for each project:
-- Enable GitHub: add Client ID + Secret
-- Enable Google: add Client ID + Secret
+
+- Enable GitHub: Client ID + Secret
+- Enable Google: Client ID + Secret
 
 | Project | Site URL | Redirect URL |
 |---|---|---|
 | dev | `https://dev.confire.dev` | `https://dev.confire.dev/auth/callback` |
 | production | `https://confire.dev` | `https://confire.dev/auth/callback` |
 
-### 5. Configure Supabase DB webhook
+### 6. Configure Supabase DB webhook (plans → KV sync)
 
 **Supabase Dashboard → Database → Webhooks → Create a new hook** for each project:
 
 | Field | Value |
 |---|---|
-| Name | `sync-plans-to-worker` (any label) |
+| Name | `sync-plans-to-worker` |
 | Table | `public` · `plans` |
 | Events | `INSERT` `UPDATE` `DELETE` |
-| Type | `HTTP Request` |
-| Method | `POST` |
+| Type | `HTTP Request` · `POST` |
 | URL (dev) | `https://api.dev.confire.dev/webhooks/supabase` |
 | URL (prod) | `https://api.confire.dev/webhooks/supabase` |
 | HTTP Headers | `Authorization: Bearer <SUPABASE_WEBHOOK_SECRET>` |
-| HTTP Parameters | *(leave empty)* |
-| Timeout | 5000 ms (default) |
-| Retry | disabled (Worker returns 200 even on error to prevent retry loops) |
+| Retry | disabled |
 
-`SUPABASE_WEBHOOK_SECRET` must match the value set via `wrangler secret put SUPABASE_WEBHOOK_SECRET`.
-Generate one with: `openssl rand -base64 32`
+The `SUPABASE_WEBHOOK_SECRET` value must match what you set via `wrangler secret put`.
 
-The webhook payload the Worker receives:
-
-```json
-{
-  "type":       "INSERT" | "UPDATE" | "DELETE",
-  "table":      "plans",
-  "schema":     "public",
-  "record":     { /* new row, null on DELETE */ },
-  "old_record": { /* previous row, null on INSERT */ }
-}
-```
-
-### 6. First worker deploy
+### 7. First Worker deploy
 
 ```bash
 cd worker
@@ -118,13 +142,14 @@ wrangler deploy --env dev
 wrangler deploy --env production
 ```
 
-### 7. Set up Cloudflare Pages
+### 8. Configure Cloudflare Pages (Platform)
 
 **Dev platform (`dev.confire.dev`):**
+
 1. Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git
-2. Repo: this repo, branch: `main`, project name: `confire-platform-dev`
-3. Build command: `pnpm build`, output directory: `dist`, root directory: `platform`
-4. Environment variables (Settings → Environment variables):
+2. Repo: this repo · branch: `develop` · project name: `confire-platform-dev`
+3. Build command: `pnpm build` · output: `dist` · root: `platform`
+4. Environment variables:
    ```
    PUBLIC_SUPABASE_URL=https://<dev-project>.supabase.co
    PUBLIC_SUPABASE_ANON_KEY=eyJ...
@@ -134,15 +159,15 @@ wrangler deploy --env production
 5. Custom domain: `dev.confire.dev`
 
 **Prod platform (`confire.dev`):**
+
 1. Cloudflare Dashboard → Workers & Pages → Create → Pages → Direct Upload
-2. Project name: `confire-platform` (no git connection — CI deploys via `wrangler pages deploy`)
-3. Custom domain: `confire.dev`
-4. Add these GitHub Actions secrets (repo Settings → Secrets and variables → Actions):
+2. Project name: `confire-platform` · Custom domain: `confire.dev`
+3. Add GitHub Actions secrets (repo Settings → Secrets → Actions):
    - `PROD_PUBLIC_SUPABASE_URL`
    - `PROD_PUBLIC_SUPABASE_ANON_KEY`
    - `PROD_PUBLIC_STRIPE_PUBLISHABLE_KEY`
 
-### 8. Verify
+### 9. Verify
 
 ```bash
 curl https://api.dev.confire.dev/health
@@ -153,29 +178,39 @@ curl https://api.confire.dev/health
 
 ## Routine deploys
 
-### Worker
-
-Dev deploys automatically on every push to `main` that touches `worker/` (via `deploy-worker-dev.yml`).
-Production deploys are manual only — trigger via GitHub Actions → **Deploy Worker (production)**.
+### Worker (manual — no CI)
 
 ```bash
-# Local manual deploy
 cd worker
 wrangler deploy --env dev
 wrangler deploy --env production
 ```
 
-Plans are in KV and survive redeploys. If you updated plan config in the DB, the Supabase webhook syncs KV automatically.
+Plans in KV survive redeploys. If you updated plan config in the DB, the Supabase webhook syncs KV
+automatically — no redeploy needed.
 
 ### Platform
 
-Dev platform auto-deploys from `main` via Cloudflare Pages git integration — no action needed.
+Dev: auto-deploys from `develop` via Cloudflare Pages git integration.
 
-Production platform is manual only:
-- GitHub Actions → **Deploy Platform (production)**, or
-- Locally: `cd platform && pnpm build && wrangler pages deploy dist --project-name confire-platform`
+Production (manual):
+```bash
+cd platform && pnpm build
+wrangler pages deploy dist --project-name confire-platform
+```
+Or trigger via GitHub Actions → **Deploy Platform (production)**.
 
-Distribution worker (`get.confire.dev` / `releases.confire.dev`): `pnpm distribution:deploy` — only needed when `distribution/` changes. No dev/prod split.
+### Docs site
+
+Both envs auto-deploy from `develop` via Cloudflare Pages git integration.
+
+### Distribution worker (`get.confire.dev`)
+
+```bash
+pnpm distribution:deploy
+```
+
+Only needed when `distribution/` changes. No dev/prod split.
 
 ---
 
@@ -183,14 +218,12 @@ Distribution worker (`get.confire.dev` / `releases.confire.dev`): `pnpm distribu
 
 | Secret | Used by | Purpose |
 |---|---|---|
-| `CLOUDFLARE_API_TOKEN` | all deploy workflows + release | Workers deploy + R2 upload. Needs Workers Edit + R2 Edit permissions. |
+| `CLOUDFLARE_API_TOKEN` | all deploy workflows + release | Workers Edit + R2 Edit permissions |
 | `CLOUDFLARE_ACCOUNT_ID` | all deploy workflows + release | Cloudflare account ID |
 | `PROD_PUBLIC_SUPABASE_URL` | `deploy-platform-prod` | Platform build env var |
 | `PROD_PUBLIC_SUPABASE_ANON_KEY` | `deploy-platform-prod` | Platform build env var |
 | `PROD_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `deploy-platform-prod` | `pk_live_...` |
 | `HOMEBREW_TAP_TOKEN` | `release` | *(optional)* PAT with write access to `confire-ai/homebrew-confire` |
-
-Create a `production` GitHub Environment (Settings → Environments) to gate the two manual workflows. Add environment-level secrets there if you want separate tokens for prod.
 
 ---
 
@@ -206,33 +239,32 @@ wrangler rollback <deployment-id> --env production
 
 ---
 
-## Environment variables reference
+## Worker secrets reference
 
 | Secret | Where to get it |
 |---|---|
 | `SUPABASE_URL` | Supabase Dashboard → Project Settings → API → Project URL |
-| `SUPABASE_ANON_KEY` | Supabase Dashboard → Project Settings → API → anon/public |
-| `SUPABASE_SERVICE_KEY` | Supabase Dashboard → Project Settings → API → service_role |
+| `SUPABASE_ANON_KEY` | Supabase Dashboard → Project Settings → API → anon/public key |
+| `SUPABASE_SERVICE_KEY` | Supabase Dashboard → Project Settings → API → service_role key |
 | `STRIPE_SECRET_KEY` | Stripe Dashboard → Developers → API keys → Secret key |
 | `STRIPE_WEBHOOK_SECRET` | Stripe Dashboard → Webhooks → endpoint → Signing secret |
-| `STRIPE_TOPUP_PRICE_ID` | Stripe Dashboard → Products → top-up price ID (one-time $5 / 5,000 credits) |
 | `SUPABASE_WEBHOOK_SECRET` | Generate: `openssl rand -base64 32` — use same value in the Supabase webhook header |
 | `AMPLITUDE_KEY` | Amplitude → Settings → Projects → API Key |
 
 ---
 
-## Feature flags
-
-Feature flags live in `[vars]` in `wrangler.toml`. They can be overridden live without a redeploy:
+## Monitoring
 
 ```bash
-wrangler secret put OPTIMIZER_API_ENABLED --env production
-# enter: true
+# Live Worker logs
+wrangler tail --env dev
+wrangler tail --env production
+
+# Errors only
+wrangler tail --env production --format=pretty | grep -i "error\|failed\|500"
 ```
 
-| Flag | Default | Effect |
-|---|---|---|
-| `OPTIMIZER_API_ENABLED` | `"false"` | Enables `POST /v1/optimize` (standalone optimizer API). Returns 404 while disabled. |
+Cloudflare Analytics Engine: Dashboard → Workers → Analytics Engine → `confire_events` dataset.
 
 ---
 
@@ -250,89 +282,23 @@ make install      # install to GOPATH/bin
 # confire-dev — dev APIs (api.dev.confire.dev / dev.confire.dev)
 make build-dev-env    # build ./confire-dev
 make install-dev-env  # install to GOPATH/bin/confire-dev
-
-# Release build (garble obfuscation + stripped symbols)
-make release
-# Requires garble: go install mvdan.cc/garble@latest
 ```
-
-### Self-update
-
-```bash
-confire update
-```
-
-Fetches `get.confire.dev/latest.json`, downloads the binary for the current platform, stops the daemon, atomically replaces the executable, and restarts the daemon. No-ops on `confire-dev` builds (no release channel).
 
 ### Tagged release (CI)
 
-The `bump-version.yml` workflow runs on every push to `main`, reads conventional commits since the last tag, bumps semver, updates `CHANGELOG.md`, commits, and pushes a new tag. The tag triggers `release.yml`:
+The `bump-version.yml` workflow runs on every push to `main`, reads conventional commits since the
+last tag, bumps semver, updates `CHANGELOG.md`, commits, and creates a tag.
+The tag triggers `release.yml`:
 
 | Job | What it does |
 |---|---|
 | `build` | Cross-compile `confire_{darwin,linux}_{amd64,arm64}` |
 | `release` | Create GitHub Release + upload binaries and checksums |
-| `publish-r2` | Upload binaries, `latest.json`, and `install.sh` to R2 |
-
-If `HOMEBREW_TAP_TOKEN` is set, the `release` job also bumps `homebrew/confire.rb`.
+| `publish-r2` | Upload to R2, update `latest.json` and `install.sh` |
 
 To cut a release manually:
 
 ```bash
 git tag v1.2.3
 git push origin v1.2.3
-```
-
----
-
-## CLI distribution (get.confire.dev / releases.confire.dev)
-
-| URL | Purpose |
-|---|---|
-| `https://get.confire.dev` | `install.sh` (curl pipe target) |
-| `https://get.confire.dev/latest.json` | Version manifest (used by `confire update`) |
-| `https://releases.confire.dev/vX.Y.Z/confire_*` | Platform binaries + checksums |
-
-### One-time setup
-
-```bash
-cd distribution
-pnpm exec wrangler r2 bucket create confire-releases
-pnpm deploy
-# or from repo root: pnpm distribution:deploy
-```
-
-### Bootstrap first release
-
-```bash
-chmod +x scripts/publish-release-r2.sh
-./scripts/publish-release-r2.sh v0.3.0 ./dist
-```
-
-Verify:
-
-```bash
-curl -fsSL https://get.confire.dev/latest.json
-curl -fsSL https://releases.confire.dev/v0.3.0/confire_checksums.txt
-```
-
-User install command:
-
-```bash
-curl -fsSL https://get.confire.dev | sh
-```
-
----
-
-## Monitoring
-
-```bash
-# Live Worker logs
-wrangler tail --env dev
-wrangler tail --env production
-
-# Errors only
-wrangler tail --env production --format=pretty | grep -i "error\|failed\|500"
-
-# Analytics Engine — Cloudflare Dashboard → Workers → Analytics Engine
 ```

@@ -71,32 +71,3 @@ export function BillingCancelled() {
     </AppShell>
   )
 }
-
-export function BillingTopupSuccess() {
-  return (
-    <AppShell>
-      <div className="flex flex-col items-center gap-6 text-center">
-        <div className="flex size-12 items-center justify-center rounded-full bg-kumo-success-tint/70">
-          <CheckIcon className="size-6 text-kumo-success" weight="bold" />
-        </div>
-
-        <div>
-          <Text variant="heading2" as="h1">Credits added</Text>
-          <Text variant="secondary" size="sm" as="p" DANGEROUS_className="mt-2">
-            Your top-up is processing — credits usually appear within a few seconds.
-          </Text>
-        </div>
-
-        <div className="flex w-full flex-col gap-3">
-          <Text variant="secondary" size="sm" as="p">
-            Return to your terminal —{' '}
-            <code className="rounded bg-kumo-fill px-1 py-0.5 font-mono text-xs">confire topup</code> will confirm automatically.
-          </Text>
-          <LinkButton href="/onboarding" variant="primary">
-            Continue
-          </LinkButton>
-        </div>
-      </div>
-    </AppShell>
-  )
-}

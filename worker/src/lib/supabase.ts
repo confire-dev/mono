@@ -3,8 +3,8 @@
 // Worker always uses the SERVICE ROLE KEY, which bypasses RLS.
 // Never expose the service role key to the CLI.
 //
-// Supabase is the source of truth for: usage, credits, billing state,
-// sessions, tool call summaries, audit logs, and the user dashboard.
+// Supabase is the source of truth for: billing state, sessions,
+// tool call summaries, audit logs, and the user dashboard.
 // Amplitude is for behavioral analytics only — never for billing decisions.
 
 export interface SupabaseConfig {
@@ -31,18 +31,6 @@ export interface Profile {
   subscription_current_period_end?: string
   cancel_at_period_end: boolean
   is_banned: boolean
-}
-
-export interface BillingItem {
-  id: string
-  type: string
-  config: {
-    name: string
-    creditsPerUnit: number
-    maxQuantity: number
-    creditType: string
-    stripe: { productId: string; priceId: string }
-  }
 }
 
 export interface ApiKey {
@@ -310,16 +298,6 @@ export async function handleSubscriptionCanceled(
       subscription_status: 'canceled',
       updated_at:          new Date().toISOString(),
     })
-}
-
-// ── Billing items ─────────────────────────────────────────────────────────────
-
-export async function fetchBillingItem(cfg: SupabaseConfig, id: string): Promise<BillingItem | null> {
-  const res = await sbFetch(cfg, 'GET',
-    `/rest/v1/billing_items?id=eq.${encodeURIComponent(id)}&active=eq.true&limit=1`)
-  if (!res.ok) return null
-  const rows = await res.json() as BillingItem[]
-  return rows[0] ?? null
 }
 
 // markWebhookEventProcessed inserts the event ID into stripe_webhook_events.

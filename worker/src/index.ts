@@ -2,7 +2,6 @@ import type { Env } from './types.js'
 import { handleSessionStart }    from './handlers/session.js'
 import { handleGenerateKey, handleMe, handleRevokeKey, handleRevokeSelf } from './handlers/auth.js'
 import { handleCreateCheckout }       from './handlers/checkout.js'
-import { handleCreateTopup }          from './handlers/topup.js'
 import { handleCancelSubscription }   from './handlers/cancel.js'
 import { handleTelemetry }            from './handlers/telemetry.js'
 import { handleStripeWebhook }   from './handlers/stripe.js'
@@ -96,9 +95,6 @@ async function route(request: Request, url: URL, method: string, env: Env): Prom
     // ── Billing / checkout ────────────────────────────────────────────────
     if (method === 'POST' && url.pathname === '/api/checkout/create') {
       return handleCreateCheckout(request, env)
-    }
-    if (method === 'POST' && url.pathname === '/api/topup/create') {
-      return handleCreateTopup(request, env)
     }
     if (method === 'POST' && url.pathname === '/api/subscription/cancel') {
       return handleCancelSubscription(request, env)
