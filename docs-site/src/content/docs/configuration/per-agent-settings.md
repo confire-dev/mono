@@ -2,7 +2,7 @@
 title: Client settings
 description: >-
   Confire supports Claude Code, Cursor, and VS Code. Setup is
-  automatic — most users do not need to configure clients manually.
+  automatic. Most users do not need to configure clients manually.
 ---
 
 Confire supports Claude Code, Cursor, and VS Code. You usually do not

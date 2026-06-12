@@ -23,7 +23,7 @@ The patterns are tuned for precision. Confire prefers missing a
 secret over false-positiving on normal content.
 
 :::caution
-Secret redaction detects common patterns — it doesn't catch
+Secret redaction detects common patterns, but it doesn't catch
 everything. Don't rely on it as your only defense against secrets
 in MCP output. Treat it as a safety net, not a guarantee.
 :::
@@ -48,5 +48,5 @@ findings:
 
 Secret redaction runs on MCP tool output only. Native tool output
 (Bash, Read, WebFetch) doesn't go through this pass. If a Bash
-command echoes a secret, that's outside Confire's redaction scope —
-use shell-level controls to prevent that.
+command echoes a secret, that's outside Confire's redaction scope.
+Use shell-level controls to prevent that.

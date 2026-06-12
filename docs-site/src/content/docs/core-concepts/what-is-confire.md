@@ -4,8 +4,8 @@ description: A local firewall daemon that inspects tool activity before tools ru
 ---
 
 Confire is a local firewall for AI coding agents. It runs as a
-background daemon and inspects supported tool activity in both
-directions — before a tool runs and after it returns.
+background daemon and inspects supported tool activity before each
+tool runs and after it returns.
 
 Confire helps answer two questions:
 
@@ -65,7 +65,7 @@ SessionEnd    → local stats and metadata sync
 
 Confire hooks into `PreToolUse` and `PostToolUse` where the client
 supports those events. It does not modify source files, project state,
-or your agent's task — it only evaluates tool activity and returns
+or your agent's task. It only evaluates tool activity and returns
 policy decisions or firewall context.
 
 ## Local-first

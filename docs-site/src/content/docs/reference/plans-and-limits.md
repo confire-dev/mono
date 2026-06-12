@@ -31,7 +31,7 @@ Includes:
 Free does not require dashboard sync. The local firewall continues to
 work without an account.
 
-## Dev — early access
+## Dev: early access
 
 Dev is opening soon for power users who want custom guardrails, policy
 sync, firewall history, and advanced MCP security. Planned price:
@@ -55,7 +55,7 @@ control over how Confire behaves.
 
 [Request early access →](https://confire.dev/#pricing)
 
-## Team — planned
+## Team: planned
 
 Team is planned for organizations using AI agents across multiple
 developers, devices, projects, and agent workflows.

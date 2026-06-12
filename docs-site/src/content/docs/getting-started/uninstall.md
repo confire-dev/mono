@@ -13,7 +13,7 @@ confire reset
 ```
 
 After `confire reset`, your agents continue normally. Tool calls pass through
-unmodified — Confire no longer intercepts anything.
+unmodified. Confire no longer intercepts anything.
 
 ## Stop the daemon
 

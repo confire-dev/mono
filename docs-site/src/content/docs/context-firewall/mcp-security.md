@@ -1,7 +1,7 @@
 ---
 title: MCP security
 description: >-
-  How Confire treats MCP activity as security-relevant — reviewing
+  How Confire treats MCP activity as security-relevant, reviewing
   actions before they run and inspecting results after they return.
 ---
 

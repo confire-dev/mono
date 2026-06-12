@@ -4,7 +4,7 @@ description: Install Confire hooks into Claude Code, Cursor, or VS Code.
 ---
 
 The installer runs `confire setup` automatically, but you can re-run
-it any time — for example, to add a second agent or switch from
+it any time. For example, to add a second agent or switch from
 global to local scope.
 
 ## Run setup
@@ -47,7 +47,7 @@ your settings file:
 }
 ```
 
-Every tool call — before it runs and after it finishes — passes
+Every tool call, before it runs and after it finishes, passes
 through `confire hook`, which forwards the event to the daemon.
 
 For Cursor and VS Code, setup writes equivalent hook entries to
@@ -65,7 +65,7 @@ stopped it with `confire stop`.
 
 ## Log in for cloud policy sync
 
-The firewall works without an account — all local security passes and
+The firewall works without an account. All local security passes and
 policy evaluation run offline. Logging in enables cloud policy sync,
 the security event dashboard, and custom firewall rules:
 

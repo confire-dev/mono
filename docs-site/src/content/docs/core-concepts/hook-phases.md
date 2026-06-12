@@ -27,12 +27,12 @@ Before a supported tool executes, Confire receives the tool name and
 input. The Tool Firewall evaluates the call against active policy rules
 and returns one of four decisions:
 
-**allow** — the tool proceeds normally.
+**allow**: the tool proceeds normally.
 
-**warn** — the tool proceeds, but Confire adds an advisory note where
+**warn**: the tool proceeds, but Confire adds an advisory note where
 the client supports it.
 
-**review** — the tool is paused. Confire shows the reason and asks for
+**review**: the tool is paused. Confire shows the reason and asks for
 user approval before retrying. Typical review examples:
 
 - force pushes
@@ -43,7 +43,7 @@ user approval before retrying. Typical review examples:
 - package publishing
 - mutating MCP actions
 
-**block** — the tool is prevented from running. Confire shows the block
+**block**: the tool is prevented from running. Confire shows the block
 reason. Blocks should be reserved for high-confidence dangerous
 behavior.
 
@@ -96,7 +96,7 @@ need to read your repository outside the tool events your agent already
 performs.
 
 Raw tool output is not forwarded to Confire Cloud by default. When
-dashboard sync is enabled, Confire sends metadata-only security events
-— risk level, action taken, rule ID, client, timestamp, and session
+dashboard sync is enabled, Confire sends metadata-only security events:
+risk level, action taken, rule ID, client, timestamp, and session
 metadata.
 :::

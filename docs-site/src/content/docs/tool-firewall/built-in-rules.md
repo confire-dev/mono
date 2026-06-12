@@ -1,7 +1,7 @@
 ---
 title: Built-in rules
 description: >-
-  The policy rules that ship in the Confire CLI — covering destructive
+  The policy rules that ship in the Confire CLI, covering destructive
   Git operations, secret-file reads, GitHub mutations, and mutating
   MCP tool calls.
 ---
@@ -74,7 +74,7 @@ Examples of matched paths:
 - `.npmrc`, `.pypirc`
 
 Confire should only trigger this rule when the sensitive path appears
-to be used as a file being read, inspected, copied, or printed — for
+to be used as a file being read, inspected, copied, or printed. For
 example:
 
 ```bash
@@ -113,7 +113,7 @@ risk score.
 ## Tool result findings
 
 Confire can also inspect supported tool results after they return.
-These checks do not replace the Tool Firewall — they add firewall
+These checks do not replace the Tool Firewall. They add firewall
 context and metadata when suspicious content appears.
 
 | Finding | What it means |

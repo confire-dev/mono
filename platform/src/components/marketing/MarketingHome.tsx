@@ -175,7 +175,7 @@ function Hero() {
         <p className="mx-auto mb-4 max-w-[40rem] text-base leading-relaxed text-confire-muted">
           Confire is a local firewall for AI coding agents. It reviews risky
           tool calls before they run and adds security context after tools
-          return — across Claude Code, Cursor, and VS Code.
+          return. Works with Claude Code, Cursor, and VS Code.
         </p>
         <div className="mb-10 flex flex-wrap justify-center gap-3">
           <Button variant="outline" asChild>
@@ -405,7 +405,7 @@ const HOW_STEPS = [
     step: '3',
     title: 'The agent gets security context',
     icon: <LightningIcon className="size-8" weight="duotone" />,
-    body: 'The agent receives security context from Confire alongside the tool result — flagging secrets, injection-like patterns, and other risk signals from what the tool just returned.',
+    body: 'The agent receives security context from Confire alongside the tool result, flagging secrets, injection-like patterns, and other risk signals from what the tool just returned.',
     examples: [],
   },
 ]
@@ -456,7 +456,7 @@ function Capabilities() {
         <SectionLabel number="03">Capabilities</SectionLabel>
         <SectionTitle
           title="Context control and tool safety in one local layer."
-          subtitle="Every capability runs on your machine. The cloud receives only structured event metadata — never raw tool output."
+          subtitle="Every capability runs on your machine. The cloud receives only structured event metadata, not raw tool output."
         />
 
         <BentoGrid
@@ -481,7 +481,7 @@ function Capabilities() {
                 <div>
                   <CpuIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
                   <H3 className="mb-2">MCP Firewall</H3>
-                  <BodySm>Apply generic risk scoring and inspection to unknown MCP servers. Flags mutating actions, scores tool risk, and adds MCP risk notes — even when there is no source-specific handler yet.</BodySm>
+                  <BodySm>Apply generic risk scoring and inspection to unknown MCP servers. Flags mutating actions, scores tool risk, and adds MCP risk notes, even when there is no source-specific handler yet.</BodySm>
                 </div>
               ),
             },
@@ -490,7 +490,7 @@ function Capabilities() {
                 <div>
                   <ShieldCheckIcon className="mb-4 size-8 text-confire-dim" weight="duotone" />
                   <H3 className="mb-2">Tool Result Firewall</H3>
-                  <BodySm>Inspects every supported tool result after it returns. Flags secret-looking values, injection-like patterns, and hidden Unicode. Returns security context to the agent — without replacing the original output.</BodySm>
+                  <BodySm>Inspects every supported tool result after it returns. Flags secret-looking values, injection-like patterns, and hidden Unicode. Returns security context to the agent without replacing the original output.</BodySm>
                 </div>
               ),
             },
@@ -630,10 +630,10 @@ function Clients() {
 // ── Results ───────────────────────────────────────────────────────────────────
 
 const CATCHES = [
-  { value: 'Tool calls',          label: 'reviewed before execution — force pushes, resets, deletes, mutating MCP actions.' },
-  { value: 'Secrets',             label: 'redacted before context — API keys, tokens, connection strings, private key blocks.' },
-  { value: 'Hidden instructions', label: 'removed or flagged — zero-width chars, BiDi overrides, injection-like patterns.' },
-  { value: 'MCP tools',           label: 'risk-scored before use — unknown servers get generic inspection and policy checks.' },
+  { value: 'Tool calls',          label: 'reviewed before execution: force pushes, resets, deletes, mutating MCP actions.' },
+  { value: 'Secrets',             label: 'redacted before context: API keys, tokens, connection strings, private key blocks.' },
+  { value: 'Hidden instructions', label: 'removed or flagged: zero-width chars, BiDi overrides, injection-like patterns.' },
+  { value: 'MCP tools',           label: 'risk-scored before use: unknown servers get generic inspection and policy checks.' },
 ]
 
 function Results() {
@@ -770,7 +770,7 @@ function Setup() {
 const PLANS = [
   {
     name: 'Free',
-    tagline: 'Available now — try Confire’s local context and tool firewall for Claude Code, Cursor, and VS Code.',
+    tagline: ‘Try Confire\’s local context and tool firewall for Claude Code, Cursor, and VS Code.’,
     price: '$0',
     period: '/month',
     features: [
@@ -787,7 +787,7 @@ const PLANS = [
   },
   {
     name: 'Dev',
-    tagline: 'Early access — for daily AI coding with custom guardrails, policy sync, provenance history, and advanced MCP security.',
+    tagline: 'For daily AI coding with custom guardrails, policy sync, provenance history, and advanced MCP security.',
     price: '$10',
     period: '/month',
     features: [
@@ -804,7 +804,7 @@ const PLANS = [
   },
   {
     name: 'Team',
-    tagline: 'Planned — shared policies, audit logs, team dashboard, and centralized control for agent-using engineering teams.',
+    tagline: 'Shared policies, audit logs, team dashboard, and centralized control for agent-using engineering teams.',
     price: 'Planned',
     features: [
       'Everything in Dev',
@@ -890,7 +890,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Does Confire send my code to the cloud?',
-    a: 'Tool inputs are evaluated locally. Tool result inspection and injection-pattern detection run locally on your machine. Only structured telemetry events (risk level, action taken, session counts) are sent to the cloud — never raw tool output.',
+    a: 'Tool inputs are evaluated locally. Tool result inspection and injection-pattern detection run locally on your machine. Only structured telemetry events (risk level, action taken, session counts) are sent to the cloud. Raw tool output stays on your machine.',
   },
   {
     q: 'Can Confire prevent every unsafe agent action?',
@@ -898,7 +898,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What happens if Confire fails?',
-    a: 'Confire is designed to fail safely. If the daemon is unavailable, your agent continues normally — tool calls pass through unmodified.',
+    a: 'Confire is designed to fail safely. If the daemon is unavailable, your agent continues normally. Tool calls pass through unmodified.',
   },
 ]
 

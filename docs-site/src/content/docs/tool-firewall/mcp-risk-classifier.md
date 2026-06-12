@@ -1,7 +1,7 @@
 ---
 title: MCP risk classifier
 description: >-
-  How Confire classifies MCP tool calls before they run — using tool
+  How Confire classifies MCP tool calls before they run, using tool
   names and input signals to identify likely risky behavior.
 ---
 

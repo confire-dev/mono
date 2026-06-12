@@ -8,8 +8,8 @@ prepares tool output for security inspection. Confire routes each tool
 call's output to the most specific handler available. If no handler
 matches, the Generic fallback runs.
 
-Normalization only produces a smaller result when structure is removed
-— Confire never inflates output.
+Normalization only produces a smaller result when structure is removed.
+Confire never inflates output.
 
 All normalization runs locally in the daemon binary with no network
 round-trip and no account required.
@@ -19,11 +19,11 @@ round-trip and no account required.
 Normalizes shell output while preserving all actionable content.
 The logic adapts to the type of output:
 
-- **Test output** — keeps pass/fail summary lines, drops individual
+- **Test output**: keeps pass/fail summary lines, drops individual
   passing test names and progress output
-- **Build output** — keeps error lines, drops progress and
+- **Build output**: keeps error lines, drops progress and
   success-only noise
-- **General output** — strips ANSI escape codes, progress-bar lines,
+- **General output**: strips ANSI escape codes, progress-bar lines,
   and collapses runs of identical consecutive lines into a single
   line with a `[confire: N identical lines omitted]` marker
 
@@ -38,11 +38,11 @@ byte cap for normal files. An emergency cap applies only when
 file content exceeds 1MB:
 
 ```
-[confire: N bytes omitted — file exceeds 1MB; use offset/limit to read further]
+[confire: N bytes omitted (file exceeds 1MB; use offset/limit to read further)]
 ```
 
 For files larger than 1MB, Confire preserves the first 800KB and
-appends the marker above. This fires rarely — most source files are
+appends the marker above. This fires rarely. Most source files are
 well under this threshold.
 
 ## WebFetch

@@ -14,19 +14,19 @@ injection detection.
 
 Native tool output (Bash, Read, WebFetch) comes from your own
 machine and is reasonably trusted. MCP tool output comes from
-external servers and third-party services — the content is
+external servers and third-party services, so the content is
 untrusted. Sanitization runs on MCP output only for this reason.
 
 ## Pipeline order
 
 For each MCP PostToolUse event:
 
-1. **Secret redaction** — scan the full response for credential
+1. **Secret redaction**: scan the full response for credential
    patterns; replace matched values with redaction markers
-2. **Hidden-unicode stripping** — walk every string in the
+2. **Hidden-unicode stripping**: walk every string in the
    response recursively; remove tag-block, zero-width, and
    BiDi override characters
-3. **Injection detection** — scan for instruction-like patterns
+3. **Injection detection**: scan for instruction-like patterns
    in the sanitized content; flag if found
 
 If none of the passes find anything, the original output passes
@@ -52,4 +52,4 @@ values that were redacted.
 
 Sanitization is the first thing that runs. Any subsequent context
 passes (noise trimming, MCP normalization) receive already-sanitized
-content — secrets are never present in downstream processing.
+content. Secrets are never present in downstream processing.

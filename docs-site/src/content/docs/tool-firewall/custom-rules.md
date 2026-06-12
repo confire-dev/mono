@@ -1,7 +1,7 @@
 ---
 title: Custom guardrails
 description: >-
-  Extend Confire with project, team, or organization-specific rules —
+  Extend Confire with project, team, or organization-specific rules,
   managed in the dashboard, synced and evaluated locally.
 ---
 

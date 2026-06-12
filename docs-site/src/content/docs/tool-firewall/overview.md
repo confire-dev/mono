@@ -1,7 +1,7 @@
 ---
 title: Tool Firewall
 description: >-
-  Confire's PreToolUse layer — evaluates supported tool calls before
+  Confire's PreToolUse layer. Evaluates supported tool calls before
   they run and decides whether to allow, warn, review, or block.
 ---
 

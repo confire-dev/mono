@@ -1,12 +1,12 @@
 ---
 title: Config file
 description: >-
-  Confire local configuration — firewall mode, dashboard sync, policy
+  Confire local configuration: firewall mode, dashboard sync, policy
   sync, and notification settings.
 ---
 
 Confire stores local configuration on your machine. You usually do not
-need to edit the config file directly — use `confire config` instead.
+need to edit it directly. Use `confire config` instead.
 
 ```bash
 confire config

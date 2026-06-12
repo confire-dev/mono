@@ -14,11 +14,11 @@ prompt-injection-like patterns.
 Attackers can embed invisible characters in text to steer model
 behavior without the content being visible to humans. Confire detects:
 
-- **Tag block characters** (U+E0000–U+E007F) — used to hide
+- **Tag block characters** (U+E0000–U+E007F): used to hide
   instructions in otherwise-normal text
-- **Zero-width characters** — zero-width space, zero-width non-joiner,
+- **Zero-width characters**: zero-width space, zero-width non-joiner,
   zero-width joiner, and similar
-- **Bidirectional override characters** — BiDi overrides that can
+- **Bidirectional override characters**: BiDi overrides that can
   reverse displayed text to hide malicious content
 
 Detection walks every string in the result recursively, not just the
@@ -34,7 +34,7 @@ match is found, Confire flags it.
 :::caution
 Injection detection looks for known patterns. A well-crafted injection
 that avoids those patterns won't be caught. Confire helps reduce the
-attack surface — it doesn't eliminate it.
+attack surface, but it doesn't eliminate it.
 :::
 
 ## What happens on detection

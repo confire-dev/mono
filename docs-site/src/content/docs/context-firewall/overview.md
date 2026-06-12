@@ -1,7 +1,7 @@
 ---
 title: Context Firewall
 description: >-
-  Confire's PostToolUse layer — inspects tool results and adds
+  Confire's PostToolUse layer. Inspects tool results and adds
   firewall context back to the agent.
 ---
 
@@ -67,7 +67,7 @@ Confire sends metadata-only security events such as:
 
 ## Related pages
 
-- [Secret warnings](../secret-warnings) — secret-looking values and sensitive output
-- [Injection guard](../injection-guard) — hidden Unicode and instruction-like content
-- [MCP security](../mcp-security) — MCP tool risk notes
-- [Provenance](../provenance) — where tool context came from
+- [Secret warnings](../secret-warnings): secret-looking values and sensitive output
+- [Injection guard](../injection-guard): hidden Unicode and instruction-like content
+- [MCP security](../mcp-security): MCP tool risk notes
+- [Provenance](../provenance): where tool context came from
