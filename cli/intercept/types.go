@@ -78,13 +78,17 @@ const (
 )
 
 type InterceptResult struct {
-	Kind       ResultKind `json:"kind"`
-	ToolOutput any        `json:"toolOutput,omitempty"`
-	ToolInput  any        `json:"toolInput,omitempty"`
-	Context    string     `json:"context,omitempty"`
-	SystemMessage string  `json:"systemMessage,omitempty"` // shown to the user in Claude Code (hooks have no TTY)
-	Reason     string     `json:"reason,omitempty"` // block/review human-readable explanation
-	Stats      *Stats     `json:"stats,omitempty"`
+	Kind          ResultKind `json:"kind"`
+	ToolOutput    any        `json:"toolOutput,omitempty"`
+	ToolInput     any        `json:"toolInput,omitempty"`
+	Context       string     `json:"context,omitempty"`
+	SystemMessage string     `json:"systemMessage,omitempty"` // shown to the user in Claude Code (hooks have no TTY)
+	Reason        string     `json:"reason,omitempty"`        // block/review human-readable explanation
+	Stats         *Stats     `json:"stats,omitempty"`
+	// Rule attribution — populated by guardrail for non-passthrough decisions.
+	RuleID     string `json:"rule_id,omitempty"`
+	RuleName   string `json:"rule_name,omitempty"`
+	RuleSource string `json:"rule_source,omitempty"`
 }
 
 type Stats struct {

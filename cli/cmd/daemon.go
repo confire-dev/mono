@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -22,6 +24,7 @@ import (
 	"github.com/confire-dev/confire/intercept"
 	"github.com/confire-dev/confire/policy"
 	"github.com/confire-dev/confire/provenance"
+	"github.com/confire-dev/confire/receipt"
 	"github.com/confire-dev/confire/sanitize"
 	"github.com/confire-dev/confire/transport"
 	"github.com/spf13/cobra"
@@ -78,14 +81,16 @@ func (s *sessionStats) getRecentLabels() []provenance.ProvenanceLabel {
 }
 
 type daemonState struct {
-	mu          sync.Mutex
-	sessions    map[string]*sessionStats
-	apiKey      string
-	deviceID    string
-	cfg         config.Config
-	guardrail   *guardrail.Handler
-	mcpRisk     *intercept.MCPRiskHandler
-	mcpSanitize *intercept.MCPSanitizeHandler
+	mu           sync.Mutex
+	sessions     map[string]*sessionStats
+	apiKey       string
+	deviceID     string
+	cfg          config.Config
+	guardrail    *guardrail.Handler
+	mcpRisk      *intercept.MCPRiskHandler
+	mcpSanitize  *intercept.MCPSanitizeHandler
+	receiptStore *receipt.Store
+	receiptKey   ed25519.PrivateKey
 }
 
 func (ds *daemonState) onSessionStart(event intercept.InterceptEvent) {
@@ -360,18 +365,39 @@ func runDaemon() error {
 		deviceID = d
 	}
 
-	policyEngine := policy.NewEngine(policy.LoadRules())
+	receiptPrivKey, err := receipt.LoadOrGenerate(deviceID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[confire] receipt key: %v\n", err)
+	}
+	var receiptPubB64 string
+	if receiptPrivKey != nil {
+		receiptPubB64 = base64.RawURLEncoding.EncodeToString(
+			receiptPrivKey.Public().(ed25519.PublicKey),
+		)
+	}
+	receiptStore, err := receipt.NewStore(receiptsDirPath(), buildVersion, receiptPubB64)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[confire] receipt store: %v\n", err)
+		receiptStore = nil
+	}
+
+	rules := policy.LoadRules()
+	policyEngine := policy.NewEngine(rules)
 	mode := policy.Mode(cfg.EffectiveMode())
 
 	state := &daemonState{
-		sessions:    make(map[string]*sessionStats),
-		apiKey:      apiKey,
-		deviceID:    deviceID,
-		cfg:         cfg,
-		guardrail:   guardrail.New(policyEngine, mode),
-		mcpRisk:     intercept.NewMCPRiskHandler(provenance.TrustedMCPServers),
-		mcpSanitize: &intercept.MCPSanitizeHandler{},
+		sessions:     make(map[string]*sessionStats),
+		apiKey:       apiKey,
+		deviceID:     deviceID,
+		cfg:          cfg,
+		guardrail:    guardrail.New(policyEngine, mode),
+		mcpRisk:      intercept.NewMCPRiskHandler(provenance.TrustedMCPServers),
+		mcpSanitize:  &intercept.MCPSanitizeHandler{},
+		receiptStore: receiptStore,
+		receiptKey:   receiptPrivKey,
 	}
+
+	go state.emitBundleReceipt(len(rules))
 
 	fmt.Fprintf(os.Stderr, "[confire daemon] v%s listening on %s\n", buildVersion, socketPath)
 	if apiKey != "" {
@@ -416,6 +442,7 @@ func handleConn(conn net.Conn, state *daemonState) {
 	case intercept.PhaseSessionStart:
 		state.onSessionStart(event)
 		go state.postSessionStart(event)
+		state.emitSessionReceipt(event, receipt.PhaseSessionStart)
 		ctxMsg, systemMsg := sessionStartNotification(state)
 		if ctxMsg != "" {
 			json.NewEncoder(conn).Encode(intercept.InterceptResult{
@@ -433,20 +460,21 @@ func handleConn(conn net.Conn, state *daemonState) {
 
 	case intercept.PhaseSessionEnd:
 		state.onSessionEnd(event)
+		state.emitSessionReceipt(event, receipt.PhaseSessionEnd)
 		json.NewEncoder(conn).Encode(intercept.InterceptResult{Kind: intercept.ResultPassthrough})
 		return
 
 	case intercept.PhaseToolPre:
+		var result intercept.InterceptResult
+
 		if policy.ConsumeBypassNext() {
 			go state.postEvent(telemetryPayload{
 				EventID:   newEventID(),
 				EventType: "bypass_next_consumed",
 				SessionID: event.Session.ID,
 			})
-			json.NewEncoder(conn).Encode(intercept.InterceptResult{Kind: intercept.ResultPassthrough})
-			return
-		}
-		if state.cfg.IsFirewallEnabled() && state.guardrail != nil {
+			result = intercept.InterceptResult{Kind: intercept.ResultPassthrough}
+		} else if state.cfg.IsFirewallEnabled() && state.guardrail != nil {
 			// Cross-tool flow detection runs first against recent provenance labels.
 			state.mu.Lock()
 			recentLabels := append([]provenance.ProvenanceLabel(nil), state.sessions[event.Session.ID].getRecentLabels()...)
@@ -456,26 +484,27 @@ func handleConn(conn net.Conn, state *daemonState) {
 				state.onFirewallResult(event, flowResult)
 				logFirewallResult(event, flowResult)
 				go state.postSecurityEvent(event, flowResult)
-				json.NewEncoder(conn).Encode(flowResult)
-				return
-			}
-
-			result, _ := state.guardrail.Run(event)
-			// MCP risk classifier runs after the policy guardrail.
-			if result.Kind == intercept.ResultPassthrough && state.mcpRisk != nil && state.mcpRisk.Matches(event) {
-				if r, err := state.mcpRisk.Run(event); err == nil && r.Kind != intercept.ResultPassthrough {
-					result = r
+				result = flowResult
+			} else {
+				result, _ = state.guardrail.Run(event)
+				// MCP risk classifier runs after the policy guardrail.
+				if result.Kind == intercept.ResultPassthrough && state.mcpRisk != nil && state.mcpRisk.Matches(event) {
+					if r, err := state.mcpRisk.Run(event); err == nil && r.Kind != intercept.ResultPassthrough {
+						result = r
+					}
+				}
+				state.onFirewallResult(event, result)
+				logFirewallResult(event, result)
+				if result.Kind != intercept.ResultPassthrough {
+					go state.postSecurityEvent(event, result)
 				}
 			}
-			state.onFirewallResult(event, result)
-			logFirewallResult(event, result)
-			if result.Kind != intercept.ResultPassthrough {
-				go state.postSecurityEvent(event, result)
-			}
-			json.NewEncoder(conn).Encode(result)
 		} else {
-			json.NewEncoder(conn).Encode(intercept.InterceptResult{Kind: intercept.ResultPassthrough})
+			result = intercept.InterceptResult{Kind: intercept.ResultPassthrough}
 		}
+
+		json.NewEncoder(conn).Encode(result)
+		state.emitToolPreReceipt(event, result)
 		return
 	}
 
@@ -492,6 +521,7 @@ func handleConn(conn net.Conn, state *daemonState) {
 	label := state.onToolResult(event, sanitizeReport)
 	go writeProvenanceLabel(label)
 	go state.postProvenanceEvent(label)
+	state.emitToolPostReceipt(event, label)
 
 	result := intercept.InterceptResult{Kind: intercept.ResultPassthrough}
 
@@ -680,6 +710,150 @@ func consumeWelcomePending(state *daemonState) (string, bool) {
 	_ = config.Save(cfg)
 	state.cfg.WelcomePending = false
 	return "🔥 Confire context firewall is active. Run `confire help` for commands or `confire status` to check your setup.", true
+}
+
+// ── Receipt emission ──────────────────────────────────────────────────────────
+
+// emitReceipt signs and writes r. Best-effort — errors are logged but never fatal.
+func (ds *daemonState) emitReceipt(r receipt.Receipt) {
+	if ds.receiptStore == nil || ds.receiptKey == nil {
+		return
+	}
+	if err := receipt.Sign(ds.receiptKey, ds.deviceID, &r); err != nil {
+		fmt.Fprintf(os.Stderr, "[confire] receipt sign: %v\n", err)
+		return
+	}
+	if err := ds.receiptStore.Write(r); err != nil {
+		fmt.Fprintf(os.Stderr, "[confire] receipt write: %v\n", err)
+	}
+}
+
+func (ds *daemonState) newReceiptBody(sessionID string, phase receipt.Phase) receipt.Body {
+	return receipt.Body{
+		Version:             receipt.Version,
+		ConfireVersion:      buildVersion,
+		ReceiptID:           receipt.NewID(),
+		PreviousPayloadHash: ds.receiptStore.ChainTip(sessionID),
+		Phase:               phase,
+		Timestamp:           time.Now().UTC(),
+	}
+}
+
+func (ds *daemonState) emitSessionReceipt(event intercept.InterceptEvent, phase receipt.Phase) {
+	if ds.receiptStore == nil {
+		return
+	}
+	body := ds.newReceiptBody(event.Session.ID, phase)
+	body.Event = &receipt.Event{
+		SessionID: event.Session.ID,
+		Client:    event.Host,
+	}
+	ds.emitReceipt(receipt.Receipt{Body: body})
+}
+
+func (ds *daemonState) emitToolPreReceipt(event intercept.InterceptEvent, result intercept.InterceptResult) {
+	if ds.receiptStore == nil || event.Tool == nil {
+		return
+	}
+	sessionID := event.Session.ID
+	inputHash, _ := receipt.HashAny(event.Tool.Input)
+	body := ds.newReceiptBody(sessionID, receipt.PhaseToolPre)
+	body.Event = &receipt.Event{
+		SessionID: sessionID,
+		Client:    event.Host,
+		ContextID: event.Tool.UseID,
+		ToolName:  event.Tool.Name,
+		IsMCP:     event.Tool.IsMCP,
+		MCPServer: event.Tool.MCPServer,
+		InputHash: inputHash,
+		CWDHash:   receipt.HashString(event.Session.CWD),
+	}
+	body.Decision = &receipt.Decision{
+		Action:     string(result.Kind),
+		RuleID:     result.RuleID,
+		RuleName:   result.RuleName,
+		RuleSource: result.RuleSource,
+		PolicyMode: ds.cfg.EffectiveMode(),
+	}
+	ds.emitReceipt(receipt.Receipt{Body: body})
+}
+
+func (ds *daemonState) emitToolPostReceipt(event intercept.InterceptEvent, label provenance.ProvenanceLabel) {
+	if ds.receiptStore == nil || event.Tool == nil {
+		return
+	}
+	sessionID := event.Session.ID
+	inputHash, _ := receipt.HashAny(event.Tool.Input)
+
+	var outputHash string
+	if event.Tool.Output != nil {
+		if s, ok := sanitize.OutputToString(event.Tool.Output); ok {
+			outputHash = receipt.HashString(s)
+		}
+	}
+
+	body := ds.newReceiptBody(sessionID, receipt.PhaseToolPost)
+	body.Event = &receipt.Event{
+		SessionID:  sessionID,
+		Client:     event.Host,
+		ContextID:  event.Tool.UseID,
+		ToolName:   event.Tool.Name,
+		IsMCP:      event.Tool.IsMCP,
+		MCPServer:  event.Tool.MCPServer,
+		DurationMs: event.Tool.DurationMs,
+		InputHash:  inputHash,
+		OutputHash: outputHash,
+		CWDHash:    receipt.HashString(event.Session.CWD),
+	}
+	body.Provenance = &receipt.Provenance{
+		TrustLevel:        string(label.TrustLevel),
+		Flags:             label.Flags,
+		RedactionsCount:   label.RedactionsCount,
+		SanitizationCount: label.SanitizationCount,
+		RiskScore:         label.RiskScore,
+		OriginDomain:      label.OriginDomain,
+	}
+	ds.emitReceipt(receipt.Receipt{Body: body})
+}
+
+func (ds *daemonState) emitBundleReceipt(ruleCount int) {
+	if ds.receiptStore == nil {
+		return
+	}
+	bundleVersion := "builtin"
+	fetchedAt := time.Now().UTC()
+	groupOverrideCount := 0
+	verResult := receipt.VerificationNoSignature
+
+	if cp := policy.LoadCache(); cp != nil {
+		if cp.Version != "" {
+			bundleVersion = cp.Version
+		}
+		fetchedAt = cp.FetchedAt
+		groupOverrideCount = len(cp.GroupOverrides)
+		verResult = receipt.VerificationVerified
+	}
+
+	body := receipt.Body{
+		Version:             receipt.Version,
+		ConfireVersion:      buildVersion,
+		ReceiptID:           receipt.NewID(),
+		PreviousPayloadHash: ds.receiptStore.ChainTip(receipt.BundleSessionKey),
+		Phase:               receipt.PhasePolicyBundleLoaded,
+		Timestamp:           time.Now().UTC(),
+		Event: &receipt.Event{
+			SessionID: receipt.BundleSessionKey,
+			Client:    "daemon",
+		},
+		Bundle: &receipt.Bundle{
+			BundleVersion:      bundleVersion,
+			FetchedAt:          fetchedAt,
+			RuleCount:          ruleCount,
+			GroupOverrideCount: groupOverrideCount,
+			VerificationResult: verResult,
+		},
+	}
+	ds.emitReceipt(receipt.Receipt{Body: body})
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

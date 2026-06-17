@@ -46,6 +46,12 @@ func daemonPIDPath() string {
 	return filepath.Join(confireDir(), "daemon.pid")
 }
 
+func receiptsDirPath() string {
+	dir := filepath.Join(confireDir(), "receipts")
+	os.MkdirAll(dir, 0700)
+	return dir
+}
+
 func sessionLabelsPath(sessionID string) string {
 	dir := filepath.Join(confireDir(), "sessions")
 	os.MkdirAll(dir, 0700)

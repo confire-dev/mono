@@ -105,6 +105,11 @@ func SetBypassNext() error {
 	return os.WriteFile(path, []byte("1"), 0600)
 }
 
+// LoadCache returns the cached custom policy if one exists, or nil.
+func LoadCache() *CachedPolicy {
+	return loadCache()
+}
+
 // ── internal ──────────────────────────────────────────────────────────────
 
 func loadCachedCustomRules() []Rule {
