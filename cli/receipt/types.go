@@ -71,9 +71,11 @@ type Event struct {
 	Client    string `json:"client"`
 
 	// ContextID links a tool.pre receipt with its corresponding tool.post receipt
-	// for the same tool invocation. Sourced from Tool.UseID when the host provides
-	// it; otherwise the daemon generates a UUID at PreToolUse time and carries it
-	// through to the matching PostToolUse. Absent on session and bundle receipts.
+	// for the same tool invocation. Set from Tool.UseID when the host provides it
+	// (claude_code, cursor, vscode, codex); for hosts that don't send tool_use_id
+	// (windsurf, cline, openclaw) the daemon generates a UUID at tool.pre time and
+	// stores it in session state to be consumed by the matching tool.post.
+	// Absent on session.start, session.end, and policy.bundle.loaded receipts.
 	ContextID string `json:"context_id,omitempty"`
 
 	ToolName   string `json:"tool_name,omitempty"`

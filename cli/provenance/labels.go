@@ -108,8 +108,9 @@ func Classify(event intercept.InterceptEvent, report intercept.SanitizeReport) P
 	}
 
 	label := ProvenanceLabel{
-		SessionID: event.Session.ID,
-		Client:    string(event.Host),
+		SessionID:  event.Session.ID,
+		Client:     string(event.Host),
+		ContextID:  tool.UseID,
 		SourceTool: tool.Name,
 		MCPServer:  tool.MCPServer,
 		CreatedAt:  time.Now(),

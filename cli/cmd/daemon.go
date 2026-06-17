@@ -66,11 +66,14 @@ type sessionStats struct {
 	warnedCalls     int
 	sanitizedCalls  int
 	secretsRedacted int
-	// Provenance trust distribution (Phase 2)
+	// Provenance trust distribution
 	mcpUnknownCalls        int
 	externalUntrustedCalls int
-	// Ring buffer of recent provenance labels for cross-tool flow detection (Phase 3)
+	// Ring buffer of recent provenance labels for cross-tool flow detection
 	recentLabels []provenance.ProvenanceLabel
+	// pendingContextIDs stores daemon-generated context_ids for hosts that don't
+	// provide tool_use_id (windsurf, cline, openclaw, opencode). Keyed by tool name.
+	pendingContextIDs map[string]string
 }
 
 func (s *sessionStats) getRecentLabels() []provenance.ProvenanceLabel {
@@ -712,6 +715,36 @@ func consumeWelcomePending(state *daemonState) (string, bool) {
 	return "🔥 Confire context firewall is active. Run `confire help` for commands or `confire status` to check your setup.", true
 }
 
+// ── Context ID pairing ────────────────────────────────────────────────────────
+
+// storeContextID saves a daemon-generated context_id for the given session + tool name.
+// Used when the host doesn't provide tool_use_id so tool.pre and tool.post can be linked.
+func (ds *daemonState) storeContextID(sessionID, toolName, contextID string) {
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+	sess := ds.sessions[sessionID]
+	if sess == nil {
+		return
+	}
+	if sess.pendingContextIDs == nil {
+		sess.pendingContextIDs = make(map[string]string)
+	}
+	sess.pendingContextIDs[toolName] = contextID
+}
+
+// consumeContextID retrieves and removes the pending context_id for the given session + tool name.
+func (ds *daemonState) consumeContextID(sessionID, toolName string) string {
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+	sess := ds.sessions[sessionID]
+	if sess == nil || sess.pendingContextIDs == nil {
+		return ""
+	}
+	id := sess.pendingContextIDs[toolName]
+	delete(sess.pendingContextIDs, toolName)
+	return id
+}
+
 // ── Receipt emission ──────────────────────────────────────────────────────────
 
 // emitReceipt signs and writes r. Best-effort — errors are logged but never fatal.
@@ -756,12 +789,17 @@ func (ds *daemonState) emitToolPreReceipt(event intercept.InterceptEvent, result
 		return
 	}
 	sessionID := event.Session.ID
+	contextID := event.Tool.UseID
+	if contextID == "" {
+		contextID = receipt.NewID()
+		ds.storeContextID(sessionID, event.Tool.Name, contextID)
+	}
 	inputHash, _ := receipt.HashAny(event.Tool.Input)
 	body := ds.newReceiptBody(sessionID, receipt.PhaseToolPre)
 	body.Event = &receipt.Event{
 		SessionID: sessionID,
 		Client:    event.Host,
-		ContextID: event.Tool.UseID,
+		ContextID: contextID,
 		ToolName:  event.Tool.Name,
 		IsMCP:     event.Tool.IsMCP,
 		MCPServer: event.Tool.MCPServer,
@@ -783,6 +821,10 @@ func (ds *daemonState) emitToolPostReceipt(event intercept.InterceptEvent, label
 		return
 	}
 	sessionID := event.Session.ID
+	contextID := event.Tool.UseID
+	if contextID == "" {
+		contextID = ds.consumeContextID(sessionID, event.Tool.Name)
+	}
 	inputHash, _ := receipt.HashAny(event.Tool.Input)
 
 	var outputHash string
@@ -796,7 +838,7 @@ func (ds *daemonState) emitToolPostReceipt(event intercept.InterceptEvent, label
 	body.Event = &receipt.Event{
 		SessionID:  sessionID,
 		Client:     event.Host,
-		ContextID:  event.Tool.UseID,
+		ContextID:  contextID,
 		ToolName:   event.Tool.Name,
 		IsMCP:      event.Tool.IsMCP,
 		MCPServer:  event.Tool.MCPServer,
