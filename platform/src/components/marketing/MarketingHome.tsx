@@ -174,8 +174,8 @@ function Hero() {
         </H1>
         <p className="mx-auto mb-4 max-w-[40rem] text-base leading-relaxed text-confire-muted">
           Confire is a local firewall for AI coding agents. It reviews risky
-          tool calls before they run and adds security context after tools
-          return — across Claude Code, Cursor, and VS Code.
+          tool calls before they run and flags suspicious tool results after
+          they return — across Claude Code, Cursor, and VS Code.
         </p>
         <div className="mb-10 flex flex-wrap justify-center gap-3">
           <Button variant="outline" asChild>
@@ -356,7 +356,7 @@ function Problem() {
         <SectionLabel number="01">The agent tool problem</SectionLabel>
         <SectionTitle
           title="AI agents can call tools. But tools create risk and untrusted output."
-          subtitle="Modern coding agents can read files, run shell commands, call MCP servers, fetch docs, inspect Figma, review PRs, and touch external systems. That power creates two problems: risky actions and context pollution. Confire sits between the agent and its tools."
+          subtitle="Modern coding agents can read files, run shell commands, call MCP servers, fetch docs, inspect Figma, review PRs, and touch external systems. That power creates two problems: risky actions and untrusted tool output. Confire sits between the agent and its tools."
         />
 
         <ThreeCards
@@ -455,7 +455,7 @@ function Capabilities() {
       <Container>
         <SectionLabel number="03">Capabilities</SectionLabel>
         <SectionTitle
-          title="Context control and tool safety in one local layer."
+          title="Tool safety and result inspection in one local layer."
           subtitle="Every capability runs on your machine. The cloud receives only structured event metadata — never raw tool output."
         />
 
@@ -640,7 +640,7 @@ function Results() {
   return (
     <Section className="confire-dot-region">
       <Container>
-        <SectionLabel number="05">What Confire catches</SectionLabel>
+        <SectionLabel number="05">What Confire checks</SectionLabel>
         <SectionTitle
           title="Risky actions. Suspicious outputs. Sensitive context."
           subtitle="Confire does not try to decide what content is irrelevant. It focuses on security-relevant events: dangerous tool calls, secret-looking values, hidden instructions, untrusted sources, and suspicious MCP behavior."
@@ -792,12 +792,12 @@ const PLANS = [
     period: '/month',
     features: [
       'Everything in Free',
+      'Security feed for MCP servers and agent tooling',
       'Custom firewall rules',
       'Policy sync',
       'Firewall history',
       'Provenance metadata',
-      'Registry recommendations',
-      'Advanced MCP rules',
+      'Known MCP advisories and trusted server lists',
     ],
     cta: 'Request early access',
     featured: true,
