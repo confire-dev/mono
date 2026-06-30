@@ -10,6 +10,7 @@ import { syncPlansToKV }         from './lib/plans.js'
 import { handleSupabaseWebhook } from './handlers/db-webhook.js'
 import { handleGetPolicy, handlePatchPolicyGroups } from './handlers/policy.js'
 import { handleGetRules }        from './handlers/rules.js'
+import { handlePatchThresholds } from './handlers/config.js'
 
 const ALLOWED_ORIGINS = new Set([
   'https://confire.dev',
@@ -91,6 +92,11 @@ async function route(request: Request, url: URL, method: string, env: Env): Prom
     }
     if (method === 'PATCH' && url.pathname === '/v1/policy/groups') {
       return handlePatchPolicyGroups(request, env)
+    }
+
+    // ── Rate-policy threshold config (paid) ───────────────────────────────
+    if (method === 'POST' && url.pathname === '/v1/config/thresholds') {
+      return handlePatchThresholds(request, env)
     }
 
     // ── Billing / checkout ────────────────────────────────────────────────

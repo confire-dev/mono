@@ -79,6 +79,9 @@ type InterceptResult struct {
 	SystemMessage string  `json:"systemMessage,omitempty"` // shown to the user in Claude Code (hooks have no TTY)
 	Reason     string     `json:"reason,omitempty"` // block/review human-readable explanation
 	Stats      *Stats     `json:"stats,omitempty"`
+	// Irreversible is true when the matched rule is marked irreversible.
+	// handleConn() uses this to force review even when ask-budget has capacity.
+	Irreversible bool `json:"irreversible,omitempty"`
 }
 
 type Stats struct {

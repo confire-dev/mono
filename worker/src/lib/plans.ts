@@ -67,6 +67,9 @@ export interface Plan {
     firewallGroupToggles: boolean
     securityEventHistory: boolean
     provenanceTracking: boolean
+    // configurableThresholds: paid users can tighten rate-policy thresholds per profile.
+    // Free users always get the hardcoded loose defaults enforced in the daemon.
+    configurableThresholds: boolean
   }
 
   telemetry: {

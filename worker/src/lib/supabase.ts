@@ -497,6 +497,43 @@ export async function writeAudit(
   }).catch(() => {}) // audit failures must never block the main flow
 }
 
+// ── Rate-policy threshold config ────────────────────────────────────────────
+
+export interface ThresholdUpdate {
+  runaway_loop_threshold?: number
+  call_rate_threshold?: number
+}
+
+// upsertUserThresholds writes threshold overrides to the profiles.thresholds JSONB column.
+// Merges with any existing value so updating one field doesn't clobber the other.
+export async function upsertUserThresholds(
+  cfg: SupabaseConfig,
+  userId: string,
+  update: ThresholdUpdate,
+): Promise<void> {
+  if (!cfg.url || !cfg.serviceKey) return
+
+  // Merge with current value by reading first, then patching.
+  const existing = await getThresholds(cfg, userId)
+  const merged: ThresholdUpdate = { ...existing }
+  if (update.runaway_loop_threshold !== undefined) merged.runaway_loop_threshold = update.runaway_loop_threshold
+  if (update.call_rate_threshold    !== undefined) merged.call_rate_threshold    = update.call_rate_threshold
+
+  await sbFetch(
+    cfg, 'PATCH',
+    `/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`,
+    { thresholds: merged },
+  )
+}
+
+async function getThresholds(cfg: SupabaseConfig, userId: string): Promise<ThresholdUpdate> {
+  const res = await sbFetch(cfg, 'GET',
+    `/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=thresholds&limit=1`)
+  if (!res.ok) return {}
+  const rows = await res.json() as Array<{ thresholds: ThresholdUpdate | null }>
+  return rows[0]?.thresholds ?? {}
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function mapStripeStatus(status: string): SubscriptionStatus {

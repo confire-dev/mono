@@ -8,6 +8,7 @@
       "phase": "PreToolUse",
       "action": "review",
       "severity": "high",
+      "irreversible": true,
       "match": {
         "tool_name": "Bash"
       },
@@ -69,6 +70,7 @@
       "phase": "PreToolUse",
       "action": "block",
       "severity": "high",
+      "irreversible": true,
       "match": {
         "tool_name": "Bash",
         "command_contains": [
@@ -84,6 +86,7 @@
       "phase": "PreToolUse",
       "action": "review",
       "severity": "high",
+      "irreversible": true,
       "match": {
         "tool_name": "Bash"
       },
@@ -107,6 +110,7 @@
       "phase": "PreToolUse",
       "action": "review",
       "severity": "high",
+      "irreversible": true,
       "match": {
         "tool_name": "Bash"
       },
@@ -158,6 +162,7 @@
       "phase": "PreToolUse",
       "action": "review",
       "severity": "high",
+      "irreversible": true,
       "match": {
         "tool_name": "Bash",
         "command_regex": "vercel\\s+--prod|netlify\\s+deploy\\s+--prod|fly\\s+deploy|railway\\s+up\\b"

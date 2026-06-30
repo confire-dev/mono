@@ -61,6 +61,19 @@ type Config struct {
 	// Hosts overrides per-agent capabilities (merged onto hosts.DefaultCapabilities).
 	// Example: {"cursor": {"post_tool_steer": false}}
 	Hosts map[string]HostSettings `json:"hosts,omitempty"`
+
+	// RunawayLoopThreshold overrides the default runaway-loop detection count (20).
+	// Raise this if legitimate batch work triggers false positives.
+	RunawayLoopThreshold *int `json:"runaway_loop_threshold,omitempty"`
+
+	// CallRateThreshold overrides the default per-minute call cap (100).
+	// Raise this for high-volume automation workflows.
+	CallRateThreshold *int `json:"call_rate_threshold,omitempty"`
+
+	// AskBudgetSize is the number of warn-action calls per session that can be
+	// auto-skipped with an assumption record instead of surfacing to the user.
+	// Default 5. Set to 0 to collapse all warns to review immediately.
+	AskBudgetSize *int `json:"ask_budget_size,omitempty"`
 }
 
 // HostSettings overrides capability defaults for one host ID (cursor, claude-code, …).
@@ -97,6 +110,31 @@ func (c *Config) EffectiveMode() string {
 		return "balanced"
 	}
 	return c.Mode
+}
+
+// GetRunawayLoopThreshold returns the configured loop-detection count, defaulting to 20.
+func (c *Config) GetRunawayLoopThreshold() int {
+	if c.RunawayLoopThreshold != nil && *c.RunawayLoopThreshold > 0 {
+		return *c.RunawayLoopThreshold
+	}
+	return 20
+}
+
+// GetCallRateThreshold returns the configured per-minute call cap, defaulting to 100.
+func (c *Config) GetCallRateThreshold() int {
+	if c.CallRateThreshold != nil && *c.CallRateThreshold > 0 {
+		return *c.CallRateThreshold
+	}
+	return 100
+}
+
+// GetAskBudgetSize returns the number of warn-action calls that can be auto-skipped
+// per session. Zero means all warns collapse to review immediately.
+func (c *Config) GetAskBudgetSize() int {
+	if c.AskBudgetSize != nil && *c.AskBudgetSize >= 0 {
+		return *c.AskBudgetSize
+	}
+	return 5
 }
 
 func defaults() Config {

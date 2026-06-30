@@ -161,6 +161,30 @@ func TestMergeRules(t *testing.T) {
 	}
 }
 
+func TestIrreversibleField_Propagates(t *testing.T) {
+	// When a rule has Irreversible:true, EvaluatePreTool must carry the flag
+	// through to MatchResult.Rule.Irreversible so the guardrail and budget logic
+	// can read it without re-consulting the rule set.
+	rule := Rule{
+		ID:           "test-irrev",
+		Name:         "Test Irreversible Rule",
+		Enabled:      true,
+		Phase:        PhasePreToolUse,
+		Action:       ActionReview,
+		Match:        RuleMatch{ToolName: "Bash"},
+		Message:      "irreversible test",
+		Irreversible: true,
+	}
+	engine := NewEngine([]Rule{rule})
+	match := engine.EvaluatePreTool(makeEvent("Bash", bash("git reset --hard")), ModeBalanced)
+	if match == nil {
+		t.Fatal("expected a match, got nil")
+	}
+	if !match.Rule.Irreversible {
+		t.Fatal("Irreversible must propagate from rule into MatchResult.Rule")
+	}
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────
 
 func bash(cmd string) any {

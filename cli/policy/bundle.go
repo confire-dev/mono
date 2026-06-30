@@ -19,17 +19,18 @@ type ruleBundle struct {
 }
 
 type bundledRule struct {
-	ID       string     `json:"id"`
-	Name     string     `json:"name"`
-	Enabled  bool       `json:"enabled"`
-	Phase    RulePhase  `json:"phase"`
-	Action   RuleAction `json:"action"`
-	Severity Severity   `json:"severity"`
-	MinMode  Mode       `json:"min_mode,omitempty"`
-	Group    string     `json:"group,omitempty"`
-	Match    RuleMatch  `json:"match"`
-	Message  string     `json:"message"`
-	Patterns []pattern  `json:"patterns,omitempty"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	Enabled      bool       `json:"enabled"`
+	Phase        RulePhase  `json:"phase"`
+	Action       RuleAction `json:"action"`
+	Severity     Severity   `json:"severity"`
+	MinMode      Mode       `json:"min_mode,omitempty"`
+	Group        string     `json:"group,omitempty"`
+	Irreversible bool       `json:"irreversible,omitempty"`
+	Match        RuleMatch  `json:"match"`
+	Message      string     `json:"message"`
+	Patterns     []pattern  `json:"patterns,omitempty"`
 }
 
 type pattern struct {
@@ -112,17 +113,18 @@ func expandBundledRule(br bundledRule) ([]Rule, error) {
 
 func (br bundledRule) toRule(id, message string, match RuleMatch) Rule {
 	return Rule{
-		ID:       id,
-		Name:     br.Name,
-		Enabled:  br.Enabled,
-		Phase:    br.Phase,
-		Action:   br.Action,
-		Severity: br.Severity,
-		MinMode:  br.MinMode,
-		Group:    br.Group,
-		Match:    match,
-		Message:  message,
-		Source:   "builtin",
+		ID:           id,
+		Name:         br.Name,
+		Enabled:      br.Enabled,
+		Phase:        br.Phase,
+		Action:       br.Action,
+		Severity:     br.Severity,
+		MinMode:      br.MinMode,
+		Group:        br.Group,
+		Irreversible: br.Irreversible,
+		Match:        match,
+		Message:      message,
+		Source:       "builtin",
 	}
 }
 

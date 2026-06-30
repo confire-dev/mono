@@ -42,20 +42,23 @@ func (h *Handler) Run(e intercept.InterceptEvent) (intercept.InterceptResult, er
 	switch match.Action {
 	case policy.ActionBlock:
 		return intercept.InterceptResult{
-			Kind:   intercept.ResultBlock,
-			Reason: formatBlockMessage(match, e),
+			Kind:         intercept.ResultBlock,
+			Reason:       formatBlockMessage(match, e),
+			Irreversible: match.Rule.Irreversible,
 		}, nil
 
 	case policy.ActionReview:
 		return intercept.InterceptResult{
-			Kind:   intercept.ResultReview,
-			Reason: formatReviewMessage(match, e),
+			Kind:         intercept.ResultReview,
+			Reason:       formatReviewMessage(match, e),
+			Irreversible: match.Rule.Irreversible,
 		}, nil
 
 	case policy.ActionWarn:
 		return intercept.InterceptResult{
-			Kind:    intercept.ResultWarn,
-			Context: formatWarnMessage(match, e),
+			Kind:         intercept.ResultWarn,
+			Context:      formatWarnMessage(match, e),
+			Irreversible: match.Rule.Irreversible,
 		}, nil
 
 	default:

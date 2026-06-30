@@ -49,6 +49,7 @@ type EventType =
   | 'provenance_event'
   | 'hook_installed'
   | 'daemon_started'
+  | 'budget_exhaustion'
 
 export async function handleTelemetry(request: Request, env: Env): Promise<Response> {
   // ── 1. Auth ──────────────────────────────────────────────────────────────
@@ -145,6 +146,14 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
 
     case 'daemon_started':
       maybeTrack(env, event, user.email, user.plan, 'daemon_started')
+      break
+
+    case 'budget_exhaustion':
+      // Ask-budget exhausted for a session — all subsequent warns now surface as review.
+      // No DB write in v1; analytics forwarding only.
+      if (event.analytics_consented) {
+        maybeTrack(env, event, user.email, user.plan, 'budget_exhaustion')
+      }
       break
 
     default:

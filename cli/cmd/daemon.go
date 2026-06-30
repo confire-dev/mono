@@ -68,6 +68,13 @@ type sessionStats struct {
 	externalUntrustedCalls int
 	// Ring buffer of recent provenance labels for cross-tool flow detection (Phase 3)
 	recentLabels []provenance.ProvenanceLabel
+	// Rate-policy call history (Feature B). Kept separate from recentLabels —
+	// recentLabels is capped at 10 for flow detection; recentCalls is time-windowed
+	// and may hold hundreds of entries during high-volume sessions.
+	recentCalls []firewall.RecentCall
+	// humanAsksUsed counts warn-action calls skipped with an assumption record (Feature A).
+	// Resets on daemon restart (intentional: fails safe — new session starts cautious).
+	humanAsksUsed int
 }
 
 func (s *sessionStats) getRecentLabels() []provenance.ProvenanceLabel {
@@ -75,6 +82,30 @@ func (s *sessionStats) getRecentLabels() []provenance.ProvenanceLabel {
 		return nil
 	}
 	return s.recentLabels
+}
+
+// updateAndGetRecentCalls appends the current call sig to the session's call history,
+// prunes entries older than maxWindow, and returns a safe copy for use outside the lock.
+// Returns nil for empty session IDs or unknown sessions (safe: CheckRateRules skips nil slices).
+func (ds *daemonState) updateAndGetRecentCalls(sessionID, sig string, now time.Time, maxWindow time.Duration) []firewall.RecentCall {
+	if sessionID == "" || sig == "" {
+		return nil
+	}
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+	sess := ds.sessions[sessionID]
+	if sess == nil {
+		return nil
+	}
+	cutoff := now.Add(-maxWindow)
+	fresh := sess.recentCalls[:0]
+	for _, c := range sess.recentCalls {
+		if c.At.After(cutoff) {
+			fresh = append(fresh, c)
+		}
+	}
+	sess.recentCalls = append(fresh, firewall.RecentCall{Sig: sig, At: now})
+	return append([]firewall.RecentCall(nil), sess.recentCalls...)
 }
 
 type daemonState struct {
@@ -86,6 +117,7 @@ type daemonState struct {
 	guardrail   *guardrail.Handler
 	mcpRisk     *intercept.MCPRiskHandler
 	mcpSanitize *intercept.MCPSanitizeHandler
+	rateThresholds firewall.RateThresholds
 }
 
 func (ds *daemonState) onSessionStart(event intercept.InterceptEvent) {
@@ -287,6 +319,89 @@ func writeProvenanceLabel(label provenance.ProvenanceLabel) {
 	f.Write(append(data, '\n')) //nolint:errcheck
 }
 
+// ── Ask-budget helpers (Feature A) ───────────────────────────────────────────
+
+type assumptionRecord struct {
+	RecordType  string    `json:"record_type"` // "assumption"
+	SessionID   string    `json:"session_id"`
+	ToolName    string    `json:"tool_name,omitempty"`
+	RuleContext string    `json:"rule_context,omitempty"` // warn message text
+	BudgetSlot  int       `json:"budget_slot"` // 1-based: which slot this consumed
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// writeAssumptionRecord appends a skip record to the session JSONL alongside
+// provenance labels. The record_type field distinguishes it in queries.
+func writeAssumptionRecord(event intercept.InterceptEvent, result intercept.InterceptResult, budgetSlot int) {
+	rec := assumptionRecord{
+		RecordType: "assumption",
+		SessionID:  event.Session.ID,
+		BudgetSlot: budgetSlot,
+		CreatedAt:  time.Now(),
+	}
+	if event.Tool != nil {
+		rec.ToolName = event.Tool.Name
+	}
+	rec.RuleContext = result.Context
+	data, err := json.Marshal(rec)
+	if err != nil {
+		return
+	}
+	path := sessionLabelsPath(event.Session.ID)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	f.Write(append(data, '\n')) //nolint:errcheck
+}
+
+// formatBudgetExhaustedMessage wraps the original warn context in a review message
+// that explains the budget was the reason it's now surfacing.
+func formatBudgetExhaustedMessage(originalContext string) string {
+	msg := "[Confire] Ask-budget exhausted for this session — all warnings are now surfaced for review."
+	if originalContext != "" {
+		msg += "\n\nOriginal warning: " + originalContext
+	}
+	return msg
+}
+
+// budgetDecision applies the ask-budget policy to a single result.
+// Pure: reads only result/asksUsed/budget, no state mutation.
+// Returns the (possibly modified) result and two booleans:
+//   - skipped=true: caller must write an assumption record and increment sess.humanAsksUsed
+//   - exhausted=true: caller must emit the budget_exhaustion telemetry event
+func budgetDecision(result intercept.InterceptResult, asksUsed, budget int) (out intercept.InterceptResult, skipped bool, exhausted bool) {
+	if result.Kind != intercept.ResultWarn {
+		return result, false, false
+	}
+	if result.Irreversible {
+		result.Kind = intercept.ResultReview
+		return result, false, false
+	}
+	if asksUsed < budget {
+		return intercept.InterceptResult{Kind: intercept.ResultPassthrough}, true, false
+	}
+	result.Kind = intercept.ResultReview
+	result.Reason = formatBudgetExhaustedMessage(result.Context)
+	result.Context = ""
+	return result, false, true
+}
+
+func (ds *daemonState) postBudgetExhaustionEvent(event intercept.InterceptEvent) {
+	if ds.apiKey == "" {
+		return
+	}
+	ds.postEvent(telemetryPayload{
+		EventID:            newEventID(),
+		EventType:          "budget_exhaustion",
+		CLIVersion:         buildVersion,
+		Integration:        string(event.Host),
+		SessionID:          event.Session.ID,
+		AnalyticsConsented: ds.cfg.Telemetry,
+	})
+}
+
 func (ds *daemonState) postSessionStart(event intercept.InterceptEvent) {
 	if ds.apiKey == "" {
 		return
@@ -371,6 +486,12 @@ func runDaemon() error {
 		guardrail:   guardrail.New(policyEngine, mode),
 		mcpRisk:     intercept.NewMCPRiskHandler(provenance.TrustedMCPServers),
 		mcpSanitize: &intercept.MCPSanitizeHandler{},
+		rateThresholds: firewall.RateThresholds{
+			RunawayLoopN:      cfg.GetRunawayLoopThreshold(),
+			RunawayLoopWindow: firewall.DefaultRunawayLoopWindow,
+			CallCapN:          cfg.GetCallRateThreshold(),
+			CallCapWindow:     firewall.DefaultCallCapWindow,
+		},
 	}
 
 	fmt.Fprintf(os.Stderr, "[confire daemon] v%s listening on %s\n", buildVersion, socketPath)
@@ -437,11 +558,24 @@ func handleConn(conn net.Conn, state *daemonState) {
 			return
 		}
 		if state.cfg.IsFirewallEnabled() && state.guardrail != nil {
-			// Cross-tool flow detection runs first against recent provenance labels.
+			mode := policy.Mode(state.cfg.EffectiveMode())
+
+			// Rate-policy check: blocks runaway loops and call-rate caps before any
+			// per-rule analysis. Runs first because it's a hard stop — no point
+			// evaluating trust chains if the agent is already in a loop.
+			calls := state.updateAndGetRecentCalls(event.Session.ID, firewall.CallSig(event), time.Now(), firewall.MaxRateWindow)
+			if rateResult := firewall.CheckRateRules(calls, event, state.rateThresholds, mode); rateResult.Kind != intercept.ResultPassthrough {
+				state.onFirewallResult(event, rateResult)
+				logFirewallResult(event, rateResult)
+				go state.postSecurityEvent(event, rateResult)
+				json.NewEncoder(conn).Encode(rateResult)
+				return
+			}
+
+			// Cross-tool flow detection runs against recent provenance labels.
 			state.mu.Lock()
 			recentLabels := append([]provenance.ProvenanceLabel(nil), state.sessions[event.Session.ID].getRecentLabels()...)
 			state.mu.Unlock()
-			mode := policy.Mode(state.cfg.EffectiveMode())
 			if flowResult := firewall.CheckFlowRules(recentLabels, event, mode); flowResult.Kind != intercept.ResultPassthrough {
 				state.onFirewallResult(event, flowResult)
 				logFirewallResult(event, flowResult)
@@ -457,6 +591,41 @@ func handleConn(conn net.Conn, state *daemonState) {
 					result = r
 				}
 			}
+
+			// ── Ask-budget logic (Feature A) ───────────────────────────────────
+			// Block:  never affected by budget.
+			// Review: ALWAYS surfaces as review. Budget never skips it — a review means
+			//         a rule actively decided this call needs human eyes; auto-skipping
+			//         inverts the firewall into the "too permissive" failure mode.
+			//         Irreversible is a subset of review; kept as defense-in-depth.
+			// Warn:   eligible for skip-with-assumption while budget remains.
+			//         Budget exhausted → collapse to review (never silent), emit telemetry.
+			if result.Kind == intercept.ResultWarn {
+				state.mu.Lock()
+				sess := state.sessions[event.Session.ID]
+				budget := state.cfg.GetAskBudgetSize()
+				asksUsed := 0
+				if sess != nil {
+					asksUsed = sess.humanAsksUsed
+				}
+				state.mu.Unlock()
+
+				origResult := result
+				var skipped, exhausted bool
+				result, skipped, exhausted = budgetDecision(result, asksUsed, budget)
+				if skipped {
+					go writeAssumptionRecord(event, origResult, asksUsed+1)
+					state.mu.Lock()
+					if sess != nil {
+						sess.humanAsksUsed++
+					}
+					state.mu.Unlock()
+				}
+				if exhausted {
+					go state.postBudgetExhaustionEvent(event)
+				}
+			}
+
 			state.onFirewallResult(event, result)
 			logFirewallResult(event, result)
 			if result.Kind != intercept.ResultPassthrough {

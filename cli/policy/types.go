@@ -67,6 +67,12 @@ type Rule struct {
 	// Group is a logical category used for dashboard toggles (e.g. "mcp.secrets").
 	// GroupOverrides in CachedPolicy can disable all rules in a group at once.
 	Group string `json:"group,omitempty"`
+
+	// Irreversible marks rules where the matched action cannot be undone after execution.
+	// When true, the ask-budget (Feature A) never auto-skips this call — review is
+	// always forced regardless of remaining budget. Applies to: git-destructive,
+	// filesystem-destructive, database-destructive, github-cli-block, deploy-prod.
+	Irreversible bool `json:"irreversible,omitempty"`
 }
 
 // RuleMatch describes what conditions trigger a rule.
