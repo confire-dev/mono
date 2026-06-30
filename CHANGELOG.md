@@ -1,3 +1,11 @@
+## v0.14.1 — 2026-06-30
+
+### Fixes
+- fix(makefile): install confire-dev to ~/.local/bin instead of GOPATH/bin (2a46ac6)
+
+
+---
+
 ## v0.14.0 — 2026-06-30
 
 ### Fixes
