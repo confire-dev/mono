@@ -1,3 +1,11 @@
+## v0.14.0 — 2026-06-30
+
+### Fixes
+- fix: gate security_events and provenance_events writes behind plan flags (3824caf)
+
+
+---
+
 ## v0.13.0 — 2026-06-07
 
 ### Fixes
