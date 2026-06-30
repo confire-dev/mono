@@ -4,7 +4,7 @@
 ## Usage:
 ##   make dev              build confire binary (symbols kept, fast) — prod APIs
 ##   make build-dev-env    build confire-dev binary pointing at dev APIs
-##   make install-dev-env  install confire-dev to GOPATH/bin
+##   make install-dev-env  install confire-dev to ~/.local/bin (PATH-visible)
 ##   make release          build hardened binary for current platform (garble + stripped)
 ##   make dist             cross-compile all release targets into dist/
 ##   make snapshot         run goreleaser snapshot (local release preview)
@@ -68,11 +68,11 @@ build-dev-env:
 	go build -trimpath -ldflags "$(BASE_FLAGS) $(DEV_ENV_FLAGS)" -o $(BINARY_DEV) .
 	@echo "Built $(BINARY_DEV) -> api.dev.confire.dev"
 
-## install-dev-env: install confire-dev to GOPATH/bin
+## install-dev-env: install confire-dev to ~/.local/bin (PATH-visible on this machine)
 install-dev-env:
 	go build -trimpath -ldflags "$(BASE_FLAGS) $(DEV_ENV_FLAGS)" \
-		-o "$(shell go env GOPATH)/bin/$(BINARY_DEV)" .
-	@echo "Installed $(BINARY_DEV) to $$(go env GOPATH)/bin/$(BINARY_DEV)"
+		-o "$(HOME)/.local/bin/$(BINARY_DEV)" .
+	@echo "Installed $(BINARY_DEV) to $(HOME)/.local/bin/$(BINARY_DEV)"
 
 ## release: hardened binary for the current platform (garble + stripped)
 release:
