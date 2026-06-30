@@ -38,9 +38,19 @@ output, including the context note.
 |---|---|---|---|
 | `mode` | `observe` / `balanced` / `strict` / `bypass` | `balanced` | Policy enforcement mode |
 | `firewall_enabled` | `true` / `false` | `true` | Master firewall toggle |
+| `runaway_loop_threshold` | integer | `20` | Number of identical calls within 5 min that triggers a runaway-loop block. Raise if legitimate batch work triggers false positives. |
+| `call_rate_threshold` | integer | `100` | Maximum total tool calls per minute before the session is blocked. Raise for high-volume automation. |
+| `ask_budget_size` | integer | `5` | Warn-action calls per session that are auto-acknowledged without surfacing to the user. Set to `0` to surface every warn as a review immediately. |
 
 Setting `mode=bypass` or `firewall_enabled=false` both disable the
 firewall. Use `confire on` / `confire off` as shortcuts.
+
+Changes to `runaway_loop_threshold`, `call_rate_threshold`, and
+`ask_budget_size` take effect after a daemon restart:
+
+```bash
+confire stop && confire start
+```
 
 ### Analytics
 

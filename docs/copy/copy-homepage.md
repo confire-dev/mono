@@ -79,32 +79,32 @@ Confire uses a cloud optimizer (Cloudflare Worker) with a local fallback. Latenc
 **Feature 1**  
 **Icon:** hook/connector  
 **Heading:** Drop-in hook for Claude Code & Cursor  
-**Body:** Confire works as a PostToolUse hook. No changes to your workflow. Works with Claude Code, Cursor, and Cline out of the box.
+**Body:** Confire works as a PreToolUse and PostToolUse hook. No changes to your workflow. Works with Claude Code, Cursor, and VS Code out of the box.
 
 **Feature 2**  
+**Icon:** loop/stop  
+**Heading:** Stops runaway agent loops automatically  
+**Body:** When your agent gets stuck repeating the same command, Confire blocks it after 20 identical calls in 5 minutes — before it can cause damage at scale. No config required.
+
+**Feature 3**  
+**Icon:** shield/check  
+**Heading:** Irreversible actions always get a second look  
+**Body:** Commands that can't be undone — `rm -rf`, force push, database resets, production deploys — are always surfaced for review. The ask-budget mechanism never skips them.
+
+**Feature 4**  
 **Icon:** cloud + server  
 **Heading:** Cloud optimizer with local fallback  
 **Body:** Processing happens on Cloudflare's edge network. If the cloud is unreachable, the local optimizer kicks in automatically. Always on.
 
-**Feature 3**  
+**Feature 5**  
 **Icon:** chart/graph  
 **Heading:** Usage stats and savings tracking  
 **Body:** Run `confire stats` to see how many tokens you've saved, which tools produce the most noise, and your monthly usage across calls.
 
-**Feature 4**  
+**Feature 6**  
 **Icon:** lock/shield  
 **Heading:** Your data stays yours  
-**Body:** Confire processes tool output content to compress it, but does not store, log, or share the content of your tool calls.
-
-**Feature 5**  
-**Icon:** bolt/speed  
-**Heading:** Go from 100,000-token sessions to 20,000  
-**Body:** Context bloat is the number one reason agents get confused, slow, and expensive. Confire attacks it at the source.
-
-**Feature 6**  
-**Icon:** CLI  
-**Heading:** Simple CLI, no dashboard required  
-**Body:** `confire setup` · `confire login` · `confire stats` · `confire start` · `confire stop`. That's the whole surface area.
+**Body:** Local protection runs entirely on your machine — block, loop detection, and budget decisions never leave the daemon. Remote optimizations receive only sanitized content, never raw tool output.
 
 ---
 
@@ -134,10 +134,11 @@ Claude Code uses full PreToolUse/PostToolUse hooks. Cursor and VS Code use MCP g
 **Free — $0/mo**  
 For trying Confire with your AI coding agent.
 
-Try Confire’s local firewall for Claude Code, Cursor, and VS Code. Clean noisy tool output and review risky agent actions with built-in rules.
+Try Confire’s local firewall for Claude Code, Cursor, and VS Code. Runaway loop detection, risky action review, and output sanitization — all local, all free.
 
 - Claude Code full firewall
 - Cursor + VS Code MCP gateway
+- Runaway loop + call rate protection
 - 500 remote optimizations/month
 - Basic savings stats
 
@@ -146,12 +147,14 @@ Try Confire’s local firewall for Claude Code, Cursor, and VS Code. Clean noisy
 **Dev — $10/mo · $90/yr**  
 For daily AI coding with Confire always on.
 
-Use Confire daily with higher limits, custom firewall rules, updated source-specific optimizers, and local policy sync.
+Use Confire daily with higher limits, custom firewall rules, updated source-specific optimizers, and full history.
 
 - Everything in Free
 - 5,000 remote optimizations/month
 - Custom dashboard guardrails
-- Optimization + firewall history
+- Configurable rate thresholds
+- Security event + provenance history
+- Optimization history
 
 `Start Dev →`
 

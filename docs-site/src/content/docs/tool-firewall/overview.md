@@ -53,13 +53,46 @@ Reason:  Permanent repository deletion cannot be undone.
 
 ## What gets evaluated
 
-The Tool Firewall evaluates every tool call before it runs:
+The Tool Firewall evaluates every tool call before it runs. Checks
+happen in this order:
 
-- **Native tools** — Bash commands are matched against
-  pattern-based rules (git operations, secret file reads, and
-  so on)
-- **MCP tools** — all MCP tool calls are scored by the risk
-  classifier and checked against MCP-specific rules
+1. **Rate policy** — detects runaway loops (same call repeated 20×
+   in 5 min) and call-rate caps (100 calls/min). Hard stop — no
+   further evaluation if a rate rule fires.
+2. **Flow rules** — cross-call patterns: a secret read followed
+   immediately by an external network send, or a prompt-injection
+   attempt followed by a shell command.
+3. **Policy rules** — pattern-based rules against the tool name and
+   input (git operations, secret file reads, MCP mutations, and so
+   on).
+4. **MCP risk classifier** — automatic scoring of MCP tool calls
+   not already matched by a rule.
+
+## Ask-budget
+
+When a `warn`-severity rule fires, Confire doesn't always surface
+it as a visible advisory. Each session starts with a budget of 5
+warn-skips. While budget remains, warn-action matches are
+auto-acknowledged and logged locally — the agent continues without
+interruption and an assumption record is written to
+`~/.confire/sessions/`.
+
+Once the budget is exhausted, all subsequent warns escalate to
+**review** for the rest of the session. The budget resets on
+daemon restart.
+
+**Irreversible rules are exempt.** Rules marked irreversible
+(`git-destructive`, `filesystem-destructive`, `database-destructive`,
+`github-cli-block`, `deploy-prod`) always surface as review
+regardless of budget. These are actions that can't be undone.
+
+Configure the budget size in `~/.confire/config.json`:
+
+```json
+{ "ask_budget_size": 10 }
+```
+
+Set to `0` to surface every warn as a review immediately.
 
 ## Policy modes
 
@@ -71,7 +104,7 @@ In `strict` mode additional rules activate. See
 
 ## Related pages
 
-- [Built-in rules](../built-in-rules) — what ships in the binary
+- [Built-in rules](../built-in-rules) — what ships in the binary, including rate policy rules
 - [Policy modes](../policy-modes) — observe, balanced, strict, bypass
 - [MCP risk classifier](../mcp-risk-classifier) — automatic MCP scoring
 - [Custom rules](../custom-rules) — cloud-managed rule additions

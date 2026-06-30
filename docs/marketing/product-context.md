@@ -143,6 +143,8 @@ Future: shared policies, audit logs, team dashboard, self-hosting, admin-enforce
 - ✓ Cursor + VS Code MCP gateway
 - ✓ Local CLI
 - ✓ Built-in risky action review
+- ✓ Runaway loop + call rate protection
+- ✓ Ask-budget (5 warn skips/session)
 - ✓ Secret + prompt-injection sanitization
 - ✓ Universal fallback optimizer
 - ✓ Basic local optimizers
@@ -154,10 +156,12 @@ Future: shared policies, audit logs, team dashboard, self-hosting, admin-enforce
 - ✓ 5,000 remote optimizations/mo
 - ✓ Custom dashboard guardrails
 - ✓ Remote policy sync
+- ✓ Configurable rate thresholds
+- ✓ Security event + provenance history
 - ✓ Growing optimizer library
 - ✓ Continuous firewall updates
 - ✓ Larger payloads
-- ✓ Optimization + firewall history
+- ✓ Optimization history
 - ✓ Tool-use guidance
 - ✓ Early access to new adapters
 
@@ -174,7 +178,9 @@ Future: shared policies, audit logs, team dashboard, self-hosting, admin-enforce
 1. “I want to try a firewall without committing” → Free, all supported clients
 2. “Confire is part of every session now” → Dev (limits, custom rules, updates)
 3. “My agent runs dangerous commands” → built-in rules (Free); custom rules (Dev)
-4. “Tool output bloats my context” → optimizers + stats (Free basic; Dev advanced)
+4. “My agent got stuck in a loop and kept retrying the same broken command” → rate policy, Free, automatic
+5. “I don't want every warn to interrupt me, but I still want dangerous things reviewed” → ask-budget, Free, configurable
+6. “Tool output bloats my context” → optimizers + stats (Free basic; Dev advanced)
 
 ## Brand voice
 

@@ -1,41 +1,49 @@
 ---
 title: Plans and limits
-description: What's included in Free, and what's coming in Dev early access.
+description: What's included in Free, what's in Dev, and what's coming in Team.
 ---
 
 ## Free
 
-No account required. All firewall and local optimization features
-are included at no cost.
+No account required. All firewall and local protection features are
+included at no cost — protection is never paywalled.
 
 - **Tool Firewall** — all built-in rules, all policy modes
-- **Context Firewall** — secret redaction, injection guard,
-  hidden-unicode stripping
+- **Rate policy** — runaway loop detection + call rate cap (runs locally, no account)
+- **Ask-budget** — auto-acknowledge warn-action calls up to 5 per session
+- **Context Firewall** — secret redaction, injection guard, hidden-unicode stripping
 - **Local optimizers** — Bash, Read, WebFetch, Generic fallback
 - **All supported agents** — Claude Code, Cursor, VS Code
-- **Basic stats** — security events and session activity per session
+- **500 remote optimizations/month**
+- **Basic per-session stats** — call counts, savings, firewall events
 
-Local optimizers run in the daemon binary with no network round-trip
-and no account. The firewall runs entirely on your machine.
+Local protection runs entirely in the daemon binary with no network
+round-trip and no account required.
 
-## Dev — early access
+## Dev — $10/month · $90/year
 
-Dev is opening soon for power users who want higher limits, custom
-guardrails, and full history. Planned at $10/month.
+For daily AI coding with Confire always on.
 
 - Everything in Free
-- **Higher remote optimization limits** — Figma, GitHub, Slack,
-  Notion, Jira, and all MCP-connected tools your agent uses
+- **5,000 remote optimizations/month**
+- **Configurable rate thresholds** — tighten `runaway_loop_threshold`
+  and `call_rate_threshold` via the dashboard; values sync to the
+  daemon automatically
 - **Custom dashboard guardrails** — organization-specific firewall
   rules managed in the dashboard and synced via `confire policy pull`
 - **Policy sync** — keep rules in sync across machines
-- **Firewall + optimization history** — full activity log per session
+- **Security event history** — blocked, reviewed, and warned calls
+  stored in the dashboard and queryable per session
+- **Provenance tracking history** — MCP trust labels and sanitization
+  events stored in the dashboard
 - **Updated optimizer and risk-rule library** — priority access to
   new adapters and rule updates
+- **Larger input payloads**
 - **Top-up credits** — purchase additional remote optimization
   credits via `confire topup`
+- **Early access to new clients/adapters**
 
-[Request early access →](https://confire.dev/#pricing)
+[Start Dev →](https://confire.dev/#pricing)
 
 ## Team — planned
 
