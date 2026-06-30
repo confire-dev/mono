@@ -11,6 +11,7 @@ import { recordSecurityEvent, recordProvenanceEvent, upsertCliSession, closeCliS
 import { trackEvent } from '../lib/analytics.js'
 import { sanitizeToolType } from '../lib/buckets.js'
 import { cacheKey, cacheGet, cachePut } from '../lib/cache.js'
+import { getPlan } from '../lib/plans.js'
 
 // ── Wire format from the CLI daemon ─────────────────────────────────────────
 
@@ -105,8 +106,9 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
       maybeTrack(env, event, user.email, user.plan, 'cli_session_ended')
       break
 
-    case 'security_event':
-      if (cfg && event.tool_type && event.risk_level && event.action_taken) {
+    case 'security_event': {
+      const plan = await getPlan(user.plan_id, env)
+      if (cfg && plan.features.securityEventHistory && event.tool_type && event.risk_level && event.action_taken) {
         await recordSecurityEvent(cfg, {
           userId:         user.id,
           sessionId:      event.session_id ?? '',
@@ -122,9 +124,11 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
         maybeTrack(env, event, user.email, user.plan, 'security_event')
       }
       break
+    }
 
-    case 'provenance_event':
-      if (cfg && event.tool_type && event.trust_level) {
+    case 'provenance_event': {
+      const plan = await getPlan(user.plan_id, env)
+      if (cfg && plan.features.provenanceTracking && event.tool_type && event.trust_level) {
         await recordProvenanceEvent(cfg, {
           userId:         user.id,
           sessionId:      event.session_id ?? '',
@@ -138,6 +142,7 @@ export async function handleTelemetry(request: Request, env: Env): Promise<Respo
         })
       }
       break
+    }
 
     case 'hook_installed':
       if (cfg) await writeAudit(cfg, user.id, 'hook_installed', { cli_version: event.cli_version })
