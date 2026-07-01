@@ -696,6 +696,13 @@ func (ds *daemonState) sanitizeOutput(event intercept.InterceptEvent) (intercept
 	if event.Tool == nil || event.Tool.Output == nil {
 		return event, report
 	}
+	// Agent-authored tool output (Write/Edit/...) is never a scan target — see
+	// provenance.IsAgentAuthoredTool. Scanning it for secrets/injection only
+	// produces false positives on the agent's own composed content, which can
+	// then poison the cross-tool flow window for unrelated later calls.
+	if provenance.IsAgentAuthoredTool(event.Tool.Name) {
+		return event, report
+	}
 	text, ok := sanitize.OutputToString(event.Tool.Output)
 	if !ok || len(text) < 100 {
 		return event, report

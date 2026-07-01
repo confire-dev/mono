@@ -99,6 +99,22 @@ func TestClassify_InjectionFlags(t *testing.T) {
 	}
 }
 
+func TestIsAgentAuthoredTool(t *testing.T) {
+	authored := []string{"Write", "Edit", "NotebookEdit", "TodoWrite", "write", "EDIT"}
+	for _, name := range authored {
+		if !IsAgentAuthoredTool(name) {
+			t.Errorf("IsAgentAuthoredTool(%q) = false, want true", name)
+		}
+	}
+
+	notAuthored := []string{"Bash", "Read", "Grep", "Glob", "WebFetch", "mcp__github__get_pull_request", ""}
+	for _, name := range notAuthored {
+		if IsAgentAuthoredTool(name) {
+			t.Errorf("IsAgentAuthoredTool(%q) = true, want false", name)
+		}
+	}
+}
+
 func TestExtractDomain(t *testing.T) {
 	cases := []struct{ url, want string }{
 		{"https://example.com/path", "example.com"},

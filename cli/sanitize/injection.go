@@ -2,6 +2,7 @@ package sanitize
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -67,14 +68,17 @@ func ScanInjection(text string) []InjectionMatch {
 // If anything was removed, it prepends the injectionNotice.
 // Returns the sanitized text, whether anything was found, and the notice string used.
 func Sanitize(text string) (sanitized string, found bool, notice string) {
-	matches := ScanInjection(text)
+	matches := mergeOverlapping(ScanInjection(text))
 	if len(matches) == 0 {
 		return text, false, ""
 	}
 
-	// Replace each match with a neutral placeholder.
+	// Replace each match with a neutral placeholder, back to front to preserve
+	// offsets. Safe because mergeOverlapping guarantees matches are sorted by
+	// Start and non-overlapping: every later replacement happens at a position
+	// >= the End of the match being replaced now, so result[:m.Start] and
+	// result[m.End:] still point at the right content in the original text.
 	result := text
-	// Apply replacements from back to front to preserve offsets.
 	for i := len(matches) - 1; i >= 0; i-- {
 		m := matches[i]
 		result = result[:m.Start] + "[CONFIRE: suspicious instruction removed]" + result[m.End:]
@@ -88,4 +92,37 @@ func Sanitize(text string) (sanitized string, found bool, notice string) {
 	}
 
 	return injectionNotice + result, true, injectionNotice
+}
+
+// mergeOverlapping sorts matches by Start position and merges any that
+// overlap (or are contained within one another) into their union, so callers
+// can safely apply replacements back-to-front without stale offsets.
+// Multiple patterns can legitimately match overlapping spans — e.g. a
+// standalone "ignore previous instructions" pattern and a broader
+// "<!-- ...suspicious keyword... -->" comment pattern both matching inside
+// the same HTML comment.
+func mergeOverlapping(matches []InjectionMatch) []InjectionMatch {
+	if len(matches) == 0 {
+		return matches
+	}
+	sorted := append([]InjectionMatch(nil), matches...)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Start != sorted[j].Start {
+			return sorted[i].Start < sorted[j].Start
+		}
+		return sorted[i].End > sorted[j].End
+	})
+
+	merged := []InjectionMatch{sorted[0]}
+	for _, m := range sorted[1:] {
+		last := &merged[len(merged)-1]
+		if m.Start < last.End {
+			if m.End > last.End {
+				last.End = m.End
+			}
+			continue
+		}
+		merged = append(merged, m)
+	}
+	return merged
 }

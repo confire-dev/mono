@@ -94,6 +94,31 @@ var nativeLocalTools = map[string]bool{
 	"LS":           true,
 }
 
+// agentAuthoredTools are native tools whose PostToolUse output represents
+// content the agent itself just composed (a file it wrote, a task it typed),
+// not data it read or fetched from somewhere else. Content-scanning passes
+// (secret redaction, prompt-injection detection) exist to catch untrusted
+// EXTERNAL content trying to steer the agent — they make no sense applied to
+// the agent's own authored text, and doing so is a source of false positives:
+// e.g. writing docs that discuss prompt injection, or a test fixture
+// containing an example attack string, trips the scanner on content that was
+// never a real attack. A false hit here also poisons the cross-tool flow
+// window (see firewall.CheckFlowRules), which can turn an unrelated,
+// completely safe follow-up command (e.g. `git status`) into a false review.
+var agentAuthoredTools = map[string]bool{
+	"write":        true,
+	"edit":         true,
+	"notebookedit": true,
+	"todowrite":    true,
+}
+
+// IsAgentAuthoredTool reports whether name is a native tool whose output is
+// content the agent composed itself, rather than data sourced from elsewhere.
+// Content-scanning passes must skip these tools' output.
+func IsAgentAuthoredTool(name string) bool {
+	return agentAuthoredTools[strings.ToLower(name)]
+}
+
 // Classify builds a ProvenanceLabel for a completed tool call.
 // report is the sanitization report from the PostToolUse pass (may be zero-value).
 func Classify(event intercept.InterceptEvent, report intercept.SanitizeReport) ProvenanceLabel {
