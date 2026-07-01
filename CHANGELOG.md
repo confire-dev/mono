@@ -1,3 +1,11 @@
+## v0.14.3 — 2026-07-01
+
+### Fixes
+- fix(cli): stop scanning agent-authored tool output for injection/secrets (46033d2)
+
+
+---
+
 ## v0.14.2 — 2026-07-01
 
 ### Fixes
