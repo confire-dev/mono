@@ -1,3 +1,11 @@
+## v0.14.2 — 2026-07-01
+
+### Fixes
+- fix(worker): add deploy:dev and build:dev scripts for CF Workers Builds CI (85f4daf)
+
+
+---
+
 ## v0.14.1 — 2026-06-30
 
 ### Fixes
