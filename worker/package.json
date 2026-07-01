@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "build": "wrangler deploy --dry-run --outdir dist",
+    "build:dev": "wrangler deploy --dry-run --outdir dist --env dev",
     "deploy": "wrangler deploy",
+    "deploy:dev": "wrangler versions upload --env dev",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
